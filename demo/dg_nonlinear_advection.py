@@ -1,6 +1,8 @@
 from dolfin import *
 import numpy as np
 
+__author__ = 'njcs4'
+
 parameters['form_compiler']["cpp_optimize"] = True
 parameters['form_compiler']["optimize"] = True
 parameters["ghost_mode"] = "shared_facet"

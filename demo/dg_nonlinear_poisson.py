@@ -2,6 +2,8 @@ from dolfin import *
 import numpy as np
 from dolfin_dg.dg_form import DGFemViscousTerm
 
+__author__ = 'njcs4'
+
 parameters['form_compiler']["cpp_optimize"] = True
 parameters['form_compiler']["optimize"] = True
 parameters["ghost_mode"] = "shared_facet"
