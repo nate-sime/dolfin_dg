@@ -23,7 +23,7 @@ for n_ele in n_eles:
     
     b = Constant((1.0, 1.0))
     c = Constant(1.0)
-    f = Expression('exp(x[0] - x[1])')
+    f = Expression('exp(x[0] - x[1])', V.ufl_element())
     gD = f
     
     def F_c(U):
