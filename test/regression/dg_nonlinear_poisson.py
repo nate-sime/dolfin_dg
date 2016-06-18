@@ -13,21 +13,21 @@ ele_ns = [4, 8, 16, 32, 64]
 errorl2 = np.zeros(len(ele_ns))
 errorh1 = np.zeros(len(ele_ns))
 hsizes = np.zeros(len(ele_ns))
-p = 2
+p = 1
 
 for ele_n in ele_ns:
-    mesh = UnitSquareMesh(ele_n, ele_n)
+    mesh = UnitSquareMesh(ele_n, ele_n, 'left/right')
 
     V = FunctionSpace(mesh, 'DG', p)
     u = Function(V)
     v = TestFunction(V)
 
-    gD = Expression('sin(pi*x[0])*sin(pi*x[1]) + 1.0', domain=mesh)
+    gD = Expression('sin(pi*x[0])*sin(pi*x[1]) + 1.0', element=V.ufl_element())
 
     n = FacetNormal(mesh)
-    h = CellSize(mesh)
+    h = CellVolume(mesh)/FacetArea(mesh)
     gamma = 20.0
-    sig = gamma*p/h
+    sig = gamma*max(p**2, 1)/h
 
     def F_v(u):
         return (u+1)*grad(u)
@@ -42,7 +42,8 @@ for ele_n in ele_ns:
     interior = vt.interior_residual(dS)
     exterior = vt.exterior_residual(gD, ds)
 
-    f = Expression('2*pow(pi, 2)*(sin(pi*x[0])*sin(pi*x[1]) + 2.0)*sin(pi*x[0])*sin(pi*x[1]) - pow(pi, 2)*pow(sin(pi*x[0]), 2)*pow(cos(pi*x[1]), 2) - pow(pi, 2)*pow(sin(pi*x[1]), 2)*pow(cos(pi*x[0]), 2)')
+    f = Expression('2*pow(pi, 2)*(sin(pi*x[0])*sin(pi*x[1]) + 2.0)*sin(pi*x[0])*sin(pi*x[1]) - pow(pi, 2)*pow(sin(pi*x[0]), 2)*pow(cos(pi*x[1]), 2) - pow(pi, 2)*pow(sin(pi*x[1]), 2)*pow(cos(pi*x[0]), 2)',
+                   element=V.ufl_element())
     residual = inner((u+1)*grad(u), grad(v))*dx + interior + exterior - f*v*dx
 
     solve(residual == 0, u, [], solver_parameters={"newton_solver": {"linear_solver": "lu"}})
