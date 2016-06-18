@@ -21,12 +21,13 @@ for ele_n in ele_ns:
     V = FunctionSpace(mesh, 'DG', p)
     v = TestFunction(V)
 
-    gD = Expression('exp(x[0] - x[1])')
+    gD = Expression('exp(x[0] - x[1])', element=V.ufl_element())
     u = interpolate(gD, V)
-    f = Expression('-4*exp(2*(x[0] - x[1])) - 2*exp(x[0] - x[1])')
+    f = Expression('-4*exp(2*(x[0] - x[1])) - 2*exp(x[0] - x[1])',
+                   element=V.ufl_element())
 
     n = FacetNormal(mesh)
-    h = CellSize(mesh)
+    h = CellVolume(mesh)/FacetArea(mesh)
     A = u + 1
     b = as_vector((1, 1))
 
@@ -54,7 +55,7 @@ for ele_n in ele_ns:
     def F_v(u):
         return A*grad(u)
 
-    sig = Constant(20.0)*p/h
+    sig = Constant(20.0)*max(p**2, 1)/h
     vt = DGFemViscousTerm(F_v, u, v, sig, G, n)
     visc_volume = inner(F_v(u), grad(v))*dx
     visc_interior = vt.interior_residual(dS)
