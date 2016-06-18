@@ -49,7 +49,7 @@ def hyper_tensor_T_product(G, tau):
         tau = ufl_T(tau)
         shape = tau.ufl_shape
     m, d = shape
-    result = [[0]*d]*m
+    result = [[0 for _ in range(d)] for _ in range(m)]
     for j in range(m):
         for l in range(d):
             prod = 0
