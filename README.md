@@ -11,7 +11,7 @@ python setup.py install --prefix=$HOME/local
 What does it do?
 ================
 
-Offers utiltiy functions for the automatic computation of DG FE formulations
+Offers utility functions for the automatic computation of DG FE formulations
 using the UFL component of the FEniCS project.
 
 
