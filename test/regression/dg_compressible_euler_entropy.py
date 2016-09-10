@@ -6,7 +6,8 @@ __author__ = 'njcs4'
 
 parameters['form_compiler']["cpp_optimize"] = True
 parameters['form_compiler']["optimize"] = True
-parameters['form_compiler']["quadrature_degree"] = 2
+parameters['form_compiler']["quadrature_degree"] = 16
+parameters['form_compiler']['representation'] = 'uflacs'
 parameters["ghost_mode"] = "shared_facet"
 
 def U_to_V(U):
