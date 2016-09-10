@@ -10,6 +10,7 @@ __author__ = 'njcs4'
 from dolfin import *
 parameters["num_threads"] = 0
 parameters["ghost_mode"] = "shared_facet"
+parameters['form_compiler']['representation'] = 'uflacs'
 
 # a = max distance
 # d = max time
