@@ -1,4 +1,6 @@
-from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad
+from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff
+from ufl.algorithms.apply_derivatives import apply_derivatives
+import inspect
 
 __author__ = 'njcs4'
 
@@ -70,6 +72,38 @@ def tensor_jump(u, n):
 
 def dg_outer(*args):
     return ufl_adhere_transpose(outer(*args))
+
+
+def homogeneity_tensor(F_v, u):
+    if not len(inspect.getargspec(F_v).args) == 2:
+        raise TypeError("Function F_v must have 2 arguments, (u, grad_u)")
+
+    G = {}
+
+    grad_u = variable(grad(u))
+    tau = F_v(u, grad_u)
+
+    shape = grad(u).ufl_shape
+    if not shape:
+        m, d = 1, 1
+    elif len(shape) == 1:
+        m, d = 1, shape[0]
+    elif len(shape) == 2:
+        m, d = shape
+    else:
+        raise TypeError("Tensor rank error, ufl_shape is: %s" % str(shape))
+
+    for k in range(d):
+        fv = tau[k] if m == 1 else tau[:, k]
+        for l in range(d):
+            g = [[0 for _ in range(m)] for _ in range(m)]
+            for r in range(m):
+                for c in range(m):
+                    diff_val = diff(fv, grad_u)[l] if len(fv.ufl_shape) == 0 else diff(fv[r], grad_u)[c,l]
+                    g[r][c] = apply_derivatives(diff_val)
+            G[k,l] = as_matrix(g)
+
+    return G
 
 
 class DGFemViscousTerm:
