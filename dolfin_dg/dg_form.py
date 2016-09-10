@@ -100,7 +100,7 @@ def homogeneity_tensor(F_v, u):
             for r in range(m):
                 for c in range(m):
                     diff_val = diff(fv, grad_u)[l] if len(fv.ufl_shape) == 0 else diff(fv[r], grad_u)[c,l]
-                    g[r][c] = apply_derivatives(diff_val)
+                    g[r][c] = diff_val
             G[k,l] = as_matrix(g)
 
     return G
