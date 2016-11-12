@@ -1,3 +1,4 @@
+import dolfin as fin
 import numpy as np
 
 __author__ = 'njcs4'
@@ -573,23 +574,31 @@ def gen_elements_mesh_ringleb_tri(gamma, gb, nk, nq, num_verts, num_cells, num_e
 
         e_c[1, k - 1] = i + num_cells
 
-    return c_v - 1
+    return (c_v - 1).T
 
 
-n_x = 16
-n_y = 16
-no_nodes = n_x * n_y
-no_eles = (n_x - 1) * (n_y - 1) * 2
-num_edges = n_x * (n_y - 1) + n_y * (n_x - 1) + (n_x - 1) * (n_y - 1)
-num_bedges = 2 * (n_x - 1) + 2 * (n_y - 1)
+def ringleb_mesh(n_x, n_y):
+    no_nodes = n_x * n_y
+    no_eles = (n_x - 1) * (n_y - 1) * 2
+    num_edges = n_x * (n_y - 1) + n_y * (n_x - 1) + (n_x - 1) * (n_y - 1)
+    num_bedges = 2 * (n_x - 1) + 2 * (n_y - 1)
 
-x, y = gen_ringleb_vertices(1.4, 1.4 - 1.0, n_x, n_x, n_x * n_y)
+    x, y = gen_ringleb_vertices(1.4, 1.4 - 1.0, n_x, n_x, n_x * n_y)
 
-c_v = gen_elements_mesh_ringleb_tri(1.4, 1.4 - 1.0, n_x, n_y, no_nodes, no_eles, num_edges, num_bedges)
+    c_v = gen_elements_mesh_ringleb_tri(1.4, 1.4 - 1.0, n_x, n_y, no_nodes, no_eles, num_edges, num_bedges)
 
-import matplotlib.pyplot as plt
+    mesh = fin.Mesh()
+    me = fin.MeshEditor()
+    me.open(mesh, 2, 2)
+    me.init_vertices(no_nodes)
+    me.init_cells(no_eles)
 
-# plt.scatter(x, y)
+    for j in range(len(x)):
+        me.add_vertex(j, x[j], y[j])
 
-plt.triplot(x, y, c_v.T)
-plt.show()
+    for j in range(c_v.shape[0]):
+        me.add_cell(j, c_v[j, 0], c_v[j, 1], c_v[j, 2])
+
+    me.close()
+
+    return mesh
