@@ -122,11 +122,11 @@ def mapv(iarg, jarg, ni, nj):
 
 
 def mapcu(iarg, jarg, nk):
-    return (jarg-1)*(nk-1) + iarg
+    return (jarg - 1) * (nk - 1) + iarg
 
 
-def mapcl(iarg,jarg,nk,nq):
-    return (jarg-2)*(nk-1) + iarg-1 + (nk-1)*(nq-1)
+def mapcl(iarg, jarg, nk, nq):
+    return (jarg - 2) * (nk - 1) + iarg - 1 + (nk - 1) * (nq - 1)
 
 
 def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
@@ -219,7 +219,7 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
         for n in range(1, nq):
             qr[n] = qr[n - 1] + dq[n - 1] * rat
 
-        # evaluate solution along b-c
+            # evaluate solution along b-c
 
     kr[0] = kmax
     for n in range(2, nq + 1):
@@ -365,10 +365,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
 
     for m in range(2, nk):
 
-        kval = kt[m-1]
+        kval = kt[m - 1]
 
         for n in range(1, nq + 1):
-            qq[n - 1] = qt[m-1] + (qb[m-1] - qt[m-1]) * float(n - 1) / float(nq - 1)
+            qq[n - 1] = qt[m - 1] + (qb[m - 1] - qt[m - 1]) * float(n - 1) / float(nq - 1)
 
         for nit in range(1, nrelax + 1):
 
@@ -417,14 +417,14 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
             c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
             rho = c ** (2.0 / gb)
             jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
-            x[mapv(m, nq - n + 1, nk, nq) - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * ( 1.0 / (qval * qval) - 2.0 / (kval * kval))
+            x[mapv(m, nq - n + 1, nk, nq) - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (
+            1.0 / (qval * qval) - 2.0 / (kval * kval))
             y[mapv(m, nq - n + 1, nk, nq) - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
 
     return x, y
 
 
-def gen_elements_mesh_ringleb_tri(gamma,gb,nk,nq,num_verts,num_cells,num_edges,num_bedges):
-
+def gen_elements_mesh_ringleb_tri(gamma, gb, nk, nq, num_verts, num_cells, num_edges, num_bedges):
     e_c, e_v = np.zeros((2, num_edges), dtype=np.int), np.zeros((2, num_edges), dtype=np.int)
     c_v = np.zeros((3, num_cells), dtype=np.int)
     be_e, bc = np.zeros(num_bedges, dtype=np.int), np.zeros(num_bedges, dtype=np.int)
@@ -433,161 +433,159 @@ def gen_elements_mesh_ringleb_tri(gamma,gb,nk,nq,num_verts,num_cells,num_edges,n
     kountb = 0
 
     for i in range(1, nk):
-      for j in range(1, nq+1):
-        kount = kount + 1
-        e_v[0,kount-1] = mapv(i,j,nk,nq)
-        e_v[1,kount-1] = mapv(i+1,j,nk,nq)
-        e_c[0,kount-1] = mapcu(i,j,nk)
-        e_c[1,kount-1] = mapcl(i+1,j,nk,nq)
+        for j in range(1, nq + 1):
+            kount = kount + 1
+            e_v[0, kount - 1] = mapv(i, j, nk, nq)
+            e_v[1, kount - 1] = mapv(i + 1, j, nk, nq)
+            e_c[0, kount - 1] = mapcu(i, j, nk)
+            e_c[1, kount - 1] = mapcl(i + 1, j, nk, nq)
 
-        if(j == 1):
-          # segment a-b
+            if (j == 1):
+                # segment a-b
 
-          kountb = kountb + 1
-          be_e[kountb-1] = kount
-          bc[kountb-1]   = 1
-          e_c[1,kount-1] = 0
+                kountb = kountb + 1
+                be_e[kountb - 1] = kount
+                bc[kountb - 1] = 1
+                e_c[1, kount - 1] = 0
 
+            if (j == nq):
+                # segment c-d
 
-        if(j == nq):
-          # segment c-d
-
-          kountb = kountb + 1
-          be_e[kountb-1] = kount
-          bc[kountb-1]   = 2
-          e_c[0,kount-1] = 0
+                kountb = kountb + 1
+                be_e[kountb - 1] = kount
+                bc[kountb - 1] = 2
+                e_c[0, kount - 1] = 0
 
     for j in range(1, nq):
-      for i in range(1,nk+1):
-        kount = kount + 1
-        e_v[0,kount-1] = mapv(i,j,nk,nq)
-        e_v[1,kount-1] = mapv(i,j+1,nk,nq)
-        e_c[0,kount-1] = mapcl(i,j+1,nk,nq)
-        e_c[1,kount-1] = mapcu(i,j,nk)
+        for i in range(1, nk + 1):
+            kount = kount + 1
+            e_v[0, kount - 1] = mapv(i, j, nk, nq)
+            e_v[1, kount - 1] = mapv(i, j + 1, nk, nq)
+            e_c[0, kount - 1] = mapcl(i, j + 1, nk, nq)
+            e_c[1, kount - 1] = mapcu(i, j, nk)
 
-        if(i == 1):
-          # segment d-a
+            if (i == 1):
+                # segment d-a
 
-          kountb = kountb + 1
-          be_e[kountb-1] = kount
-          bc[kountb-1]   = 0
-          e_c[0,kount-1] = 0
+                kountb = kountb + 1
+                be_e[kountb - 1] = kount
+                bc[kountb - 1] = 0
+                e_c[0, kount - 1] = 0
 
-        if(i == nk):
-          # segment b-c
+            if (i == nk):
+                # segment b-c
 
-          kountb = kountb + 1
-          be_e[kountb-1] = kount
-          bc[kountb-1]   = 0
-          e_c[1,kount-1] = 0
+                kountb = kountb + 1
+                be_e[kountb - 1] = kount
+                bc[kountb - 1] = 0
+                e_c[1, kount - 1] = 0
 
     for i in range(1, nk):
-      for j in range(1, nq):
-        kount = kount + 1
-        e_v[0,kount-1] = mapv(i+1,j,nk,nq)
-        e_v[1,kount-1] = mapv(i,j+1,nk,nq)
-        e_c[0,kount-1] = mapcu(i,j,nk)
-        e_c[1,kount-1] = mapcl(i+1,j+1,nk,nq)
+        for j in range(1, nq):
+            kount = kount + 1
+            e_v[0, kount - 1] = mapv(i + 1, j, nk, nq)
+            e_v[1, kount - 1] = mapv(i, j + 1, nk, nq)
+            e_c[0, kount - 1] = mapcu(i, j, nk)
+            e_c[1, kount - 1] = mapcl(i + 1, j + 1, nk, nq)
 
-    for i in range(1,num_cells+1):
-      c_v[0,i-1] = 0
+    for i in range(1, num_cells + 1):
+        c_v[0, i - 1] = 0
 
-    for k in range(1,num_edges+1):
-      j1 = e_v[0,k-1]
-      j2 = e_v[1,k-1]
-      i1 = e_c[0,k-1]
-      i2 = e_c[1,k-1]
+    for k in range(1, num_edges + 1):
+        j1 = e_v[0, k - 1]
+        j2 = e_v[1, k - 1]
+        i1 = e_c[0, k - 1]
+        i2 = e_c[1, k - 1]
 
-      if(i1 > num_cells):
-        e_c[0,k-1] = 0
+        if (i1 > num_cells):
+            e_c[0, k - 1] = 0
 
-      if(i2 > num_cells):
-        e_c[1,k-1] = 0
+        if (i2 > num_cells):
+            e_c[1, k - 1] = 0
 
-      i1 = e_c[0,k-1]
-      i2 = e_c[1,k-1]
+        i1 = e_c[0, k - 1]
+        i2 = e_c[1, k - 1]
 
-      if(i1 > 0):
-        c_v[0,i1-1] = c_v[0,i1-1] + 1
+        if (i1 > 0):
+            c_v[0, i1 - 1] = c_v[0, i1 - 1] + 1
 
-      if(i2 > 0):
-        c_v[0,i2-1] = c_v[0,i2-1] + 1
+        if (i2 > 0):
+            c_v[0, i2 - 1] = c_v[0, i2 - 1] + 1
 
-    for i in range(1, num_cells+1):
-      if(c_v[0,i-1] != 3):
-        print ' cell ', i ,' degree ', c_v[0,i-1]
+    for i in range(1, num_cells + 1):
+        if (c_v[0, i - 1] != 3):
+            print ' cell ', i, ' degree ', c_v[0, i - 1]
 
-    for i in range(1,num_cells+1):
-      c_v[0,i-1] = 0
-      c_v[1,i-1] = 0
-      c_v[2,i-1] = 0
+    for i in range(1, num_cells + 1):
+        c_v[0, i - 1] = 0
+        c_v[1, i - 1] = 0
+        c_v[2, i - 1] = 0
 
-    for k in range(1,num_edges+1):
-      j1 = e_v[0,k-1]
-      j2 = e_v[1,k-1]
-      i1 = e_c[0,k-1]
-      i2 = e_c[1,k-1]
+    for k in range(1, num_edges + 1):
+        j1 = e_v[0, k - 1]
+        j2 = e_v[1, k - 1]
+        i1 = e_c[0, k - 1]
+        i2 = e_c[1, k - 1]
 
-      if(i1 > num_cells):
-        e_c[0,k-1] = 0
+        if (i1 > num_cells):
+            e_c[0, k - 1] = 0
 
-      if(i2 > num_cells):
-        e_c[1,k-1] = 0
+        if (i2 > num_cells):
+            e_c[1, k - 1] = 0
 
-      i1 = e_c[0,k-1]
-      i2 = e_c[1,k-1]
+        i1 = e_c[0, k - 1]
+        i2 = e_c[1, k - 1]
 
-      if(i1 > 0):
-        if(c_v[1,i1-1]==0):
-          c_v[0,i1-1] = j1
-          c_v[1,i1-1] = j2
-        else:
-          if(j1 != c_v[0,i1-1] and j1 != c_v[1,i1-1]):
-            c_v[2,i1-1]=j1
+        if (i1 > 0):
+            if (c_v[1, i1 - 1] == 0):
+                c_v[0, i1 - 1] = j1
+                c_v[1, i1 - 1] = j2
+            else:
+                if (j1 != c_v[0, i1 - 1] and j1 != c_v[1, i1 - 1]):
+                    c_v[2, i1 - 1] = j1
 
-          if(j2 != c_v[0,i1-1] and j2 != c_v[1,i1-1]):
-            c_v[2,i1-1]=j2
+                if (j2 != c_v[0, i1 - 1] and j2 != c_v[1, i1 - 1]):
+                    c_v[2, i1 - 1] = j2
 
-      if(i2 > 0):
-        if(c_v[1,i2-1]==0):
-          c_v[0,i2-1] = j2
-          c_v[1,i2-1] = j1
-        else:
-          if(j1 != c_v[0,i2-1] and j1 != c_v[1,i2-1]):
-            c_v[2,i2-1]=j1
+        if (i2 > 0):
+            if (c_v[1, i2 - 1] == 0):
+                c_v[0, i2 - 1] = j2
+                c_v[1, i2 - 1] = j1
+            else:
+                if (j1 != c_v[0, i2 - 1] and j1 != c_v[1, i2 - 1]):
+                    c_v[2, i2 - 1] = j1
 
-          if(j2 != c_v[0,i2-1] and j2 != c_v[1,i2-1]):
-            c_v[2,i2-1]=j2
-
+                if (j2 != c_v[0, i2 - 1] and j2 != c_v[1, i2 - 1]):
+                    c_v[2, i2 - 1] = j2
 
     # direct boundary edges
-    for i in range(1,num_bedges+1):
-      k = be_e[i-1]
-      i1 = e_c[0,k-1]
-      i2 = e_c[1,k-1]
-      j1 = e_v[0,k-1]
-      j2 = e_v[1,k-1]
-      if(i1 < 0 or i1 > num_cells):
-        e_c[0,k-1] = i2
-        e_c[1,k-1] = i1
-        e_v[0,k-1] = j2
-        e_v[1,k-1] = j1
+    for i in range(1, num_bedges + 1):
+        k = be_e[i - 1]
+        i1 = e_c[0, k - 1]
+        i2 = e_c[1, k - 1]
+        j1 = e_v[0, k - 1]
+        j2 = e_v[1, k - 1]
+        if (i1 < 0 or i1 > num_cells):
+            e_c[0, k - 1] = i2
+            e_c[1, k - 1] = i1
+            e_v[0, k - 1] = j2
+            e_v[1, k - 1] = j1
 
-      e_c[1,k-1] = i + num_cells
+        e_c[1, k - 1] = i + num_cells
 
     return c_v
 
+
 n_x = 16
 n_y = 16
-no_nodes = n_x*n_y
-no_eles  = (n_x-1)*(n_y-1)*2
-num_edges  = n_x*(n_y-1) + n_y*(n_x-1) + (n_x-1)*(n_y-1)
-num_bedges = 2*(n_x - 1) + 2*(n_y - 1)
+no_nodes = n_x * n_y
+no_eles = (n_x - 1) * (n_y - 1) * 2
+num_edges = n_x * (n_y - 1) + n_y * (n_x - 1) + (n_x - 1) * (n_y - 1)
+num_bedges = 2 * (n_x - 1) + 2 * (n_y - 1)
 
 x, y = gen_ringleb_vertices(1.4, 1.4 - 1.0, n_x, n_x, n_x * n_y)
 
-c_v = gen_elements_mesh_ringleb_tri(1.4, 1.4-1.0, n_x, n_y, no_nodes, no_eles, num_edges, num_bedges)
-
+c_v = gen_elements_mesh_ringleb_tri(1.4, 1.4 - 1.0, n_x, n_y, no_nodes, no_eles, num_edges, num_bedges)
 
 import matplotlib.pyplot as plt
 
