@@ -102,333 +102,339 @@ def ringleb_boundary_shape(wght, x0, y0, x1, y1):
                         'error=%.3e\n '
                         'tol=%.3e')
 
-    return xi, yi
+    return np.array([xi, yi])
 
-def mapv(iarg,jarg,ni,nj):
 
-    if(iarg != 1 and iarg != ni and jarg != 1 and jarg != nj):
-        mapv = (jarg-2)*(ni-2) + iarg-1 + 2*ni + 2*nj - 4
+def mapv(iarg, jarg, ni, nj):
+    if (iarg != 1 and iarg != ni and jarg != 1 and jarg != nj):
+        mapv = (jarg - 2) * (ni - 2) + iarg - 1 + 2 * ni + 2 * nj - 4
     else:
-      if(jarg == 1):
-        mapv = iarg
-      elif( iarg == ni):
-        mapv = ni + jarg - 1
-      elif( jarg == nj):
-        mapv = ni - iarg + ni + nj - 1
-      else:
-        mapv = nj - jarg + 2*ni + nj - 2
+        if (jarg == 1):
+            mapv = iarg
+        elif (iarg == ni):
+            mapv = ni + jarg - 1
+        elif (jarg == nj):
+            mapv = ni - iarg + ni + nj - 1
+        else:
+            mapv = nj - jarg + 2 * ni + nj - 2
 
     return mapv
 
 
-def gen_ringleb_vertices(gamma,gb,nk,nq,num_verts):
+def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
+    max_nq_nk = max(nq, nk)
 
-    max_nq_nk = max(nq,nk)
-    
     xx, yy, ds = np.zeros(max_nq_nk), np.zeros(max_nq_nk), np.zeros(max_nq_nk)
-    qr,ql,qq,dq,kr,kl = np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(nq)
-    kt,kb,dk,qt,qb = np.zeros(nk), np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(nq)
-    x,y = np.zeros(num_verts), np.zeros(num_verts)
+    qr, ql, qq, dq, kr, kl = np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(nq)
+    kt, kb, dk, qt, qb = np.zeros(nk), np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(nq)
+    x, y = np.zeros(num_verts), np.zeros(num_verts)
 
     nrelax = 100
 
     # fixed parameters for ringleb geometry
 
-    kmin = .60 
+    kmin = .60
     kmax = .98
     qmin = .43
-    theta_inflow = 88.0*np.pi/180.0
+    theta_inflow = 88.0 * np.pi / 180.0
 
     kval = kmin
-    qval = kmin*np.sin(theta_inflow)
-    c = np.sqrt( 1.0 - 0.5*gb*qval*qval )
-    rho = c**(2.0/gb)
-    jval = 1.0/c + 1.0/(3.0*c**3) + 1.0/(5.0*c**5) - 0.5*np.log( (1.0+c)/(1.0-c) )
-    xl = jval/2.0 + 1.0/(2.0*rho)*(1.0/(qval**2)-2.0/(kval**2))
-    yl = np.cos(theta_inflow)/(rho*kval*qval)
+    qval = kmin * np.sin(theta_inflow)
+    c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
+    rho = c ** (2.0 / gb)
+    jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+    xl = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval ** 2) - 2.0 / (kval ** 2))
+    yl = np.cos(theta_inflow) / (rho * kval * qval)
     qlb = qval
 
     kval = kmax
-    qval = kmax*np.sin(theta_inflow)
-    c = np.sqrt( 1.0 - 0.5*gb*qval*qval )
-    rho = c**(2.0/gb)
-    jval = 1.0/c + 1.0/(3.0*c**3) + 1.0/(5.0*c**5) - 0.5*np.log( (1.0+c)/(1.0-c) )
-    xr = jval/2.0 + 1.0/(2.0*rho)*(1.0/(qval**2)-2.0/(kval**2))
-    yr = np.cos(theta_inflow)/(rho*kval*qval)
+    qval = kmax * np.sin(theta_inflow)
+    c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
+    rho = c ** (2.0 / gb)
+    jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+    xr = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval ** 2) - 2.0 / (kval ** 2))
+    yr = np.cos(theta_inflow) / (rho * kval * qval)
     qrb = qval
 
     # evaluate solution along a-b
 
-    for n in range(1,nk+1):
-      ss = float(n-1)/float(nk-1)
-      coords = ringleb_boundary_shape(ss,xl,yl,xr,yr)
-      x[mapv(n,1,nk,nq)] = coords[0]
-      y[mapv(n,1,nk,nq)] = coords[1]
-      soln = ringleb_anal_soln(coords[0],coords[1])
-      rho = soln[0]
-      uvel = soln[1]/rho
-      vvel = soln[2]/rho
-      qb[n] = np.sqrt(uvel**2+vvel**2)
-      kb[n] = (uvel**2+vvel**2)/vvel
+    for n in range(1, nk + 1):
+        ss = float(n - 1) / float(nk - 1)
+        coords = ringleb_boundary_shape(ss, xl, yl, xr, yr)
+        x[mapv(n, 1, nk, nq) - 1] = coords[0]
+        y[mapv(n, 1, nk, nq) - 1] = coords[1]
+        soln = ringleb_anal_soln(coords[0], coords[1])
+        rho = soln[0]
+        uvel = soln[1] / rho
+        vvel = soln[2] / rho
+        qb[n - 1] = np.sqrt(uvel ** 2 + vvel ** 2)
+        kb[n - 1] = (uvel ** 2 + vvel ** 2) / vvel
 
-# segment b-c  (psi = 1/kmax)
+    # segment b-c  (psi = 1/kmax)
 
     kval = kmax
-    for n in range(1,nq+1):
-      qr[n] = qrb + (qmin-qrb)*float(n-1)/float(nq-1)
+    for n in range(1, nq + 1):
+        qr[n - 1] = qrb + (qmin - qrb) * float(n - 1) / float(nq - 1)
 
-    for nit in range(1, nrelax+1):
+    for nit in range(1, nrelax + 1):
 
-      for n in range(1, nq+1):
-        qval = qr[n]
-        # qval = min(qval,kval)
-        psi = 1.0/kmax
-        theta = np.asin( psi*qval )
-        u = qval*np.cos(theta)
-        v = qval*np.sin(theta)
-        c = np.sqrt( 1.0 - 0.5*gb*qval*qval )
-        rho = c**(2.0/gb)
-        jval = 1.0/c + 1.0/(3.0*c**3) + 1.0/(5.0*c**5) - 0.5*np.log( (1.0+c)/(1.0-c) )
-        xx[n] = jval/2.0 + 1.0/(2.0*rho)*(1.0/(qval*qval) - 2.0/(kval*kval) )
-        yy[n] = 1.0/(kval*qval*rho)*np.sqrt(1.0 - (qval/kval)**2 )
+        for n in range(1, nq + 1):
+            qval = qr[n - 1]
+            # qval = min(qval,kval)
+            psi = 1.0 / kmax
+            theta = np.arcsin(psi * qval)
+            u = qval * np.cos(theta)
+            v = qval * np.sin(theta)
+            c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
+            rho = c ** (2.0 / gb)
+            jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+            xx[n - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
+            yy[n - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
 
-      dsave = 0.0
-      for n in range(1, nq):
-        dq[n] = qr[n+1]-qr[n]
-        ds[n] = np.sqrt( (xx[n+1]-xx[n])**2 + (yy[n+1]-yy[n])**2 )
-        dsave = dsave + ds[n]
-         
-      dsave = dsave/float(nq-1)
-         
-      for n in range(1,nq):
-        dq[n] = dq[n]*(dsave/ds[n] + 1.0)/2.0
-         
-      sum = 0.0
-      for n in range(1,nq):
-        sum = sum + dq[n]
-         
-      rat = (qr[nq]-qr[0])/sum
-         
-      for n in range(1, nq):
-        qr[n+1] = qr[n] + dq[n]*rat
+        dsave = 0.0
+        for n in range(1, nq):
+            dq[n - 1] = qr[n] - qr[n - 1]
+            ds[n - 1] = np.sqrt((xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
+            dsave = dsave + ds[n - 1]
 
-# evaluate solution along b-c
+        dsave = dsave / float(nq - 1)
+
+        for n in range(1, nq):
+            dq[n - 1] = dq[n - 1] * (dsave / ds[n - 1] + 1.0) / 2.0
+
+        sum = 0.0
+        for n in range(1, nq):
+            sum = sum + dq[n - 1]
+
+        rat = (qr[nq - 1] - qr[0]) / sum
+
+        for n in range(1, nq):
+            qr[n] = qr[n - 1] + dq[n - 1] * rat
+
+        # evaluate solution along b-c
 
     kr[0] = kmax
-    for n in range(1,nq+1):
-      qval = qr[n]
-      # qval = min(qval,kval)
-      psi = 1.0/kmax
-      theta = np.asin( psi*qval )
-      u = qval*np.cos(theta)
-      v = qval*np.sin(theta)
-      c = np.sqrt( 1.0 - 0.5*gb*qval*qval )
-      rho = c**(2.0/gb)
-      jval = 1.0/c + 1.0/(3.0*c**3) + 1.0/(5.0*c**5) - 0.5*np.log( (1.0+c)/(1.0-c) )
-      coords[0] = jval/2.0 + 1.0/(2.0*rho)*(1.0/(qval*qval) - 2.0/(kval*kval) )
-      coords[1] = 1.0/(kval*qval*rho)*np.sqrt(1.0 - (qval/kval)**2 )
-      kr[n] = kmax
-      x[mapv(nk,n,nk,nq)] = coords[0]
-      y[mapv(nk,n,nk,nq)] = coords[1]
-
-# evaluate solution along c-d
-
-    for n in range(1,nk+1):
-      kt[n] = kmin + (kmax-kmin)*float(n-1)/float(nk-1)
-      qt[n] = qmin
-
-    for nit in range(1, nrelax+1):
-      for n in range(1, nk+1):
-        kval = kt[n]
-        qval = qmin
+    for n in range(1, nq + 1):
+        qval = qr[n - 1]
         # qval = min(qval,kval)
-        psi = 1.0/kval
-        theta = np.asin( psi*qval )
-        u = qval*np.cos(theta)
-        v = qval*np.sin(theta)
-        c = np.sqrt( 1.0 - 0.5*gb*qval*qval )
-        rho = c**(2.0/gb)
-        jval = 1.0/c + 1.0/(3.0*c**3) + 1.0/(5.0*c**5) - 0.5*np.log( (1.0+c)/(1.0-c) )
-        xx[n] = jval/2.0 + 1.0/(2.0*rho)*(1.0/(qval*qval) - 2.0/(kval*kval) )
-        yy[n] = 1.0/(kval*qval*rho)*np.sqrt(1.0 - (qval/kval)**2)
+        psi = 1.0 / kmax
+        theta = np.arcsin(psi * qval)
+        u = qval * np.cos(theta)
+        v = qval * np.sin(theta)
+        c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
+        rho = c ** (2.0 / gb)
+        jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+        coords[0] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
+        coords[1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+        kr[n - 1] = kmax
+        x[mapv(nk, n, nk, nq) - 1] = coords[0]
+        y[mapv(nk, n, nk, nq) - 1] = coords[1]
 
-      dsave = 0.0
-      for n in range(1, nk):
-        dk[n] = kt[n+1]-kt[n]
-        ds[n] = np.sqrt( (xx[n+1]-xx[n])**2 + (yy[n+1]-yy[n])**2 )
-        dsave = dsave + ds[n]
-         
-      dsave = dsave/float(nk-1)
-         
-      for n in range(1, nk):
-        dk[n] = dk[n]*(dsave/ds[n] + 1.0)/2.0
-         
-      sum = 0.0
-      for n in range(1, nk):
-        sum = sum + dk[n]
+    # evaluate solution along c-d
 
-      rat = (kt[nk]-kt[0])/sum
-         
-      for n in range(1,nk):
-        kt[n+1] = kt[n] + dk[n]*rat
+    for n in range(1, nk + 1):
+        kt[n - 1] = kmin + (kmax - kmin) * float(n - 1) / float(nk - 1)
+        qt[n - 1] = qmin
+
+    for nit in range(1, nrelax + 1):
+        for n in range(1, nk + 1):
+            kval = kt[n - 1]
+            qval = qmin
+            # qval = min(qval,kval)
+            psi = 1.0 / kval
+            theta = np.arcsin(psi * qval)
+            u = qval * np.cos(theta)
+            v = qval * np.sin(theta)
+            c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
+            rho = c ** (2.0 / gb)
+            jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+            xx[n - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
+            yy[n - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+
+        dsave = 0.0
+        for n in range(1, nk):
+            dk[n - 1] = kt[n] - kt[n - 1]
+            ds[n - 1] = np.sqrt((xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
+            dsave = dsave + ds[n - 1]
+
+        dsave = dsave / float(nk - 1)
+
+        for n in range(1, nk):
+            dk[n - 1] = dk[n - 1] * (dsave / ds[n - 1] + 1.0) / 2.0
+
+        sum = 0.0
+        for n in range(1, nk):
+            sum = sum + dk[n - 1]
+
+        rat = (kt[nk - 1] - kt[0]) / sum
+
+        for n in range(1, nk):
+            kt[n] = kt[n - 1] + dk[n - 1] * rat
 
     # use bottom k
 
-    for n in range(1, nk+1):
-      kt[n] = kb[n]
+    for n in range(1, nk + 1):
+        kt[n - 1] = kb[n - 1]
 
-    for n in range(2, nk+1):
-      kval = kt[nk-n+1]
-      qval = qmin
-      # qval = min(qval,kval)
-      psi = 1.0/kval
-      theta = np.asin( psi*qval )
-      u = qval*np.cos(theta)
-      v = qval*np.sin(theta)
-      c = np.sqrt( 1.0 - 0.5*gb*qval*qval )
-      rho = c**(2.0/gb)
-      jval = 1.0/c + 1.0/(3.0*c**3) + 1.0/(5.0*c**5) - 0.5*np.log( (1.0+c)/(1.0-c) )
-      coords[0] = jval/2.0 + 1.0/(2.0*rho)*(1.0/(qval*qval) - 2.0/(kval*kval) )
-      coords[1] = 1.0/(kval*qval*rho)*np.sqrt(1.0 - (qval/kval)**2)
-      x[mapv(nk-n+1,nq,nk,nq)] = coords[0]
-      y[mapv(nk-n+1,nq,nk,nq)] = coords[1]
+    for n in range(2, nk + 1):
+        kval = kt[nk - n + 1]
+        qval = qmin
+        # qval = min(qval,kval)
+        psi = 1.0 / kval
+        theta = np.arcsin(psi * qval)
+        u = qval * np.cos(theta)
+        v = qval * np.sin(theta)
+        c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
+        rho = c ** (2.0 / gb)
+        jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+        coords[0] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
+        coords[1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+        x[mapv(nk - n + 1, nq, nk, nq) - 1] = coords[0]
+        y[mapv(nk - n + 1, nq, nk, nq) - 1] = coords[1]
 
     # segment d-a  (psi = 1/kmin)
 
     kval = kmin
-    for n in range(1, nq+1):
-      ql[n] = qlb + (qmin-qlb)*float(n-1)/float(nq-1)
+    for n in range(1, nq + 1):
+        ql[n - 1] = qlb + (qmin - qlb) * float(n - 1) / float(nq - 1)
 
-    for nit in range(1, nrelax+1):
-      
-      for n in range(1, nq+1):
-        qval = ql[n]
-        # qval = min(qval,kval)
-        psi = 1.0/kval
-        theta = np.asin( psi*qval )
-        u = qval*np.cos(theta)
-        v = qval*np.sin(theta)
-        c = np.sqrt( 1.0 - 0.5*gb*qval*qval )
-        rho = c**(2.0/gb)
-        jval = 1.0/c + 1.0/(3.0*c**3) + 1.0/(5.0*c**5) - 0.5*np.log( (1.0+c)/(1.0-c) )
-        xx[n] = jval/2.0 + 1.0/(2.0*rho)*(1.0/(qval*qval) - 2.0/(kval*kval) )
-        yy[n] = 1.0/(kval*qval*rho)*np.sqrt(1.0 - (qval/kval)**2 )
+    for nit in range(1, nrelax + 1):
 
-      dsave = 0.0
-      for n in range(1, nq):
-        dq[n] = ql[n+1]-ql[n]
-        ds[n] = np.sqrt( (xx[n+1]-xx[n])**2 + (yy[n+1]-yy[n])**2 )
-        dsave = dsave + ds[n]
-
-      dsave = dsave/float(nq-1)
-
-      for n in range(1, nq):
-        dq[n] = dq[n]*(dsave/ds[n] + 1.0)/2.0
-
-      sum = 0.0
-      for n in range(1, nq):
-        sum = sum + dq[n]
-
-      rat = (ql[nq]-ql[0])/sum
-
-      for n in range(1,nq):
-        ql[n+1] = ql[n] + dq[n]*rat
-
-
-
-
-# evaluate solution along d-a
-
-    kl[0] = kval
-    kl[nq] = kval
-    for n in range(2, nq):
-      qval = ql[nq-n+1]
-      kl[nq-n+1] = kval
-      # qval = min(qval,kval)
-      psi = 1.0/kval
-      theta = np.asin( psi*qval )
-      u = qval*np.cos(theta)
-      v = qval*np.sin(theta)
-      c = np.sqrt( 1.0 - 0.5*gb*qval*qval )
-      rho = c**(2.0/gb)
-      jval = 1.0/c + 1.0/(3.0*c**3) + 1.0/(5.0*c**5) - 0.5*np.log( (1.0+c)/(1.0-c) )
-      coords[0] = jval/2.0 + 1.0/(2.0*rho)*(1.0/(qval*qval) - 2.0/(kval*kval) )
-      coords[1] = 1.0/(kval*qval*rho)*np.sqrt(1.0 - (qval/kval)**2 )
-      x[mapv(1,nq-n+1,nk,nq)] = coords[0]
-      y[mapv(1,nq-n+1,nk,nq)] = coords[1]
-
-
-
-    # big loop over the rest of the field
-      
-    for m in range(2, nk):
-
-      kval = kt[m]
-
-      for n in range(1, nq+1):
-        qq[n] = qt[m] + (qb[m]-qt[m])*float(n-1)/float(nq-1)
-
-
-      for nit in range(1,nrelax+1):
-      
-        for n in range(1,nq+1):
-          qval = qq[n]
-          qval = min(qval,kval)
-          psi = 1.0/kval
-          theta = np.asin( psi*qval )
-          u = qval*np.cos(theta)
-          v = qval*np.sin(theta)
-          c = np.sqrt( 1.0 - 0.5*gb*qval*qval )
-          rho = c**(2.0/gb)
-          jval = 1.0/c + 1.0/(3.0*c**3) + 1.0/(5.0*c**5) - 0.5*np.log( (1.0+c)/(1.0-c) )
-          xx[n] = jval/2.0 + 1.0/(2.0*rho)*(1.0/(qval*qval) - 2.0/(kval*kval) )
-          yy[n] = 1.0/(kval*qval*rho)*np.sqrt(1.0 - (qval/kval)**2)
+        for n in range(1, nq + 1):
+            qval = ql[n - 1]
+            # qval = min(qval,kval)
+            psi = 1.0 / kval
+            theta = np.arcsin(psi * qval)
+            u = qval * np.cos(theta)
+            v = qval * np.sin(theta)
+            c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
+            rho = c ** (2.0 / gb)
+            jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+            xx[n - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
+            yy[n - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
 
         dsave = 0.0
         for n in range(1, nq):
-          dq[n] = qq[n+1]-qq[n]
-          ds[n] = np.sqrt( (xx[n+1]-xx[n])**2 + (yy[n+1]-yy[n])**2 )
-          dsave = dsave + ds[n]
+            dq[n - 1] = ql[n] - ql[n - 1]
+            ds[n - 1] = np.sqrt((xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
+            dsave = dsave + ds[n - 1]
 
-        dsave = dsave/float(nq-1)
-            
+        dsave = dsave / float(nq - 1)
+
         for n in range(1, nq):
-          dq[n] = dq[n]*( dsave/ds[n] + 1.0)/2.0
+            dq[n - 1] = dq[n - 1] * (dsave / ds[n - 1] + 1.0) / 2.0
 
         sum = 0.0
         for n in range(1, nq):
-          sum = sum + dq[n]
+            sum = sum + dq[n - 1]
 
-        rat = (qq[nq]-qq[0])/sum
+        rat = (ql[nq - 1] - ql[0]) / sum
 
         for n in range(1, nq):
-          qq[n+1] = qq[n] + dq[n]*rat
+            ql[n] = ql[n - 1] + dq[n - 1] * rat
 
-    # output field solution here
-     
-      for n in range(2, nq):
-        qval = qq[n]
-        qval = min(qval,kval)
-        psi = 1.0/kval
-        theta = np.asin( psi*qval )
-        u = qval*np.cos(theta)
-        v = qval*np.sin(theta)
-        c = np.sqrt( 1.0 - 0.5*gb*qval*qval )
-        rho = c**(2.0/gb)
-        jval = 1.0/c + 1.0/(3.0*c**3) + 1.0/(5.0*c**5) - 0.5*np.log( (1.0+c)/(1.0-c) )
-        x[mapv(m,nq-n+1,nk,nq)] = jval/2.0 + 1.0/(2.0*rho)*(1.0/(qval*qval) - 2.0/(kval*kval) )
-        y[mapv(m,nq-n+1,nk,nq)] = 1.0/(kval*qval*rho)*np.sqrt(1.0 -(qval/kval)**2)
 
+
+
+        # evaluate solution along d-a
+
+    kl[0] = kval
+    kl[nq - 1] = kval
+    for n in range(2, nq):
+        qval = ql[nq - n + 1]
+        kl[nq - n + 1] = kval
+        # qval = min(qval,kval)
+        psi = 1.0 / kval
+        theta = np.arcsin(psi * qval)
+        u = qval * np.cos(theta)
+        v = qval * np.sin(theta)
+        c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
+        rho = c ** (2.0 / gb)
+        jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+        coords[0] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
+        coords[1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+        x[mapv(1, nq - n + 1, nk, nq) - 1] = coords[0]
+        y[mapv(1, nq - n + 1, nk, nq) - 1] = coords[1]
+
+    # big loop over the rest of the field
+
+    for m in range(2, nk):
+
+        kval = kt[m]
+
+        for n in range(1, nq + 1):
+            qq[n - 1] = qt[m] + (qb[m] - qt[m]) * float(n - 1) / float(nq - 1)
+
+        for nit in range(1, nrelax + 1):
+
+            for n in range(1, nq + 1):
+                qval = qq[n - 1]
+                qval = min(qval, kval)
+                psi = 1.0 / kval
+                theta = np.arcsin(psi * qval)
+                u = qval * np.cos(theta)
+                v = qval * np.sin(theta)
+                c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
+                rho = c ** (2.0 / gb)
+                jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+                xx[n - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
+                yy[n - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+
+            dsave = 0.0
+            for n in range(1, nq):
+                dq[n - 1] = qq[n] - qq[n - 1]
+                ds[n - 1] = np.sqrt((xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
+                dsave = dsave + ds[n - 1]
+
+            dsave = dsave / float(nq - 1)
+
+            for n in range(1, nq):
+                dq[n - 1] = dq[n - 1] * (dsave / ds[n - 1] + 1.0) / 2.0
+
+            sum = 0.0
+            for n in range(1, nq):
+                sum = sum + dq[n - 1]
+
+            rat = (qq[nq - 1] - qq[0]) / sum
+
+            for n in range(1, nq):
+                qq[n] = qq[n - 1] + dq[n - 1] * rat
+
+                # output field solution here
+
+        for n in range(2, nq):
+            qval = qq[n - 1]
+            qval = min(qval, kval)
+            psi = 1.0 / kval
+            theta = np.arcsin(psi * qval)
+            u = qval * np.cos(theta)
+            v = qval * np.sin(theta)
+            c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
+            rho = c ** (2.0 / gb)
+            jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+            x[mapv(m, nq - n + 1, nk, nq) - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (
+            1.0 / (qval * qval) - 2.0 / (kval * kval))
+            y[mapv(m, nq - n + 1, nk, nq) - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+
+    return x, y
     # Finally, store the mesh vertices in mesh_data
 
-  #   for i in range(1, num_verts+1):
-  #     coords[0] = x[i]
-  #     coords[1] = y[i]
-  #     call addto_coordinates(coords,i,2,mesh_data)
-  #
-  #
-  #   deallocate(xx,yy,ds)
-  #
-  # end subroutine gen_ringleb_vertices
+    #   for i in range(1, num_verts+1):
+    #     coords[0] = x[i]
+    #     coords[1] = y[i]
+    #     call addto_coordinates(coords,i,2,mesh_data)
+    #
+    #
+    #   deallocate(xx,yy,ds)
+    #
+    # end subroutine gen_ringleb_vertices
 
-print gen_ringleb_vertices(1.4, 1.4-1.0, 2, 2, 4)
+
+n_x = 4
+n_y = 4
+x, y = gen_ringleb_vertices(1.4, 1.4 - 1.0, n_x, n_x, n_x * n_y)
+
+import matplotlib.pyplot as plt
+
+plt.scatter(x, y)
+plt.show()
