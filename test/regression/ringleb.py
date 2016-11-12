@@ -214,7 +214,7 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
         # evaluate solution along b-c
 
     kr[0] = kmax
-    for n in range(1, nq + 1):
+    for n in range(2, nq + 1):
         qval = qr[n - 1]
         # qval = min(qval,kval)
         psi = 1.0 / kmax
@@ -277,7 +277,7 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
         kt[n - 1] = kb[n - 1]
 
     for n in range(2, nk + 1):
-        kval = kt[nk - n + 1]
+        kval = kt[nk - n]
         qval = qmin
         # qval = min(qval,kval)
         psi = 1.0 / kval
@@ -333,16 +333,13 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
         for n in range(1, nq):
             ql[n] = ql[n - 1] + dq[n - 1] * rat
 
-
-
-
-        # evaluate solution along d-a
+    # evaluate solution along d-a
 
     kl[0] = kval
     kl[nq - 1] = kval
     for n in range(2, nq):
-        qval = ql[nq - n + 1]
-        kl[nq - n + 1] = kval
+        qval = ql[nq - n]
+        kl[nq - n] = kval
         # qval = min(qval,kval)
         psi = 1.0 / kval
         theta = np.arcsin(psi * qval)
@@ -360,10 +357,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
 
     for m in range(2, nk):
 
-        kval = kt[m]
+        kval = kt[m-1]
 
         for n in range(1, nq + 1):
-            qq[n - 1] = qt[m] + (qb[m] - qt[m]) * float(n - 1) / float(nq - 1)
+            qq[n - 1] = qt[m-1] + (qb[m-1] - qt[m-1]) * float(n - 1) / float(nq - 1)
 
         for nit in range(1, nrelax + 1):
 
@@ -412,8 +409,7 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
             c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
             rho = c ** (2.0 / gb)
             jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
-            x[mapv(m, nq - n + 1, nk, nq) - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (
-            1.0 / (qval * qval) - 2.0 / (kval * kval))
+            x[mapv(m, nq - n + 1, nk, nq) - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * ( 1.0 / (qval * qval) - 2.0 / (kval * kval))
             y[mapv(m, nq - n + 1, nk, nq) - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
 
     return x, y
@@ -430,8 +426,8 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
     # end subroutine gen_ringleb_vertices
 
 
-n_x = 4
-n_y = 4
+n_x = 8
+n_y = 8
 x, y = gen_ringleb_vertices(1.4, 1.4 - 1.0, n_x, n_x, n_x * n_y)
 
 import matplotlib.pyplot as plt
