@@ -19,17 +19,17 @@ def cspeed_ringleb(gamma, x, y):
 
     nit = 0
     err = 1.0
-    while (nit <= 100 and err > tol):
+    while nit <= 100 and err > tol:
         cnew = (clow + chigh) / 2.0
-        if (fun_ringleb(gamma, x, y, cnew) * fun_ringleb(gamma, x, y, chigh) > 0.0):
+        if fun_ringleb(gamma, x, y, cnew) * fun_ringleb(gamma, x, y, chigh) > 0.0:
             chigh = cnew
         else:
             clow = cnew
 
-        nit = nit + 1
+        nit += 1
         err = abs(chigh - clow)
 
-    if (err > tol):
+    if err > tol:
         raise Exception('Error: cspeed_ringleb\n'
                         'Error tolerance was not achieved in bisection iteration'
                         'err = %.3e' % err)
@@ -80,8 +80,8 @@ def ringleb_boundary_shape(wght, x0, y0, x1, y1):
     error = 1.0
     nit = 0
 
-    while (error > tol and nit <= nrelax):
-        nit = nit + 1
+    while error > tol and nit <= nrelax:
+        nit += 1
         qi = (1.0 - ratio) * q0 + ratio * q1
         ki = (1.0 - ratio) * k0 + ratio * k1
         ci = np.sqrt(1.0 - 0.5 * gb * qi * qi)
@@ -96,7 +96,7 @@ def ringleb_boundary_shape(wght, x0, y0, x1, y1):
         error = abs(ratio2 - wght)
         ratio = min(.9999999999990, max(1.e-12, ratio))
 
-    if (error > tol):
+    if error > tol:
         raise Exception('Iteration failed in ringleb_boundary_shape\n '
                         'nit=%d\n '
                         'error=%.3e\n '
@@ -106,14 +106,14 @@ def ringleb_boundary_shape(wght, x0, y0, x1, y1):
 
 
 def mapv(iarg, jarg, ni, nj):
-    if (iarg != 1 and iarg != ni and jarg != 1 and jarg != nj):
+    if iarg != 1 and iarg != ni and jarg != 1 and jarg != nj:
         mapv = (jarg - 2) * (ni - 2) + iarg - 1 + 2 * ni + 2 * nj - 4
     else:
-        if (jarg == 1):
+        if jarg == 1:
             mapv = iarg
-        elif (iarg == ni):
+        elif iarg == ni:
             mapv = ni + jarg - 1
-        elif (jarg == nj):
+        elif jarg == nj:
             mapv = ni - iarg + ni + nj - 1
         else:
             mapv = nj - jarg + 2 * ni + nj - 2
@@ -205,7 +205,7 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
             ds[n - 1] = np.sqrt((xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
             dsave = dsave + ds[n - 1]
 
-        dsave = dsave / float(nq - 1)
+        dsave /= float(nq - 1)
 
         for n in range(1, nq):
             dq[n - 1] = dq[n - 1] * (dsave / ds[n - 1] + 1.0) / 2.0
@@ -265,7 +265,7 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
             ds[n - 1] = np.sqrt((xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
             dsave = dsave + ds[n - 1]
 
-        dsave = dsave / float(nk - 1)
+        dsave /= float(nk - 1)
 
         for n in range(1, nk):
             dk[n - 1] = dk[n - 1] * (dsave / ds[n - 1] + 1.0) / 2.0
@@ -327,7 +327,7 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
             ds[n - 1] = np.sqrt((xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
             dsave = dsave + ds[n - 1]
 
-        dsave = dsave / float(nq - 1)
+        dsave /= float(nq - 1)
 
         for n in range(1, nq):
             dq[n - 1] = dq[n - 1] * (dsave / ds[n - 1] + 1.0) / 2.0
@@ -391,7 +391,7 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
                 ds[n - 1] = np.sqrt((xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
                 dsave = dsave + ds[n - 1]
 
-            dsave = dsave / float(nq - 1)
+            dsave /= float(nq - 1)
 
             for n in range(1, nq):
                 dq[n - 1] = dq[n - 1] * (dsave / ds[n - 1] + 1.0) / 2.0
@@ -418,7 +418,7 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
             rho = c ** (2.0 / gb)
             jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
             x[mapv(m, nq - n + 1, nk, nq) - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (
-            1.0 / (qval * qval) - 2.0 / (kval * kval))
+                1.0 / (qval * qval) - 2.0 / (kval * kval))
             y[mapv(m, nq - n + 1, nk, nq) - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
 
     return x, y
@@ -434,55 +434,55 @@ def gen_elements_mesh_ringleb_tri(gamma, gb, nk, nq, num_verts, num_cells, num_e
 
     for i in range(1, nk):
         for j in range(1, nq + 1):
-            kount = kount + 1
+            kount += 1
             e_v[0, kount - 1] = mapv(i, j, nk, nq)
             e_v[1, kount - 1] = mapv(i + 1, j, nk, nq)
             e_c[0, kount - 1] = mapcu(i, j, nk)
             e_c[1, kount - 1] = mapcl(i + 1, j, nk, nq)
 
-            if (j == 1):
+            if j == 1:
                 # segment a-b
 
-                kountb = kountb + 1
+                kountb += 1
                 be_e[kountb - 1] = kount
                 bc[kountb - 1] = 1
                 e_c[1, kount - 1] = 0
 
-            if (j == nq):
+            if j == nq:
                 # segment c-d
 
-                kountb = kountb + 1
+                kountb += 1
                 be_e[kountb - 1] = kount
                 bc[kountb - 1] = 2
                 e_c[0, kount - 1] = 0
 
     for j in range(1, nq):
         for i in range(1, nk + 1):
-            kount = kount + 1
+            kount += 1
             e_v[0, kount - 1] = mapv(i, j, nk, nq)
             e_v[1, kount - 1] = mapv(i, j + 1, nk, nq)
             e_c[0, kount - 1] = mapcl(i, j + 1, nk, nq)
             e_c[1, kount - 1] = mapcu(i, j, nk)
 
-            if (i == 1):
+            if i == 1:
                 # segment d-a
 
-                kountb = kountb + 1
+                kountb += 1
                 be_e[kountb - 1] = kount
                 bc[kountb - 1] = 0
                 e_c[0, kount - 1] = 0
 
-            if (i == nk):
+            if i == nk:
                 # segment b-c
 
-                kountb = kountb + 1
+                kountb += 1
                 be_e[kountb - 1] = kount
                 bc[kountb - 1] = 0
                 e_c[1, kount - 1] = 0
 
     for i in range(1, nk):
         for j in range(1, nq):
-            kount = kount + 1
+            kount += 1
             e_v[0, kount - 1] = mapv(i + 1, j, nk, nq)
             e_v[1, kount - 1] = mapv(i, j + 1, nk, nq)
             e_c[0, kount - 1] = mapcu(i, j, nk)
@@ -497,23 +497,23 @@ def gen_elements_mesh_ringleb_tri(gamma, gb, nk, nq, num_verts, num_cells, num_e
         i1 = e_c[0, k - 1]
         i2 = e_c[1, k - 1]
 
-        if (i1 > num_cells):
+        if i1 > num_cells:
             e_c[0, k - 1] = 0
 
-        if (i2 > num_cells):
+        if i2 > num_cells:
             e_c[1, k - 1] = 0
 
         i1 = e_c[0, k - 1]
         i2 = e_c[1, k - 1]
 
-        if (i1 > 0):
-            c_v[0, i1 - 1] = c_v[0, i1 - 1] + 1
+        if i1 > 0:
+            c_v[0, i1 - 1] += 1
 
-        if (i2 > 0):
-            c_v[0, i2 - 1] = c_v[0, i2 - 1] + 1
+        if i2 > 0:
+            c_v[0, i2 - 1] += 1
 
     for i in range(1, num_cells + 1):
-        if (c_v[0, i - 1] != 3):
+        if c_v[0, i - 1] != 3:
             print ' cell ', i, ' degree ', c_v[0, i - 1]
 
     for i in range(1, num_cells + 1):
@@ -527,35 +527,35 @@ def gen_elements_mesh_ringleb_tri(gamma, gb, nk, nq, num_verts, num_cells, num_e
         i1 = e_c[0, k - 1]
         i2 = e_c[1, k - 1]
 
-        if (i1 > num_cells):
+        if i1 > num_cells:
             e_c[0, k - 1] = 0
 
-        if (i2 > num_cells):
+        if i2 > num_cells:
             e_c[1, k - 1] = 0
 
         i1 = e_c[0, k - 1]
         i2 = e_c[1, k - 1]
 
-        if (i1 > 0):
-            if (c_v[1, i1 - 1] == 0):
+        if i1 > 0:
+            if c_v[1, i1 - 1] == 0:
                 c_v[0, i1 - 1] = j1
                 c_v[1, i1 - 1] = j2
             else:
-                if (j1 != c_v[0, i1 - 1] and j1 != c_v[1, i1 - 1]):
+                if j1 != c_v[0, i1 - 1] and j1 != c_v[1, i1 - 1]:
                     c_v[2, i1 - 1] = j1
 
-                if (j2 != c_v[0, i1 - 1] and j2 != c_v[1, i1 - 1]):
+                if j2 != c_v[0, i1 - 1] and j2 != c_v[1, i1 - 1]:
                     c_v[2, i1 - 1] = j2
 
-        if (i2 > 0):
-            if (c_v[1, i2 - 1] == 0):
+        if i2 > 0:
+            if c_v[1, i2 - 1] == 0:
                 c_v[0, i2 - 1] = j2
                 c_v[1, i2 - 1] = j1
             else:
-                if (j1 != c_v[0, i2 - 1] and j1 != c_v[1, i2 - 1]):
+                if j1 != c_v[0, i2 - 1] and j1 != c_v[1, i2 - 1]:
                     c_v[2, i2 - 1] = j1
 
-                if (j2 != c_v[0, i2 - 1] and j2 != c_v[1, i2 - 1]):
+                if j2 != c_v[0, i2 - 1] and j2 != c_v[1, i2 - 1]:
                     c_v[2, i2 - 1] = j2
 
     # direct boundary edges
@@ -565,7 +565,7 @@ def gen_elements_mesh_ringleb_tri(gamma, gb, nk, nq, num_verts, num_cells, num_e
         i2 = e_c[1, k - 1]
         j1 = e_v[0, k - 1]
         j2 = e_v[1, k - 1]
-        if (i1 < 0 or i1 > num_cells):
+        if i1 < 0 or i1 > num_cells:
             e_c[0, k - 1] = i2
             e_c[1, k - 1] = i1
             e_v[0, k - 1] = j2
