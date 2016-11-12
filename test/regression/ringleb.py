@@ -573,7 +573,7 @@ def gen_elements_mesh_ringleb_tri(gamma, gb, nk, nq, num_verts, num_cells, num_e
 
         e_c[1, k - 1] = i + num_cells
 
-    return c_v
+    return c_v - 1
 
 
 n_x = 16
@@ -591,5 +591,5 @@ import matplotlib.pyplot as plt
 
 # plt.scatter(x, y)
 
-plt.triplot(x, y, c_v.T - 1)
+plt.triplot(x, y, c_v.T)
 plt.show()
