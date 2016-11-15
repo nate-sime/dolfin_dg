@@ -64,7 +64,7 @@ for n_eles in mesh_sizes:
     def H(U_p, U_m, n_p):
         U_p_a, U_m_a = force_zero_function_derivative(U_p), force_zero_function_derivative(U_m)
         alpha = construct_alpha(U_p_a, U_m_a, n_p)
-        value = Constant(0.5)*(dot(F_c(U_p), n_p) + dot(F_c(U_m), n_p) + Constant(1.0)*alpha*(U_p - U_m))
+        value = Constant(0.5)*(dot(F_c(U_p), n_p) + dot(F_c(U_m), n_p) + alpha*(U_p - U_m))
         return value
 
     convective_interior = dot(H(u_vec('+'), u_vec('-'), mesh_n('+')), (v_vec('+') - v_vec('-')))*dS
