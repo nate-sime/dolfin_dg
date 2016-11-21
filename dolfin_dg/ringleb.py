@@ -577,7 +577,7 @@ def gen_elements_mesh_ringleb_tri(gamma, gb, nk, nq, num_verts, num_cells, num_e
     return (c_v - 1).T
 
 
-def ringleb_mesh(n_x, n_y):
+def ringleb_mesh(n_x, n_y, curved=False):
     no_nodes = n_x * n_y
     no_eles = (n_x - 1) * (n_y - 1) * 2
     num_edges = n_x * (n_y - 1) + n_y * (n_x - 1) + (n_x - 1) * (n_y - 1)
@@ -600,5 +600,18 @@ def ringleb_mesh(n_x, n_y):
         me.add_cell(j, c_v[j, 0], c_v[j, 1], c_v[j, 2])
 
     me.close()
+
+    if curved:
+        mesh = fin.p_refine(mesh)
+        mesh.init()
+
+        for f in fin.facets(mesh):
+            if f.exterior():
+                v0 = fin.Vertex(mesh, f.entities(0)[0]).midpoint()
+                v1 = fin.Vertex(mesh, f.entities(0)[1]).midpoint()
+                x0, y0 = ringleb_boundary_shape(0.5, v0[0], v0[1], v1[0], v1[1])
+                pt = fin.Point(x0, y0)
+                e_idx = mesh.geometry().get_entity_index(1, 0, f.index())
+                mesh.geometry().set(e_idx, np.array([pt[0], pt[1]]))
 
     return mesh
