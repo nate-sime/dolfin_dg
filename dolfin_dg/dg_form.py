@@ -1,5 +1,6 @@
 from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff
 from ufl.algorithms.apply_derivatives import apply_derivatives
+import ufl
 import inspect
 
 __author__ = 'njcs4'
@@ -18,6 +19,9 @@ def ufl_T(v):
 
 
 def g_avg(G):
+    if isinstance(G, ufl.core.expr.Expr):
+        return avg(G)
+
     assert(isinstance(G, dict))
     result = {}
     for k in G.keys():
@@ -26,6 +30,11 @@ def g_avg(G):
 
 
 def hyper_tensor_product(G, tau):
+    if isinstance(G, ufl.core.expr.Expr):
+        if tau.ufl_shape[0] == 1:
+            return (G*tau.T).T
+        return ufl_adhere_transpose(G*tau)
+
     assert(isinstance(G, dict))
     shape = tau.ufl_shape
     if len(shape) == 1:
@@ -45,6 +54,11 @@ def hyper_tensor_product(G, tau):
 
 
 def hyper_tensor_T_product(G, tau):
+    if isinstance(G, ufl.core.expr.Expr):
+        if tau.ufl_shape[0] == 1:
+            return (G.T*tau.T).T
+        return ufl_adhere_transpose(G.T*tau)
+
     assert(isinstance(G, dict))
     shape = tau.ufl_shape
     if len(shape) == 1:
@@ -67,14 +81,14 @@ def tensor_jump(u, n):
     if len(u.ufl_shape) == 0:
         u = as_vector((u,))
     assert(len(u.ufl_shape) == 1)
-    return outer(jump(u), n('+'))
+    return dg_outer(jump(u), n('+'))
 
 
 def dg_outer(*args):
     return ufl_adhere_transpose(outer(*args))
 
 
-def homogeneity_tensor(F_v, u):
+def homogeneity_tensor(F_v, u, as_dict=False):
     if not len(inspect.getargspec(F_v).args) == 2:
         raise TypeError("Function F_v must have 2 arguments, (u, grad_u)")
 
@@ -82,6 +96,9 @@ def homogeneity_tensor(F_v, u):
 
     grad_u = variable(grad(u))
     tau = F_v(u, grad_u)
+
+    if not as_dict:
+        return diff(tau, grad_u)
 
     shape = grad(u).ufl_shape
     if not shape:
@@ -118,11 +135,17 @@ class DGFemViscousTerm:
         self.n = n
 
     def __eval_F_v(self, U):
-        tau = self.F_v(U)
+        if len(inspect.getargspec(self.F_v).args) == 1:
+            tau = self.F_v(U)
+        else:
+            tau = self.F_v(U, grad(U))
         tau = ufl_adhere_transpose(tau)
         return tau
 
     def __make_boundary_G(self, G, u_gamma):
+        if isinstance(G, ufl.core.expr.Expr):
+            return replace(G, {self.U: u_gamma})
+
         assert(isinstance(G, dict))
         G_gamma = {}
         for idx, tensor in G.iteritems():
@@ -135,7 +158,7 @@ class DGFemViscousTerm:
         sig, n = self.sig, self.n
 
         residual = - inner(tensor_jump(u, n), avg(hyper_tensor_T_product(G, grad_v)))*dInt \
-                    - inner(avg(self.__eval_F_v(self.U)), tensor_jump(v, n))*dInt \
+                    - inner(ufl_adhere_transpose(avg(self.__eval_F_v(self.U))), tensor_jump(v, n))*dInt \
                     + inner(sig('+')*hyper_tensor_product(g_avg(G), tensor_jump(u, n)), tensor_jump(v, n))*dInt
         return residual
 
