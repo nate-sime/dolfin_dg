@@ -57,7 +57,7 @@ def get_bdry_no(x0, x1):
     return 0
 
 
-poly_o = 2
+poly_o = 1
 run_count = 0
 mesh_sizes = [3, 5, 9, 17, 33, 65]#, 128, 256]
 

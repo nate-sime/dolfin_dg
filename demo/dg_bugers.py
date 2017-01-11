@@ -69,8 +69,16 @@ convective_exterior += H(u, u, n)*v*ds(2)
 residual = convective_domain + convective_interior + convective_exterior
 J = derivative(residual, u, du)
 
-solve(residual == 0, u, bcs=[], J=J,
-      solver_parameters={'nonlinear_solver': 'snes', 'snes_solver': {'method': 'default'}})
+class BurgersProblem(NonlinearProblem):
+    def F(self, b, x):
+        assemble(residual, tensor=b)
+    def J(self, A, x):
+        assemble(J, tensor=A)
+
+burgers = BurgersProblem()
+solver = PETScSNESSolver('newtonls')
+
+solver.solve(BurgersProblem(), u.vector())
 
 # Project to piecewise linears so we get a surface plot
 plot(u, backend='matplotlib')
