@@ -31,22 +31,9 @@ for ele_n in ele_ns:
     sig = gamma*max(p**2, 1)/h
 
     def F_v(u, grad_u):
-        return (u+1)*grad_u
+        return (u + 1)*grad_u
 
     G = homogeneity_tensor(F_v, u)
-
-    # print G.ufl_shape
-    # print tensor_jump(u, n).ufl_shape
-    a = - inner(tensor_jump(u, n), ufl_adhere_transpose(avg(hyper_tensor_T_product(G, grad(v)))))*dS
-    # b = - inner(ufl_adhere_transpose(avg(F_v(u, grad(u)))), tensor_jump(v, n))*dS
-    print avg(G).ufl_shape
-    print tensor_jump(u, n).ufl_shape
-    print dot(avg(G), tensor_jump(u, n).T).ufl_shape
-    # print hyper_tensor_product(avg(G), tensor_jump(u, n)).ufl_shape
-    # print tensor_jump(v, n).ufl_shape
-    # c = + inner(sig('+')*hyper_tensor_product(avg(G), tensor_jump(u, n)), tensor_jump(v, n))*dS
-    quit()
-
     vt = DGFemViscousTerm(F_v, u, v, sig, G, n)
     interior = vt.interior_residual(dS)
     exterior = vt.exterior_residual(gD, ds)
