@@ -1,4 +1,4 @@
-from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff
+from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff, dot
 from ufl.algorithms.apply_derivatives import apply_derivatives
 import ufl
 import inspect
@@ -7,13 +7,13 @@ __author__ = 'njcs4'
 
 
 def ufl_adhere_transpose(v):
-    if len(v.ufl_shape) == 1:
+    if ufl.rank(v) == 1:
         return ufl_T(v)
     return v
 
 
 def ufl_T(v):
-    if len(v.ufl_shape) == 1:
+    if ufl.rank(v) == 1:
         return as_matrix(([v[j] for j in range(v.ufl_shape[0])],))
     return v.T
 
@@ -31,9 +31,10 @@ def g_avg(G):
 
 def hyper_tensor_product(G, tau):
     if isinstance(G, ufl.core.expr.Expr):
-        if tau.ufl_shape[0] == 1:
-            return (G*tau.T).T
-        return ufl_adhere_transpose(G*tau)
+        if ufl.rank(tau) == 1:
+            return dot(G, tau)
+        m, d = tau.ufl_shape
+        return as_matrix([[inner(G[i, k, :, :], tau) for k in range(d)] for i in range(m)])
 
     assert(isinstance(G, dict))
     shape = tau.ufl_shape
@@ -55,9 +56,10 @@ def hyper_tensor_product(G, tau):
 
 def hyper_tensor_T_product(G, tau):
     if isinstance(G, ufl.core.expr.Expr):
-        if tau.ufl_shape[0] == 1:
-            return (G.T*tau.T).T
-        return ufl_adhere_transpose(G.T*tau)
+        if ufl.rank(tau) == 1:
+            return dot(G.T, tau)#(G.T*tau.T).T
+        m, d = tau.ufl_shape
+        return as_matrix([[inner(G[:, :, j, l], tau.T) for l in range(d)] for j in range(m)])
 
     assert(isinstance(G, dict))
     shape = tau.ufl_shape
