@@ -34,7 +34,7 @@ def get_bdry_no(x0, x1):
 
     gamma = 1.4
     gammam1 = gamma-1
-    
+
     psimax = 1.0/0.6
     psimin = 1.0/0.98
     qmin   = 0.43
@@ -88,7 +88,7 @@ for n_nodes in mesh_sizes:
     ds = Measure('ds', subdomain_data=facet)
 
     gamma = 1.4
-    gD = RinglebAnalSoln(element=V.ufl_element())
+    gD = RinglebAnalSoln(element=V.ufl_element(), domain=mesh)
     u_vec = project(gD, V)
     n = FacetNormal(mesh)
 
@@ -146,8 +146,8 @@ for n_nodes in mesh_sizes:
     J = derivative(residual, u_vec, du)
     solve(residual == 0, u_vec, [], J=J)
 
-    errorl2[run_count] = errornorm(gD, u_vec, norm_type='l2', degree_rise=3)
-    errorh1[run_count] = errornorm(gD, u_vec, norm_type='h1', degree_rise=3)
+    errorl2[run_count] = assemble(inner(gD - u_vec, gD - u_vec)*dx)**0.5
+    errorh1[run_count] = assemble(inner(gD - u_vec, gD - u_vec)*dx + inner(grad(gD - u_vec), grad(gD - u_vec))*dx)**0.5
     hsizes[run_count] = mesh.hmax()
     mesh_cells[run_count] = mesh.num_cells()
     mesh_dofs[run_count] = V.dim()
