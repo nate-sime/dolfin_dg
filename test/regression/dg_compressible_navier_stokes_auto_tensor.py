@@ -98,10 +98,10 @@ for n_eles in mesh_sizes:
 
         grad_eta = grad_U[3,:]
         grad_E = (grad_eta - E*grad_rho)/rho
-        # tau = mu*(grad(u) + grad(u).T - 2.0/3.0*(div(u))*Identity(2))
+
         tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(2))
-        # KT = mu*gamma/Pr*(E - 0.5*(u1**2 + u2**2))
         K_grad_T = mu*gamma/Pr*(grad_E - u1*grad_u1 - u2*grad_u2)
+        
         return as_matrix([[0.0, 0.0],
                           [tau[0,0], tau[0,1]],
                           [tau[1,0], tau[1,1]],
