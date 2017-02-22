@@ -59,11 +59,11 @@ def hyper_tensor_product(G, tau):
 def hyper_tensor_T_product(G, tau):
     if isinstance(G, ufl.core.expr.Expr):
         if ufl.rank(tau) > 1 and tau.ufl_shape[0] == 1:
-            return dot(G.T, tau.T)#(G.T*tau.T).T
+            return dot(G.T, tau)
         elif ufl.rank(tau) == 1:
             return ufl_adhere_transpose(dot(G.T, tau))
         m, d = tau.ufl_shape
-        return as_matrix([[inner(G[:, :, j, l], tau.T) for l in range(d)] for j in range(m)])
+        return as_matrix([[inner(G[:, :, i, k], tau) for k in range(d)] for i in range(m)])
 
     assert(isinstance(G, dict))
     shape = tau.ufl_shape
