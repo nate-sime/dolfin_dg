@@ -53,17 +53,20 @@ class EllipticOperator(FemFormulation):
         self.F_v = F_v
         self.C_IP = C_IP
 
-    def generate_fem_formulation(self, u, v, dx=None):
+    def generate_fem_formulation(self, u, v, dx=None, dS=None):
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
+        if dS is None:
+            dS = Measure('dS', domain=self.mesh)
 
         h = CellVolume(self.mesh)/FacetArea(self.mesh)
         n = FacetNormal(self.mesh)
         sigma = self.C_IP*Constant(max(self.fspace.ufl_element().degree()**2, 1))/h
         G = homogeneity_tensor(self.F_v, u)
-        vt = DGFemViscousTerm(self.F_v, u, v, Constant(10.0)*sigma, G, n)
+        vt = DGFemViscousTerm(self.F_v, u, v, sigma, G, n)
 
         residual = inner(self.F_v(u, grad(u)), grad(v))*dx
+        residual += vt.interior_residual(dS)
 
         for dbc in self.dirichlet_bcs:
             residual += vt.exterior_residual(dbc.get_function(), dbc.get_boundary())
