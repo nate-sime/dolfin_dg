@@ -1,6 +1,7 @@
 from dolfin import *
 import numpy as np
 from dolfin_dg.dg_form import DGFemViscousTerm
+from dolfin_dg.fluxes import lax_friedrichs_flux
 
 __author__ = 'njcs4'
 
@@ -43,13 +44,15 @@ for ele_n in ele_ns:
     def F_c(U):
         return b*U**2
 
-    def H(U_p, U_m, n_p):
-        alpha = 2*Max(abs(U_p*dot(b, n_p)), abs(U_m*dot(b, -n_p)))
-        value = Constant(0.5)*(dot(F_c(U_p), n_p) + dot(F_c(U_m), n_p) + alpha*(U_p - U_m))
-        return value
-
     conv_volume = -inner(F_c(u), grad(v))*dx
+
+    flux_c = 2*u*dot(b, n)
+    alpha = Max(abs(flux_c('+')), abs(flux_c('-')))
+    H = lax_friedrichs_flux(F_c, alpha)
     conv_interior = dot(H(u('+'), u('-'), n('+')), (v('+') - v('-')))*dS
+
+    alpha = Max(abs(flux_c), abs(2*gD*dot(b, n)))
+    H = lax_friedrichs_flux(F_c, alpha)
     conv_exterior = dot(H(u, gD, n), v)*ds
 
     # Viscous Operator
