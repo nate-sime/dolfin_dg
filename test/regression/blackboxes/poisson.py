@@ -1,6 +1,6 @@
 from dolfin import *
 import numpy as np
-from dolfin_dg.operators import PoissonEquation, DGDirichletBC
+from dolfin_dg.operators import PoissonOperator, DGDirichletBC
 
 __author__ = 'njcs4'
 
@@ -26,7 +26,7 @@ for ele_n in ele_ns:
     f = Expression('2*pow(pi, 2)*(sin(pi*x[0])*sin(pi*x[1]) + 2.0)*sin(pi*x[0])*sin(pi*x[1]) - pow(pi, 2)*pow(sin(pi*x[0]), 2)*pow(cos(pi*x[1]), 2) - pow(pi, 2)*pow(sin(pi*x[1]), 2)*pow(cos(pi*x[0]), 2)',
                    element=V.ufl_element())
 
-    pe = PoissonEquation(mesh, V, DGDirichletBC(ds, gD), kappa=u+1)
+    pe = PoissonOperator(mesh, V, DGDirichletBC(ds, gD), kappa=u + 1)
     residual = pe.generate_fem_formulation(u, v) - f*v*dx
 
     solve(residual == 0, u, [], solver_parameters={"newton_solver": {"linear_solver": "lu"}})
