@@ -1,4 +1,4 @@
-from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff, dot
+from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff, dot, cross
 from ufl.algorithms.apply_derivatives import apply_derivatives
 import ufl
 import inspect
@@ -88,6 +88,14 @@ def tensor_jump(u, n):
         u = as_vector((u,))
     assert(len(u.ufl_shape) == 1)
     return dg_outer(jump(u), n('+'))
+
+
+def tangent_jump(u, n):
+    if len(u.ufl_shape) == 0:
+        raise TypeError("Input argument must be a vector")
+    assert(len(u.ufl_shape) == 1)
+    assert(u.ufl_shape[0] in (2, 3))
+    return cross(n('+'), jump(u))
 
 
 def dg_outer(*args):
