@@ -1,6 +1,7 @@
 from dolfin_dg.dg_form import DGFemViscousTerm, homogeneity_tensor, tangent_jump, tensor_jump, ufl_adhere_transpose
-from dolfin_dg.fluxes import lax_friedrichs_flux
-from ufl import CellVolume, FacetArea, grad, inner, TestFunction, div, jump, avg, curl, cross, Max, dot
+import ufl
+from ufl import CellVolume, FacetArea, grad, inner, \
+    div, jump, avg, curl, cross, Max, dot, as_vector, as_matrix, sqrt, tr, Identity
 from dolfin import Constant, Measure, FacetNormal, split
 
 class DGBC:
@@ -181,6 +182,19 @@ class HyperbolicOperator(FemFormulation):
         self.F_c = F_c
         self.alpha = alpha
 
+    def max_abs_eigenvalues(self, lambdas):
+        if isinstance(lambdas, ufl.core.expr.Expr):
+            return abs(lambdas)
+
+        assert isinstance(lambdas, (list, tuple))
+
+        lambdas = map(abs, lambdas)
+        alpha = Max(lambdas[0], lambdas[1])
+        for j in range(2, len(lambdas)):
+            alpha = Max(alpha, lambdas[j])
+        return alpha
+
+
     def generate_fem_formulation(self, u, v, dx=None, dS=None):
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
@@ -188,24 +202,112 @@ class HyperbolicOperator(FemFormulation):
             dS = Measure('dS', domain=self.mesh)
 
         n = FacetNormal(self.mesh)
+        alpha = self.max_abs_eigenvalues(self.alpha(u, n))
 
         residual = -inner(self.F_c(u), grad(v))*dx
 
         # The following is just dot(H(u_p, u_m, n), v_p - v_m) on the interior as jumps and averages
         avg_F = ufl_adhere_transpose(avg(self.F_c(u)))
-        alpha_interior = Max(abs(self.alpha(u, n))('+'), abs(self.alpha(u, n))('-'))
+        alpha_interior = Max(alpha('+'), alpha('-'))
         residual += inner(avg_F + 0.5*alpha_interior*tensor_jump(u, n), tensor_jump(v, n))*dS
 
         for bc in self.dirichlet_bcs:
             gD = bc.get_function()
             dSD = bc.get_boundary()
 
-            bdry_alpha = Max(abs(self.alpha(u, n)), abs(self.alpha(gD, n)))
+            alpha_bc = self.max_abs_eigenvalues(self.alpha(gD, n))
+            bdry_alpha = Max(alpha, alpha_bc)
             residual += inner(0.5*(dot(self.F_c(u), n) + dot(self.F_c(gD), n) + bdry_alpha*(u - gD)), v)*dSD
 
         for bc in self.neumann_bcs:
             dSN = bc.get_boundary()
 
             residual += inner(dot(self.F_c(u), n), v)*dSN
+
+        return residual
+
+
+class SpacetimeBurgersOperator(HyperbolicOperator):
+
+    def __init__(self, mesh, V, bcs):
+
+        def F_c(u):
+            return as_vector((u**2/2, u))
+
+        def alpha(u, n):
+            return u*n[0] + n[1]
+
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, alpha)
+
+
+class CompressibleEulerOperator(HyperbolicOperator):
+
+    def __init__(self, mesh, V, bcs, gamma=1.4):
+        gamma = Constant(gamma)
+
+        def F_c(U):
+            rho, u1, u2, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0]
+            p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2))
+            H = E + p/rho
+            res = as_matrix([[rho*u1, rho*u2],
+                             [rho*u1**2 + p, rho*u1*u2],
+                             [rho*u1*u2, rho*u2**2 + p],
+                             [rho*H*u1, rho*H*u2]])
+            return res
+
+        def alpha(U, n):
+            rho, u1, u2, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0]
+            p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2))
+            u = as_vector([u1, u2])
+            c = sqrt(gamma*p/rho)
+            lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
+            return lambdas
+
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, alpha)
+
+
+class CompressibleNavierStokesOperator(EllipticOperator, CompressibleEulerOperator):
+
+    def __init__(self, mesh, V, bcs, gamma=1.4, mu=1.0, Pr=0.72):
+        gamma = Constant(gamma)
+        mu = Constant(mu)
+        Pr = Constant(Pr)
+
+        def F_v(U, grad_U):
+            rho, rhou1, rhou2, rhoE = U
+            u1, u2, E = rhou1/rho, rhou2/rho, rhoE/rho
+            u = as_vector((u1, u2))
+
+            grad_rho = grad_U[0, :]
+
+            grad_xi1 = as_vector([grad_U[1, 0], grad_U[1, 1]])
+            grad_xi2 = as_vector([grad_U[2, 0], grad_U[2, 1]])
+            grad_u1 = (grad_xi1 - u1*grad_rho)/rho
+            grad_u2 = (grad_xi2 - u2*grad_rho)/rho
+            grad_u = as_matrix([[grad_u1[0], grad_u1[1]],
+                                [grad_u2[0], grad_u2[1]]])
+
+            grad_eta = grad_U[3, :]
+            grad_E = (grad_eta - E*grad_rho)/rho
+
+            tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(2))
+            K_grad_T = mu*gamma/Pr*(grad_E - dot(u, grad_u))
+
+            return as_matrix([[0.0, 0.0],
+                              [tau[0, 0], tau[0, 1]],
+                              [tau[1, 0], tau[1, 1]],
+                              [dot(tau[0, :], u) + K_grad_T[0], (dot(tau[1, :], u)) + K_grad_T[1]]])
+
+        CompressibleEulerOperator.__init__(self, mesh, V, bcs, gamma)
+        EllipticOperator.__init__(self, mesh, V, bcs, F_v)
+
+    def generate_fem_formulation(self, u, v, dx=None, dS=None):
+        if dx is None:
+            dx = Measure('dx', domain=self.mesh)
+        if dS is None:
+            dS = Measure('dS', domain=self.mesh)
+
+        residual = EllipticOperator.generate_fem_formulation(self, u, v, dx, dS)
+        residual += CompressibleEulerOperator.generate_fem_formulation(self, u, v, dx, dS)
 
         return residual
