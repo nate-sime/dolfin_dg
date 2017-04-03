@@ -19,7 +19,7 @@ p = 1
 
 for ele_n in ele_ns:
     # Mesh and function space.
-    mesh = RectangleMesh(Point(0, 0), Point(.5*pi, .5*pi), ele_n, ele_n, 'right')
+    mesh = RectangleMesh(Point(0, 0), Point(pi, pi), ele_n, ele_n, 'right')
     V = VectorFunctionSpace(mesh, 'DG', p, dim=4)
 
     # Set up Dirichlet BC
