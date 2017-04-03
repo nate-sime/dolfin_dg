@@ -29,9 +29,9 @@ def V_to_U(V):
     U = U*rhoi
     return U
 
-poly_o = 3
+poly_o = 1
 run_count = 0
-mesh_sizes = [8, 16, 32, 64, 128]
+mesh_sizes = [8, 16, 32]
 
 errorl2 = np.array([0]*len(mesh_sizes), dtype=np.double)
 errorh1 = np.array([0]*len(mesh_sizes), dtype=np.double)
@@ -170,5 +170,5 @@ if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
     print ','.join(map(str, errorl2))
     print ','.join(map(str, errorh1))
     print ','.join(map(str, hsizes))
-    print np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:])
-    print np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:])
+    print np.log(errorl2[:-1]/errorl2[1:])/np.log(hsizes[:-1]/hsizes[1:])
+    print np.log(errorh1[:-1]/errorh1[1:])/np.log(hsizes[:-1]/hsizes[1:])
