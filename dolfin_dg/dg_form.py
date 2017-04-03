@@ -178,9 +178,7 @@ class DGFemViscousTerm:
 
     def exterior_residual(self, u_gamma, dExt):
         G = self.__make_boundary_G(self.G, u_gamma)
-        # u_gamma = ufl_adhere_T(u_gamma)
         F_v, u, v, grad_u, grad_v = self.F_v, self.U, self.V, grad(self.U), self.grad_v_vec
-        # u = ufl_adhere_T(u)
         n = self.n
 
         residual = - inner(dg_outer(u - u_gamma, n), hyper_tensor_T_product(G, grad_v)) * dExt \
