@@ -71,7 +71,7 @@ for ele_n in ele_ns:
 
     du = TrialFunction(V)
     J = derivative(residual, u, du)
-    solve(residual == 0, u, [], J=J)
+    solve(residual == 0, u, J=J)
 
     errorl2[run_count] = errornorm(gD, u, norm_type='l2', degree_rise=3)
     errorh1[run_count] = errornorm(gD, u, norm_type='h1', degree_rise=3)

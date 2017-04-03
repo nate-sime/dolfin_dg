@@ -93,8 +93,9 @@ for n_nodes in mesh_sizes:
 
     f = Constant((0.0, 0.0, 0.0, 0.0))
 
-    eo = CompressibleEulerOperator(mesh, V, [DGDirichletBC(ds(0), gD), DGDirichletBC(ds(1), slip_bc)])
-    residual = eo.generate_fem_formulation(u_vec, v_vec) - dot(f, v_vec)*dx
+    bcs = [DGDirichletBC(ds(0), gD), DGDirichletBC(ds(1), slip_bc)]
+    ceo = CompressibleEulerOperator(mesh, V, bcs)
+    residual = ceo.generate_fem_formulation(u_vec, v_vec) - dot(f, v_vec)*dx
 
     solve(residual == 0, u_vec)
 
