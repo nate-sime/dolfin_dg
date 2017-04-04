@@ -39,7 +39,7 @@ hsizes = np.array([0]*len(mesh_sizes), dtype=np.double)
 
 for n_eles in mesh_sizes:
     # set up the mesh
-    mesh = RectangleMesh(Point(0, 0), Point(.5*pi, .5*pi), n_eles, n_eles, 'right')
+    mesh = RectangleMesh(Point(0, 0), Point(pi, pi), n_eles, n_eles, 'right')
 
     V = VectorFunctionSpace(mesh, 'DG', poly_o, dim=4)
     info("DoFs: " + str(V.dim()))
