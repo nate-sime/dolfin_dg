@@ -91,11 +91,9 @@ for n_nodes in mesh_sizes:
                                    (0,            0,            0, 1)))
     slip_bc = no_slip_projector * u_vec
 
-    f = Constant((0.0, 0.0, 0.0, 0.0))
-
     bcs = [DGDirichletBC(ds(0), gD), DGDirichletBC(ds(1), slip_bc)]
     ceo = CompressibleEulerOperator(mesh, V, bcs)
-    residual = ceo.generate_fem_formulation(u_vec, v_vec) - dot(f, v_vec)*dx
+    residual = ceo.generate_fem_formulation(u_vec, v_vec)
 
     solve(residual == 0, u_vec)
 
