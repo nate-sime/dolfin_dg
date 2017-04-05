@@ -334,24 +334,15 @@ class CompressibleEulerOperatorEntropyFormulation(
         gamma = Constant(gamma)
 
         def F_c(V):
-            V1, V2, V3, V4 = V
-            gamma_h = gamma - 1
-            e1 = V2*V4
-            e2 = V3*V4
-            c1 = gamma_h*V4 - V2**2
-            c2 = gamma_h*V4 - V3**2
-            d1 = -V2*V3
-            k1 = (V2**2 + V3**2)/(2*V4)
-            k2 = k1 - gamma
-
-            s = gamma - V1 + (V2**2 + V3**2)/(2*V4)
-            rhoi = ((gamma - 1)/((-V4)**gamma))**(1.0/(gamma - 1))*exp(-s/(gamma - 1))
-
-            res = as_matrix([[e1,    e2],
-                             [c1,    d1],
-                             [d1,    c2],
-                             [k2*V2, k2*V3]])
-            res = res*rhoi/V4
+            V = variable(V)
+            U = V_to_U(V, gamma)
+            rho, u1, u2, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0]
+            p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2))
+            H = E + p/rho
+            res = as_matrix([[rho*u1, rho*u2],
+                             [rho*u1**2 + p, rho*u1*u2],
+                             [rho*u1*u2, rho*u2**2 + p],
+                             [rho*H*u1, rho*H*u2]])
             return res
 
         def alpha(V, n):
