@@ -18,7 +18,7 @@ def V_to_U(V):
     U = U*rhoi
     return U
 
-poly_o = 3
+poly_o = 1
 run_count = 0
 mesh_sizes = [8, 16, 32, 64, 128]
 
