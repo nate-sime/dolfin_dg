@@ -1,22 +1,30 @@
-dolfin_dg utility module
+`dolfin_dg` utility module
 ========================
 
 Install in the usual way with your preferred prefix:
 
-```
-python setup.py install --prefix=$HOME/local
-```
-
-:math:`A = b`
+.. code-block:: bash
+     
+    python setup.py install --prefix=$HOME/local
 
 
 What does it do?
 ================
 
-Offers utility functions for the automatic computation of DG FE formulations
-using the UFL component of the FEniCS project.
+Consider the partial differential equation
 
+.. math::
 
+    \mathcal{L}(u; \nabla u) = f
+
+where :math:`\mathcal{L}(\cdot; \cdot) : V \rightarrow \mathbb{R}` is a semilinear differential operator. Consider example of a standard hyperbolic
+equation
+
+.. math::
+
+    \nabla \cdot \mathcal{F}^c(u) = f
+
+where :math:`\mathcal{F}^c(\cdot) : V \rightarrow \mathbb{R}`. 
 
 Why do we do this?
 ==================
