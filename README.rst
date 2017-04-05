@@ -7,6 +7,8 @@ Install in the usual way with your preferred prefix:
 python setup.py install --prefix=$HOME/local
 ```
 
+:math:`A = b`
+
 
 What does it do?
 ================
