@@ -1,4 +1,4 @@
-from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff, dot, cross
+from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff, dot, cross, curl
 from ufl.algorithms.apply_derivatives import apply_derivatives
 import ufl
 import inspect
@@ -90,12 +90,21 @@ def tensor_jump(u, n):
     return dg_outer(jump(u), n('+'))
 
 
+def dg_cross(u, v):
+    if len(u.ufl_shape) == 0 or len(v.ufl_shape) == 0:
+        raise TypeError("Input argument must be a vector")
+    assert(len(u.ufl_shape) == 1 and len(v.ufl_shape) == 1)
+    if u.ufl_shape[0] == 2 and v.ufl_shape[0] == 2:
+        return u[0]*v[1] - u[1]*v[0]
+    return cross(u, v)
+
+
 def tangent_jump(u, n):
     if len(u.ufl_shape) == 0:
         raise TypeError("Input argument must be a vector")
     assert(len(u.ufl_shape) == 1)
     assert(u.ufl_shape[0] in (2, 3))
-    return cross(n('+'), jump(u))
+    return dg_cross(n('+'), jump(u))
 
 
 def dg_outer(*args):
@@ -184,4 +193,58 @@ class DGFemViscousTerm:
         residual = - inner(dg_outer(u - u_gamma, n), hyper_tensor_T_product(G, grad_v)) * dExt \
                     - inner(hyper_tensor_product(G, grad_u), dg_outer(v, n)) * dExt \
                     + inner(self.sig*hyper_tensor_product(G, dg_outer(u - u_gamma, n)), dg_outer(v, n)) * dExt
+        return residual
+
+
+class DGFemCurlTerm:
+
+    def __init__(self, F_m, u_vec, v_vec, sigma, G, n):
+        self.F_m = F_m
+        self.U = u_vec
+        self.V = v_vec
+        self.grad_v_vec = grad(v_vec)
+        self.sig = sigma
+        self.G = G
+        self.n = n
+
+    def __eval_F_v(self, U):
+        if len(inspect.getargspec(self.F_m).args) == 1:
+            tau = self.F_m(U)
+        else:
+            tau = self.F_m(U, grad(U))
+        tau = ufl_adhere_transpose(tau)
+        return tau
+
+    def __make_boundary_G(self, G, u_gamma):
+        U = self.U
+        while len(U.ufl_operands) > 0:
+            U = U.ufl_operands[0]
+        if isinstance(G, ufl.core.expr.Expr):
+            return replace(G, {self.U: u_gamma})
+
+        assert(isinstance(G, dict))
+        G_gamma = {}
+        for idx, tensor in G.iteritems():
+            G_gamma[idx] = replace(tensor, {self.U: u_gamma})
+        return G_gamma
+
+    def interior_residual(self, dInt):
+        G = self.G
+        F_v, u, v, grad_v = self.F_m, self.U, self.V, self.grad_v_vec
+        sig, n = self.sig, self.n
+
+        residual = - dot(tangent_jump(u, n), avg(curl(v)))*dInt \
+                   - dot(tangent_jump(v, n), avg(curl(u)))*dInt \
+                   + sig('+')*dot(tangent_jump(u, n), tangent_jump(v, n))*dInt
+
+        return residual
+
+    def exterior_residual(self, u_gamma, dExt):
+        # G = self.__make_boundary_G(self.G, u_gamma)
+        F_v, u, v, grad_u, grad_v = self.F_m, self.U, self.V, grad(self.U), self.grad_v_vec
+        n = self.n
+
+        residual = - dot(dg_cross(n, u - u_gamma), curl(v))*dExt \
+                   - dot(dg_cross(n, v), curl(u))*dExt \
+                   + self.sig*dot(dg_cross(n, u - u_gamma), dg_cross(n, v))*dExt
         return residual

@@ -114,7 +114,7 @@ class StokesOperator(EllipticOperator):
         return residual
 
 
-class MaxwellAndInvolutionOperator(FemFormulation):
+class MaxwellOperator(FemFormulation):
 
     def __init__(self, mesh, V, bcs, mu_r=1, eps_r=1, C_IP=10.0):
         FemFormulation.__init__(self, mesh, V, bcs)
