@@ -1,8 +1,6 @@
 from dolfin import *
 import numpy as np
-
-from dolfin_dg.dg_form import DGFemCurlTerm
-from dolfin_dg.operators import DGDirichletBC
+from dolfin_dg.operators import DGDirichletBC, MaxwellOperator
 
 __author__ = 'njcs4'
 
@@ -25,28 +23,16 @@ for ele_n in ele_ns:
     v = TestFunction(V)
 
     k = Constant(2.0)
-    gD = Expression(("sin(k*x[1])", "sin(k*x[0])"), k=k, degree=ell+1)
+    gD = Expression(("sin(k*x[1])", "sin(k*x[0])"), k=k, degree=ell+1, domain=mesh)
     u = interpolate(gD, V)
 
     def F_m(u, curl_u):
         return curl_u
 
-    curl_u = variable(curl(u))
-    tau = F_m(u, curl_u)
+    mo = MaxwellOperator(mesh, V, [DGDirichletBC(ds, gD)], F_m)
+    residual = mo.generate_fem_formulation(u, v) - k**2*dot(u, v)*dx
 
-    G = diff(tau, curl_u)
-
-    n = FacetNormal(mesh)
-    h = CellVolume(mesh)/FacetArea(mesh)
-    gamma = 20.0
-    sigma = Constant(gamma*max(ell**2, 1))/h
-
-    mt = DGFemCurlTerm(F_m, u, v, sigma, G, n)
-    residual = dot(curl(u), curl(v))*dx - k**2*dot(u, v)*dx
-    residual += mt.interior_residual(dS)
-    residual += mt.exterior_residual(gD, ds)
-
-    solve(residual == 0, u, [], solver_parameters={"newton_solver": {"linear_solver": "mumps"}})
+    solve(residual == 0, u)
     plot(u)
 
     errorl2[run_count] = errornorm(gD, u, norm_type='l2', degree_rise=3)
@@ -59,4 +45,4 @@ if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
     print np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:])
     print np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:])
 
-# interactive()
+interactive()
