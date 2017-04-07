@@ -50,36 +50,3 @@ def test_linear_homogeneity_tensor_product(element, F1):
     expected = ufl.as_matrix([[grad_u[d] for d in range(cell_dim)]])
 
     assert F == expected
-
-
-@pytest.mark.parametrize("element", vector_eles)
-def test_linear_homogeneity_tensor_product(element, F1):
-    cell_dim = element.cell().geometric_dimension()
-
-    u = ufl.Coefficient(element)
-    G = homogeneity_tensor(F1, u)
-    F = hyper_tensor_product(G, ufl.grad(u))
-    F = apply_derivatives(F)
-
-    grad_u = ufl.dot(ufl.Identity(cell_dim), ufl.grad(u))
-    expected = ufl.as_matrix([[grad_u[d] for d in range(cell_dim)]])
-
-    assert F == expected
-
-if __name__ == "__main__":
-    element = ufl.VectorElement("CG", ufl.triangle, 1, dim=4)
-    cell_dim = element.cell().geometric_dimension()
-
-    u = ufl.Coefficient(element)
-    G = homogeneity_tensor(F1(), u)
-    F = hyper_tensor_product(G, ufl.grad(u))
-    F = apply_derivatives(F)
-
-    print F
-    # grad_u = ufl.dot(ufl.Identity(cell_dim), ufl.grad(u))
-
-    # print grad_u
-    quit()
-    expected = ufl.as_matrix([[grad_u[d] for d in range(cell_dim)]])
-
-    assert F == expected
