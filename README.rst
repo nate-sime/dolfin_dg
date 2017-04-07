@@ -19,7 +19,7 @@ Here :math:`\mathcal{L}(\cdot; \cdot)` is a semilinear operator (nonlinear in th
 
 .. math::
 
-    \mathcal{N}(u; v) = 
+    \mathcal{N}(u; v) := 
     \int_D \mathcal{L}(u; \nabla u) : \nabla v \; \mathrm{d}x -
     \int_{\partial D} \mathcal{L}(u; \nabla u) \cdot n \cdot v \; \mathrm{d} s -
     \int_D f \cdot v \; \mathrm{d} x \equiv 0 \quad \forall v \in V.
