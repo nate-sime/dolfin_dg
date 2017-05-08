@@ -35,3 +35,8 @@ Install in the usual way with your preferred prefix:
      
     python setup.py install --prefix=$HOME/local
 
+
+License
+=======
+
+GNU LGPL, version 3.
