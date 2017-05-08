@@ -35,6 +35,11 @@ Install in the usual way with your preferred prefix:
      
     python setup.py install --prefix=$HOME/local
 
+Contributors
+============
+
+* Nate J. C. Sime njcs4@cam.ac.uk
+* Paul Houston Paul.Houston@nottingham.ac.uk
 
 License
 =======
