@@ -29,7 +29,7 @@ The DG FEM formulation of the above equation is notoriously verbose to define. P
 Dependencies
 ============
 
-dolfin_dg depends on the core components of the [FEniCS project](https://fenicsproject.org/).
+dolfin_dg depends on the core components of the FEniCS project (https://fenicsproject.org/).
 
 
 Installation
