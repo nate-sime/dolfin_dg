@@ -1,5 +1,5 @@
 from dolfin import *
-from dolfin_dg.operators import CompressibleNavierStokesOperatorEntropyFormulation, DGDirichletBC, DGNeumannBC
+from dolfin_dg import *
 import numpy as np
 
 __author__ = 'njcs4'

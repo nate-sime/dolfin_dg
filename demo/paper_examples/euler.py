@@ -1,9 +1,9 @@
-from dolfin_dg.operators import DGDirichletBC, CompressibleEulerOperator
+from dolfin import *
+from dolfin_dg import *
 import numpy as np
 
 __author__ = 'njcs4'
 
-from dolfin import *
 parameters["ghost_mode"] = "shared_facet"
 parameters['form_compiler']['representation'] = 'uflacs'
 parameters['form_compiler']["quadrature_degree"] = 8

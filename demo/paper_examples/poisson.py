@@ -1,6 +1,6 @@
 from dolfin import *
+from dolfin_dg import *
 import numpy as np
-from dolfin_dg.operators import PoissonOperator, DGDirichletBC
 
 __author__ = 'njcs4'
 

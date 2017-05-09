@@ -1,7 +1,7 @@
 from dolfin import *
+from dolfin_dg import *
 from dolfin_dg import ringleb
 import numpy as np
-from dolfin_dg.operators import CompressibleEulerOperator, DGDirichletBC
 
 parameters['form_compiler']["cpp_optimize"] = True
 parameters['form_compiler']["optimize"] = True
@@ -62,9 +62,7 @@ errorh1 = np.array([0]*len(mesh_sizes), dtype=np.double)
 hsizes = np.array([0]*len(mesh_sizes), dtype=np.double)
 
 for n_nodes in mesh_sizes:
-    # mesh = ringleb.ringleb_mesh(n_nodes, n_nodes, curved=False)
-    mesh = Mesh()
-    XDMFFile('../ringleb_meshes/ringleb_mesh_%d_curved.xdmf' % n_nodes).read(mesh)
+    mesh = ringleb.ringleb_mesh(n_nodes, n_nodes, curved=True)
 
     V = VectorFunctionSpace(mesh, 'DG', poly_o, dim=4)
     v_vec = TestFunction(V)

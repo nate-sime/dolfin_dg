@@ -1,7 +1,6 @@
 import pytest
 import ufl
 from ufl.algorithms.apply_derivatives import apply_derivatives
-from ufl.algorithms.apply_algebra_lowering import apply_algebra_lowering
 
 from dolfin_dg.dg_form import homogeneity_tensor, hyper_tensor_product
 
