@@ -19,7 +19,7 @@ ell = 1
 for ele_n in ele_ns:
     mesh = RectangleMesh(Point(-1., -1.), Point(1., 1.), ele_n, ele_n)
 
-    V = VectorFunctionSpace(mesh, "DG", 1)
+    V = VectorFunctionSpace(mesh, "DG", ell)
     v = TestFunction(V)
 
     k = Constant(2.0)
@@ -33,7 +33,6 @@ for ele_n in ele_ns:
     residual = mo.generate_fem_formulation(u, v) - k**2*dot(u, v)*dx
 
     solve(residual == 0, u)
-    plot(u)
 
     errorl2[run_count] = errornorm(gD, u, norm_type='l2', degree_rise=3)
     errorh1[run_count] = errornorm(gD, u, norm_type='Hcurl', degree_rise=3)
@@ -44,5 +43,3 @@ for ele_n in ele_ns:
 if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
     print np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:])
     print np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:])
-
-interactive()
