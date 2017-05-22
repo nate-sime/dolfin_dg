@@ -203,6 +203,10 @@ class DGFemViscousTerm:
                     + inner(self.sig*hyper_tensor_product(G, dg_outer(u - u_gamma, n)), dg_outer(v, n)) * dExt
         return residual
 
+    def neumann_residual(self, g_N, dExt):
+
+        return -inner(g_N, self.V)*dExt
+
 
 class DGFemCurlTerm:
 
