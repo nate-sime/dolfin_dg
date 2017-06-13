@@ -62,7 +62,7 @@ Ensure you export the local PYTHONPATH
 
 Install dolfin_dg
 
-..code-block:: bash
+.. code-block:: bash
 
     cd dolfin_dg
     python setup.py install --prefix=$HOME/local
