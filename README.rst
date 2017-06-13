@@ -42,8 +42,8 @@ Install in the usual way with your preferred prefix:
     python setup.py install --prefix=$HOME/local
 
 
-Installation with docker
-========================
+Installation inside existing docker container
+=============================================
 
 Follow the instructions to install FEniCS with docker https://fenicsproject.org/download/.
 
