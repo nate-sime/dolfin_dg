@@ -72,18 +72,12 @@ Run docker and clone dolfin_dg
     docker run -it quay.io/fenicsproject/dev
     git clone https://bitbucket.org/nate-sime/dolfin_dg.git
 
-Ensure you export the local PYTHONPATH
-
-.. code-block:: bash
-
-    export PYTHONPATH=$HOME/local/lib/python2.7/site-packages:$PYTHONPATH
-
 Install dolfin_dg
 
 .. code-block:: bash
 
     cd dolfin_dg
-    python setup.py install --prefix=$HOME/local
+    sudo python setup.py install
 
 
 Contributors
