@@ -42,7 +42,7 @@ Installation
 Docker image
 ------------
 
-Follow the instructions for installing [FEniCS with docker](https://fenicsproject.org/download/). A docker image 
+Follow the instructions for installing https://fenicsproject.org/download/. A docker image 
 of the dolfin_dg master branch is available:
 
 
