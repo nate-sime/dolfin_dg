@@ -41,6 +41,33 @@ Install in the usual way with your preferred prefix:
      
     python setup.py install --prefix=$HOME/local
 
+
+Installation inside existing docker container
+=============================================
+
+Follow the instructions to install FEniCS with docker https://fenicsproject.org/download/.
+
+Run docker and clone dolfin_dg
+
+.. code-block:: bash
+
+    docker run -it quay.io/fenicsproject/dev
+    git clone https://bitbucket.org/nate-sime/dolfin_dg.git
+
+Ensure you export the local PYTHONPATH
+
+.. code-block:: bash
+
+    export PYTHONPATH=$HOME/local/lib/python2.7/site-packages:$PYTHONPATH
+
+Install dolfin_dg
+
+.. code-block:: bash
+
+    cd dolfin_dg
+    python setup.py install --prefix=$HOME/local
+
+
 Contributors
 ============
 
