@@ -1,4 +1,5 @@
 from dolfin import *
+from dolfin_dg import *
 import numpy as np
 
 __author__ = 'njcs4'
@@ -24,7 +25,7 @@ for n_ele in n_eles:
     
     b = Constant((1.0, 1.0))
     c = Constant(1.0)
-    f = Expression('exp(x[0] - x[1])', V.ufl_element())
+    f = Expression('exp(x[0] - x[1])', element=V.ufl_element())
     gD = f
     
     def F_c(U):
@@ -51,5 +52,5 @@ for n_ele in n_eles:
     run_count += 1
 
 if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
-    print np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:])
-    print np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:])
+    print((np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:])))
+    print((np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:])))

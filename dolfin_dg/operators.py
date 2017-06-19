@@ -135,7 +135,7 @@ class HyperbolicOperator(FemFormulation):
 
         assert isinstance(lambdas, (list, tuple))
 
-        lambdas = map(abs, lambdas)
+        lambdas = list(map(abs, lambdas))
         alpha = Max(lambdas[0], lambdas[1])
         for j in range(2, len(lambdas)):
             alpha = Max(alpha, lambdas[j])
@@ -298,7 +298,7 @@ class CompressibleEulerOperatorEntropyFormulation(
             u = as_vector([u1, u2])
             c = sqrt(gamma*p/rho)
             lambdas = [dot(u, n) - c, dot(u, n), dot(u, n), dot(u, n) + c]
-            lambdas = map(abs, lambdas)
+            lambdas = list(map(abs, lambdas))
             return lambdas
 
         HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, alpha)

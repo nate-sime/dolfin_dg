@@ -49,7 +49,7 @@ for n_eles in mesh_sizes:
         u = as_vector([u1, u2])
         c = sqrt(gamma*p/rho)
         lambdas = [dot(u,n) - c, dot(u,n), dot(u,n) + c]
-        lambdas = map(abs, lambdas)
+        lambdas = list(map(abs, lambdas))
         return lambdas
     
     def construct_alpha(U_p, U_m, n_p):
@@ -88,5 +88,5 @@ for n_eles in mesh_sizes:
 
 
 if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
-    print np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:])
-    print np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:])
+    print(np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:]))
+    print(np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:]))

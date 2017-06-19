@@ -1,5 +1,6 @@
 from dolfin import *
 from dolfin_dg import *
+from dolfin_dg.tensors import compressible_ns_entopy_G
 import numpy as np
 
 __author__ = 'njcs4'
@@ -90,7 +91,7 @@ for n_eles in mesh_sizes:
         u = as_vector([u1,u2])
         c = sqrt(gamma*p/rho)
         lambdas = [dot(u, n) - c, dot(u, n), dot(u, n), dot(u, n) + c]
-        lambdas = map(abs,lambdas)
+        lambdas = list(map(abs,lambdas))
         return lambdas
 
 
@@ -167,8 +168,8 @@ for n_eles in mesh_sizes:
     run_count += 1
 
 if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
-    print ','.join(map(str, errorl2))
-    print ','.join(map(str, errorh1))
-    print ','.join(map(str, hsizes))
-    print np.log(errorl2[:-1]/errorl2[1:])/np.log(hsizes[:-1]/hsizes[1:])
-    print np.log(errorh1[:-1]/errorh1[1:])/np.log(hsizes[:-1]/hsizes[1:])
+    print(','.join(map(str, errorl2)))
+    print(','.join(map(str, errorh1)))
+    print(','.join(map(str, hsizes)))
+    print(np.log(errorl2[:-1]/errorl2[1:])/np.log(hsizes[:-1]/hsizes[1:]))
+    print(np.log(errorh1[:-1]/errorh1[1:])/np.log(hsizes[:-1]/hsizes[1:]))

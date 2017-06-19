@@ -110,7 +110,7 @@ for n_nodes in mesh_sizes:
         u = as_vector([u1, u2])
         c = sqrt(gamma*p/rho)
         lambdas = [dot(u,n) - c, dot(u,n), dot(u,n) + c]
-        lambdas = map(abs, lambdas)
+        lambdas = list(map(abs, lambdas))
         return lambdas
 
     def construct_alpha(U_p, U_m, n_p):
@@ -155,11 +155,11 @@ for n_nodes in mesh_sizes:
 
 flt = lambda x: "%.4e" % x
 
-print 'Elements', mesh_cells
-print '||u - u_h||_L2', map(flt, errorl2)
-print '||u - u_h||_H1', map(flt, errorh1)
-print 'DoF', mesh_dofs
+print('Elements', mesh_cells)
+print('||u - u_h||_L2', list(map(flt, errorl2)))
+print('||u - u_h||_H1', list(map(flt, errorh1)))
+print('DoF', mesh_dofs)
 
 if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
-    print 'k L2', np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:])
-    print 'k H1', np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:])
+    print('k L2', np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:]))
+    print('k H1', np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:]))

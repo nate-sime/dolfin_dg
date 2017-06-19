@@ -1,6 +1,6 @@
 from dolfin import *
+from dolfin_dg import *
 import numpy as np
-from dolfin_dg.dg_form import DGFemViscousTerm, homogeneity_tensor, hyper_tensor_product
 
 __author__ = 'njcs4'
 
@@ -20,12 +20,9 @@ for ele_n in ele_ns:
     mesh = UnitSquareMesh(ele_n, ele_n, 'left/right')
 
     V = VectorFunctionSpace(mesh, 'CG', p, dim=4)
-    # V = FunctionSpace(mesh, 'CG', p)
     u = Function(V)
     v = TestFunction(V)
 
-    # gD = Expression('sin(pi*x[0])*sin(pi*x[1])', element=V.ufl_element())
-    # f = Expression('2.0*pow(pi, 2)*sin(pi*x[0])*sin(pi*x[1])', element=V.ufl_element())
     gD = Expression(['sin(pi*x[0])*sin(pi*x[1])']*u.ufl_shape[0], element=V.ufl_element())
     f = Expression(['2.0*pow(pi, 2)*sin(pi*x[0])*sin(pi*x[1])']*u.ufl_shape[0], element=V.ufl_element())
 
@@ -46,7 +43,7 @@ for ele_n in ele_ns:
     run_count += 1
 
 if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
-    print np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:])
-    print np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:])
+    print(np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:]))
+    print(np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:]))
 
 

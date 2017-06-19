@@ -515,7 +515,7 @@ def gen_elements_mesh_ringleb_tri(gamma, gb, nk, nq, num_verts, num_cells, num_e
 
     for i in range(1, num_cells + 1):
         if c_v[0, i - 1] != 3:
-            print ' cell ', i, ' degree ', c_v[0, i - 1]
+            print(' cell ', i, ' degree ', c_v[0, i - 1])
 
     for i in range(1, num_cells + 1):
         c_v[0, i - 1] = 0

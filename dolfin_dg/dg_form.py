@@ -1,5 +1,4 @@
 from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff, dot, cross, curl
-from ufl.algorithms.apply_derivatives import apply_derivatives
 import ufl
 import inspect
 
@@ -179,7 +178,7 @@ class DGFemViscousTerm:
 
         assert(isinstance(G, dict))
         G_gamma = {}
-        for idx, tensor in G.iteritems():
+        for idx, tensor in G.items():
             G_gamma[idx] = replace(tensor, {self.U: u_gamma})
         return G_gamma
 
@@ -233,7 +232,7 @@ class DGFemCurlTerm:
 
         assert(isinstance(G, dict))
         G_gamma = {}
-        for idx, tensor in G.iteritems():
+        for idx, tensor in G.items():
             G_gamma[idx] = replace(tensor, {self.U: u_gamma})
         return G_gamma
 
