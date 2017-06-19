@@ -35,6 +35,8 @@ Dependencies
 
 dolfin_dg depends on the core components of the FEniCS project (https://fenicsproject.org/).
 
+dolfin_dg requires python 3.
+
 
 Installation
 ============
@@ -57,7 +59,7 @@ Install in the usual way with your preferred prefix:
 
 .. code-block:: bash
      
-    python setup.py install --prefix=$HOME/local
+    python3 setup.py install --prefix=$HOME/local
 
 
 Installation inside existing docker container
@@ -77,7 +79,7 @@ Install dolfin_dg
 .. code-block:: bash
 
     cd dolfin_dg
-    sudo python setup.py install
+    sudo python3 setup.py install
 
 
 Contributors
