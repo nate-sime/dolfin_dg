@@ -26,6 +26,7 @@ F = pe.generate_fem_formulation(u, v) - f*v*dx
 
 solve(F == 0, u, solver_parameters={"newton_solver": {"linear_solver": "lu"}})
 
-plot(u, title="Solution")
-plot(grad(u), title="Solution gradient")
-interactive()
+import matplotlib.pyplot as plt
+plot(u)
+plot(grad(u))
+plt.show()
