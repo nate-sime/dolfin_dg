@@ -1,0 +1,110 @@
+from dolfin import *
+from mark import Marker
+
+
+def dual(form, w, z=None):
+    if not z is None:
+        v, u = form.arguments()
+        return replace(form, {u: w, v: z})
+    u = form.arguments()[0]
+    return replace(form, {u: w})
+
+
+class NonlinearAPosterioriEstimator:
+
+    def __init__(self, J, F, j, u_h, bcs=None, p_inc=1):
+        assert(len(F.arguments()) == 1)
+        assert(len(J.arguments()) == 2)
+        assert(len(j.arguments()) == 0)
+
+        if bcs is None:
+            bcs = []
+
+        if not hasattr(bcs, "__len__"):
+            bcs = (bcs,)
+
+        V = F.arguments()[0].function_space()
+        e = V.ufl_element()
+        self.V_star = FunctionSpace(V.mesh(), e.reconstruct(degree=e.degree()+p_inc))
+
+        # Copy and homogenise BCs
+        for bc in bcs:
+            if bc.user_sub_domain() is None:
+                raise NotImplementedError("BCs defined by mesh functions not yet supported")
+        self.bcs = [DirichletBC(self.V_star, bc.value(), bc.user_sub_domain()) for bc in bcs]
+        for bc in self.bcs:
+            bc.homogenize()
+
+        self.F = F
+        self.J = J
+        self.j = j
+        self.u_h = u_h
+
+    def compute_cell_markers(self, marker):
+        assert(isinstance(marker, Marker))
+        eta_k = self.compute_indicators()
+        return marker.mark(eta_k)
+
+    def compute_indicators(self):
+        z = self.compute_dual_solution()
+        eta = self.compute_error_indicators(z)
+        eta_cf = self.compute_cell_indicators(eta)
+        return eta_cf
+
+    def compute_dual_solution(self):
+        # Replace the components of the bilinear and linear formulations to formulate
+        # the dual problem
+        # u -> w, v -> z
+        w = TestFunction(self.V_star)
+        z = TrialFunction(self.V_star)
+
+        dual_M = dual(self.J, w, z)
+        dual_j = derivative(self.j, self.u_h, w)
+
+        # Solve the dual problem
+        z_s = Function(self.V_star)
+        solve(dual_M == dual_j, z_s, self.bcs, solver_parameters={'linear_solver': 'mumps'})
+
+        return z_s
+
+    def compute_error_indicators(self, z):
+        # Evaluate the residual in the enriched space
+        v = self.F.arguments()[0]
+
+        DG0 = FunctionSpace(self.V_star.mesh(), "DG", 0)
+        dg_0 = TestFunction(DG0)
+
+        dwr = replace(self.F, {v: z*dg_0})
+
+        dwr_vec = assemble(dwr)
+        dwr_vec.abs()
+        eta = Function(DG0, dwr_vec)
+
+        return eta
+
+    def compute_cell_indicators(self, eta):
+        mesh = self.V_star.mesh()
+
+        # Put the values of the projection into a cell function
+        cf = CellFunction("double", mesh, 0.0)
+        for c in cells(mesh):
+            cf[c] = eta.vector()[c.index()][0] # Why does this return an array?
+        return cf
+
+
+class LinearAPosterioriEstimator(NonlinearAPosterioriEstimator):
+
+    def __init__(self, a, L, j, u_h, bcs=None, p_inc=1):
+        assert(len(L.arguments()) == 1)
+        assert(len(a.arguments()) == 2)
+        assert(len(j.arguments()) == 1)
+
+        F = a - L
+        v, u = F.arguments()
+        F = replace(F, {u: u_h})
+        J = derivative(F, u_h)
+
+        u = j.arguments()[0]
+        j = replace(j, {u: u_h})
+
+        NonlinearAPosterioriEstimator.__init__(self, J, F, j, u_h, bcs=bcs, p_inc=p_inc)

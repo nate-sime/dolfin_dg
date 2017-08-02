@@ -22,3 +22,12 @@ from .operators import \
     SpacetimeBurgersOperator, \
     DGNeumannBC, DGDirichletBC, \
     DGFemViscousTerm, DGFemCurlTerm
+
+# DWR highly experimental
+from .dwr import \
+    NonlinearAPosterioriEstimator, \
+    LinearAPosterioriEstimator, \
+    dual
+
+from .mark import \
+    FixedFractionMarker
