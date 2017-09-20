@@ -1,7 +1,9 @@
-from dolfin import *
-from dolfin_dg import *
-from dolfin_dg.tensors import compressible_ns_entopy_G
 import numpy as np
+from dolfin import *
+
+from dolfin_dg import *
+from dolfin_dg import force_zero_function_derivative
+from dolfin_dg.tensors import compressible_ns_entopy_G
 
 __author__ = 'njcs4'
 

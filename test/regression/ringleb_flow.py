@@ -1,8 +1,7 @@
-from dolfin import *
-from dolfin_dg import *
-from dolfin_dg import ringleb
 import numpy as np
-import matplotlib.pyplot as plt
+from dolfin import *
+
+from dolfin_dg import ringleb, force_zero_function_derivative
 
 __author__ = 'njcs4'
 

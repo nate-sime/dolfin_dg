@@ -1,6 +1,7 @@
-from dolfin import *
-from dolfin_dg import *
 import numpy as np
+from dolfin import *
+
+from dolfin_dg import force_zero_function_derivative
 
 __author__ = 'njcs4'
 

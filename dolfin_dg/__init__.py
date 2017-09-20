@@ -9,8 +9,8 @@ from .dg_form import \
     tensor_jump, tangent_jump
 
 from .fluxes import \
-    force_zero_function_derivative, \
     lax_friedrichs_flux
+from dolfin_dg.tensors import force_zero_function_derivative
 
 from .operators import \
     EllipticOperator, \
