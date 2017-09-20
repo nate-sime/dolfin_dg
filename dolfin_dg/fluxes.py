@@ -107,8 +107,7 @@ class LocalLaxFriedrichs:
     def interior(self, F_c, u_p, u_m, n):
         return 0.5*(dot(F_c(u_p), n) + dot(F_c(u_m), n) + self.alpha*(u_p - u_m))
 
-    def exterior(self, F_c, u_p, u_m, n):
-        return 0.5*(dot(F_c(u_p), n) + dot(F_c(u_m), n) + self.alpha*(u_p - u_m))
+    exterior = interior
 
 
 class HLLE:
@@ -127,7 +126,4 @@ class HLLE:
         guard = ufl.conditional(abs(lam_p - lam_m) < 1e-7, 0, 1/(lam_p - lam_m))
         return guard*(lam_p*dot(F_c(u_p), n) - lam_m*dot(F_c(u_m), n) - lam_p*lam_m*(u_p - u_m))
 
-    def exterior(self, F_c, u_p, u_m, n):
-        lam_p, lam_m = self.lam_p, self.lam_m
-        guard = ufl.conditional(abs(lam_p - lam_m) < 1e-7, 0, 1/(lam_p - lam_m))
-        return guard*(lam_p*dot(F_c(u_p), n) - lam_m*dot(F_c(u_m), n) - lam_p*lam_m*(u_p - u_m))
+    exterior = interior
