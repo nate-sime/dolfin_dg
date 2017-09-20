@@ -2,8 +2,6 @@ from dolfin import *
 from dolfin_dg import *
 import numpy as np
 
-from dolfin_dg.fluxes import HLLE
-
 __author__ = 'njcs4'
 
 parameters['form_compiler']["cpp_optimize"] = True
