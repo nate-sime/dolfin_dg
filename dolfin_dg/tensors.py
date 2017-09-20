@@ -1,5 +1,10 @@
-from ufl import as_matrix
+"""
+This module is provided as a reference for the homogeneity tensors of the compressible Navier-Stokes equations.
+It is used simply for regression testing (see dolfin_dg/test/regression/).
+These tensors may be automatically computed using dolfin_dg.dg_form.homogeneity_tensor().
+"""
 
+from ufl import as_matrix
 
 __author__ = 'njcs4'
 
