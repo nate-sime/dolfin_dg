@@ -36,7 +36,7 @@ class DGNeumannBC(DGBC):
         DGBC.__init__(self, boundary, function)
 
 
-class FemFormulation:
+class DGFemFormulation:
 
     def __init__(self, mesh, fspace, bcs, **kwargs):
         if not hasattr(bcs, '__len__'):
@@ -50,10 +50,10 @@ class FemFormulation:
         raise NotImplementedError('Function not yet implemented')
 
 
-class EllipticOperator(FemFormulation):
+class EllipticOperator(DGFemFormulation):
 
     def __init__(self, mesh, fspace, bcs, F_v, C_IP=10.0):
-        FemFormulation.__init__(self, mesh, fspace, bcs)
+        DGFemFormulation.__init__(self, mesh, fspace, bcs)
         self.F_v = F_v
         self.C_IP = C_IP
 
@@ -90,10 +90,10 @@ class PoissonOperator(EllipticOperator):
         EllipticOperator.__init__(self, mesh, fspace, bcs, F_v)
 
 
-class MaxwellOperator(FemFormulation):
+class MaxwellOperator(DGFemFormulation):
 
     def __init__(self, mesh, fspace, bcs, F_m, C_IP=10.0):
-        FemFormulation.__init__(self, mesh, fspace, bcs)
+        DGFemFormulation.__init__(self, mesh, fspace, bcs)
         self.F_m = F_m
         self.C_IP = C_IP
 
@@ -122,10 +122,10 @@ class MaxwellOperator(FemFormulation):
         return residual
 
 
-class HyperbolicOperator(FemFormulation):
+class HyperbolicOperator(DGFemFormulation):
 
     def __init__(self, mesh, V, bcs, F_c=lambda u: u, alpha=lambda u, n: inner(u, n)):
-        FemFormulation.__init__(self, mesh, V, bcs)
+        DGFemFormulation.__init__(self, mesh, V, bcs)
         self.F_c = F_c
         self.alpha = alpha
 
