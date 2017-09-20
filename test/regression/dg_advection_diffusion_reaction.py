@@ -45,14 +45,12 @@ for ele_n in ele_ns:
 
     conv_volume = -inner(F_c(u), grad(v))*dx
 
-    flux_c = 2*u*dot(b, n)
-    alpha = Max(abs(flux_c('+')), abs(flux_c('-')))
-    H = lax_friedrichs_flux(F_c, alpha)
-    conv_interior = dot(H(u('+'), u('-'), n('+')), (v('+') - v('-')))*dS
+    H = LocalLaxFriedrichs(lambda u, n: 2*u*dot(b, n))
+    H.setup(F_c, u("+"), u("-"), n("+"))
+    conv_interior = dot(H.interior(F_c, u('+'), u('-'), n('+')), (v('+') - v('-')))*dS
 
-    alpha = Max(abs(flux_c), abs(2*gD*dot(b, n)))
-    H = lax_friedrichs_flux(F_c, alpha)
-    conv_exterior = dot(H(u, gD, n), v)*ds
+    H.setup(F_c, u, gD, n)
+    conv_exterior = dot(H.exterior(F_c, u, gD, n), v)*ds
 
     # Viscous Operator
     def F_v(u):

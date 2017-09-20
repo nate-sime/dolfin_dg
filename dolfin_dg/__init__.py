@@ -9,7 +9,7 @@ from .dg_form import \
     tensor_jump, tangent_jump
 
 from .fluxes import \
-    lax_friedrichs_flux
+    LocalLaxFriedrichs
 from dolfin_dg.tensors import force_zero_function_derivative
 
 from .operators import \
