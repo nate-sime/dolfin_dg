@@ -181,7 +181,7 @@ class SpacetimeBurgersOperator(
         def alpha(u, n):
             return u*n[0] + n[1]
 
-        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, alpha)
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
 
 
 class CompressibleEulerOperator(
@@ -208,7 +208,7 @@ class CompressibleEulerOperator(
             lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
             return lambdas
 
-        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, alpha)
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
 
 
 class CompressibleNavierStokesOperator(
@@ -297,7 +297,7 @@ class CompressibleEulerOperatorEntropyFormulation(
             lambdas = list(map(abs, lambdas))
             return lambdas
 
-        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, alpha)
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
 
 
 class CompressibleNavierStokesOperatorEntropyFormulation(
