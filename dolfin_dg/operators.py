@@ -146,21 +146,12 @@ class HyperbolicOperator(DGFemFormulation):
         self.H.setup(self.F_c, u("+"), u("-"), n("+"))
         residual += inner(self.H.interior(self.F_c, u('+'), u('-'), n('+')), (v('+') - v('-')))*dS
 
-        # The following is just dot(H(u_p, u_m, n), v_p - v_m) on the interior as jumps and averages
-        # avg_F = ufl_adhere_transpose(avg(self.F_c(u)))
-        # alpha_interior = Max(alpha('+'), alpha('-'))
-        # residual += inner(avg_F + 0.5*alpha_interior*tensor_jump(u, n), tensor_jump(v, n))*dS
-
         for bc in self.dirichlet_bcs:
             gD = bc.get_function()
             dSD = bc.get_boundary()
 
             self.H.setup(self.F_c, u, gD, n)
             residual += inner(self.H.exterior(self.F_c, u, gD, n), v)*dSD
-
-            # alpha_bc = self.max_abs_eigenvalues(self.alpha(gD, n))
-            # bdry_alpha = Max(alpha, alpha_bc)
-            # residual += inner(0.5*(dot(self.F_c(u), n) + dot(self.F_c(gD), n) + bdry_alpha*(u - gD)), v)*dSD
 
         for bc in self.neumann_bcs:
             dSN = bc.get_boundary()
