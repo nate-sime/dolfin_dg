@@ -133,7 +133,6 @@ class HyperbolicOperator(DGFemFormulation):
         self.F_c = F_c
         self.H = H
 
-
     def generate_fem_formulation(self, u, v, dx=None, dS=None):
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
