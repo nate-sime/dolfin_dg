@@ -164,15 +164,15 @@ class HyperbolicOperator(DGFemFormulation):
 class SpacetimeBurgersOperator(
     HyperbolicOperator):
 
-    def __init__(self, mesh, V, bcs):
+    def __init__(self, mesh, V, bcs, flux=None):
 
         def F_c(u):
             return as_vector((u**2/2, u))
 
-        def alpha(u, n):
-            return u*n[0] + n[1]
+        if flux is None:
+            flux = LocalLaxFriedrichs(lambda u, n: u*n[0] + n[1])
 
-        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, flux)
 
 
 class CompressibleEulerOperator(

@@ -78,6 +78,7 @@ def map_ufl_operator_to_sequence(a, op):
         alpha = op(alpha, a[j])
     return alpha
 
+
 class ConvectiveFlux:
 
     def __init__(self):
@@ -86,14 +87,14 @@ class ConvectiveFlux:
     def setup(self):
         pass
 
-    def interior(self, F_c, u, n):
+    def interior(self, F_c, u_p, u_m, n):
         pass
 
-    def exterior(self, F_c, u, n):
+    def exterior(self, F_c, u_p, u_m, n):
         pass
 
 
-class LocalLaxFriedrichs:
+class LocalLaxFriedrichs(ConvectiveFlux):
 
     def __init__(self, flux_jacobian_eigenvalues):
         self.flux_jacobian_eigenvalues = flux_jacobian_eigenvalues
@@ -110,7 +111,9 @@ class LocalLaxFriedrichs:
     exterior = interior
 
 
-class HLLE:
+class HLLE(ConvectiveFlux):
+
+    TOL = 1e-14
 
     def __init__(self, flux_jacobian_eigenvalues):
         self.flux_jacobian_eigenvalues = flux_jacobian_eigenvalues
@@ -123,7 +126,40 @@ class HLLE:
 
     def interior(self, F_c, u_p, u_m, n):
         lam_p, lam_m = self.lam_p, self.lam_m
-        guard = ufl.conditional(abs(lam_p - lam_m) < 1e-7, 0, 1/(lam_p - lam_m))
+        guard = ufl.conditional(abs(lam_p - lam_m) < HLLE.TOL, 0, 1/(lam_p - lam_m))
         return guard*(lam_p*dot(F_c(u_p), n) - lam_m*dot(F_c(u_m), n) - lam_p*lam_m*(u_p - u_m))
+
+    exterior = interior
+
+
+class Vijayasundaram(ConvectiveFlux):
+
+    def __init__(self, eigenvals, left, right):
+        self.eigenvals = eigenvals
+        self.left = left
+        self.right = right
+
+    def setup(self, F_c, u_p, u_m, n):
+        pass
+
+    def interior(self, F_c, u_p, u_m, n):
+        u_avg = (u_p + u_m)/2
+        avg_eigs = self.eigenvals(u_avg, n)
+
+        if isinstance(avg_eigs, (list, tuple)):
+            m = len(avg_eigs)
+            max_ev = ufl.as_matrix([[Max(avg_eigs[i], 0) if i == j else 0 for i in range(m)] for j in range(m)])
+            min_ev = ufl.as_matrix([[Min(avg_eigs[j], 0) if i == j else 0 for i in range(m)] for j in range(m)])
+        else:
+            max_ev = Max(avg_eigs, 0)
+            min_ev = Min(avg_eigs, 0)
+
+        left_vecs = self.left(u_avg, n)
+        right_vecs = self.right(u_avg, n)
+
+        B_p = right_vecs*max_ev*left_vecs
+        B_m = right_vecs*min_ev*left_vecs
+
+        return B_p*u_p + B_m*u_m
 
     exterior = interior

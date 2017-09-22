@@ -2,6 +2,9 @@ from dolfin import *
 from dolfin_dg import *
 import numpy as np
 
+from dolfin_dg.fluxes import Vijayasundaram
+import matplotlib.pyplot as plt
+
 __author__ = 'njcs4'
 
 parameters['form_compiler']["cpp_optimize"] = True
@@ -14,33 +17,37 @@ ele_ns = [4, 8, 16, 32, 64]
 errorl2 = np.zeros(len(ele_ns))
 errorh1 = np.zeros(len(ele_ns))
 hsizes = np.zeros(len(ele_ns))
-p = 2
+p = 1
 
 for ele_n in ele_ns:
-    mesh = UnitSquareMesh(ele_n, ele_n, 'left/right')
+    mesh = UnitSquareMesh(ele_n, ele_n, 'left')
 
     V = FunctionSpace(mesh, 'DG', p)
     v = TestFunction(V)
 
     gD = Expression('exp(x[0] - x[1])', element=V.ufl_element())
-    u = interpolate(gD, V)
+    u = Function(V)#interpolate(gD, V)
     f = Expression('0.0',
                    element=V.ufl_element())
     b = Constant((1, 1))
     n = FacetNormal(mesh)
+    u.rename("u", "u")
+    b.rename("b", "b")
 
     # Convective Operator
     def F_c(U):
         return b*U**2
 
-    convective_flux = HLLE(lambda u, n: 2*u*dot(b, n))
+    convective_flux = Vijayasundaram(lambda u, n: 2*u*dot(b, n), lambda u, n: 1, lambda u, n: 1)
+    # convective_flux = HLLE(lambda u, n: 2*u*dot(b, n))
     ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, convective_flux)
     residual = ho.generate_fem_formulation(u, v) - f*v*dx
 
     du = TrialFunction(V)
     J = derivative(residual, u, du)
     solve(residual == 0, u, [], J=J)
-
+    # plot(u)
+    # plt.show()
     errorl2[run_count] = errornorm(gD, u, norm_type='l2', degree_rise=3)
     errorh1[run_count] = errornorm(gD, u, norm_type='h1', degree_rise=3)
     hsizes[run_count] = mesh.hmax()
