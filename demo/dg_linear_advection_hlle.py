@@ -20,13 +20,15 @@ hsizes = np.zeros(len(ele_ns))
 p = 1
 
 for ele_n in ele_ns:
-    mesh = UnitSquareMesh(ele_n, ele_n, 'left')
+    mesh = UnitSquareMesh(ele_n, ele_n, 'left/right')
 
     V = FunctionSpace(mesh, 'DG', p)
     v = TestFunction(V)
 
     gD = Expression('exp(x[0] - x[1])', element=V.ufl_element())
-    u = Function(V)#interpolate(gD, V)
+    # u = Function(V)
+    # u = interpolate(gD, V)
+    u = interpolate(Constant(1.0), V)
     f = Expression('0.0',
                    element=V.ufl_element())
     b = Constant((1, 1))
@@ -40,6 +42,7 @@ for ele_n in ele_ns:
 
     convective_flux = Vijayasundaram(lambda u, n: 2*u*dot(b, n), lambda u, n: 1, lambda u, n: 1)
     # convective_flux = HLLE(lambda u, n: 2*u*dot(b, n))
+    # convective_flux = LocalLaxFriedrichs(lambda u, n: 2*u*dot(b, n))
     ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, convective_flux)
     residual = ho.generate_fem_formulation(u, v) - f*v*dx
 

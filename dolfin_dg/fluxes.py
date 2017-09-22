@@ -119,8 +119,10 @@ class HLLE(ConvectiveFlux):
         self.flux_jacobian_eigenvalues = flux_jacobian_eigenvalues
 
     def setup(self, F_c, u_p, u_m, n):
-        eigen_vals_max_p = max_of_sequence(self.flux_jacobian_eigenvalues(u_p, n))
-        eigen_vals_min_m = min_of_sequence(self.flux_jacobian_eigenvalues(u_m, n))
+        u_avg = (u_p + u_m)/2
+
+        eigen_vals_max_p = max_of_sequence(self.flux_jacobian_eigenvalues(u_avg, n))
+        eigen_vals_min_m = min_of_sequence(self.flux_jacobian_eigenvalues(u_avg, n))
         self.lam_p = Max(eigen_vals_max_p, 0)
         self.lam_m = Min(eigen_vals_min_m, 0)
 
