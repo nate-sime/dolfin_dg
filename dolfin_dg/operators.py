@@ -1,5 +1,5 @@
 from dolfin_dg.dg_form import DGFemViscousTerm, homogeneity_tensor, tangent_jump, tensor_jump, ufl_adhere_transpose, \
-    DGFemCurlTerm
+    DGFemCurlTerm, DGFemSIPG
 import ufl
 from ufl import CellVolume, FacetArea, grad, inner, \
     div, jump, avg, curl, cross, Max, dot, as_vector, as_matrix, sqrt, tr, Identity, variable, diff, exp
@@ -59,7 +59,7 @@ class EllipticOperator(DGFemFormulation):
         self.F_v = F_v
         self.C_IP = C_IP
 
-    def generate_fem_formulation(self, u, v, dx=None, dS=None):
+    def generate_fem_formulation(self, u, v, dx=None, dS=None, vt=None):
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
         if dS is None:
@@ -69,7 +69,9 @@ class EllipticOperator(DGFemFormulation):
         n = FacetNormal(self.mesh)
         sigma = self.C_IP*Constant(max(self.fspace.ufl_element().degree()**2, 1))/h
         G = homogeneity_tensor(self.F_v, u)
-        vt = DGFemViscousTerm(self.F_v, u, v, sigma, G, n)
+
+        if vt is None:
+            vt = DGFemSIPG(self.F_v, u, v, sigma, G, n)
 
         residual = inner(self.F_v(u, grad(u)), grad(v))*dx
         residual += vt.interior_residual(dS)

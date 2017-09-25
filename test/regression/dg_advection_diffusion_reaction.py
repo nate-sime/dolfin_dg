@@ -57,7 +57,7 @@ for ele_n in ele_ns:
         return A*grad(u)
 
     sig = Constant(20.0)*max(p**2, 1)/h
-    vt = DGFemViscousTerm(F_v, u, v, sig, G, n)
+    vt = DGFemSIPG(F_v, u, v, sig, G, n)
     visc_volume = inner(F_v(u), grad(v))*dx
     visc_interior = vt.interior_residual(dS)
     visc_exterior = vt.exterior_residual(gD, ds)
