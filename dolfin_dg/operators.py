@@ -1,3 +1,5 @@
+import inspect
+
 from dolfin_dg.dg_form import DGFemViscousTerm, homogeneity_tensor, tangent_jump, tensor_jump, ufl_adhere_transpose, \
     DGFemCurlTerm, DGFemSIPG
 import ufl
@@ -72,6 +74,11 @@ class EllipticOperator(DGFemFormulation):
 
         if vt is None:
             vt = DGFemSIPG(self.F_v, u, v, sigma, G, n)
+
+        if inspect.isclass(vt):
+            vt = vt(self.F_v, u, v, sigma, G, n)
+
+        assert(isinstance(vt, DGFemViscousTerm))
 
         residual = inner(self.F_v(u, grad(u)), grad(v))*dx
         residual += vt.interior_residual(dS)
