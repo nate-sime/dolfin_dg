@@ -2,7 +2,7 @@
 __author__ = 'njcs4'
 
 from .dg_form import \
-    DGFemViscousTerm, DGFemSIPG, \
+    DGFemViscousTerm, DGFemSIPG, DGFemNIPG, DGFemBO, \
     hyper_tensor_product, hyper_tensor_T_product, \
     homogeneity_tensor, \
     dg_cross, dg_outer, \
