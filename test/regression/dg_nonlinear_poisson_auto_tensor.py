@@ -35,7 +35,7 @@ for ele_n in ele_ns:
 
     G = homogeneity_tensor(F_v, u)
 
-    vt = DGFemViscousTerm(F_v, u, v, sig, G, n)
+    vt = DGFemSIPG(F_v, u, v, sig, G, n)
     interior = vt.interior_residual(dS)
     exterior = vt.exterior_residual(gD, ds)
 

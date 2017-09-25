@@ -39,7 +39,7 @@ for ele_n in ele_ns:
     G[1,0] = as_matrix(((0,),))
     G[1,1] = as_matrix(((u + 1,),))
 
-    vt = DGFemViscousTerm(F_v, u, v, sig, G, n)
+    vt = DGFemSIPG(F_v, u, v, sig, G, n)
     interior = vt.interior_residual(dS)
     exterior = vt.exterior_residual(gD, ds)
 

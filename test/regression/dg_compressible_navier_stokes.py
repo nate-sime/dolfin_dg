@@ -101,7 +101,7 @@ for n_eles in mesh_sizes:
     sig = C_IP*Constant(max(poly_o**2, 1))/h
     G = compressible_ns_G(u_vec, mu, Pr, gamma)
 
-    vt = DGFemViscousTerm(F_v, u_vec, v_vec, sig, G, n)
+    vt = DGFemSIPG(F_v, u_vec, v_vec, sig, G, n)
     visc_interior = vt.interior_residual(dS)
     visc_exterior = vt.exterior_residual(gD, ds)
 

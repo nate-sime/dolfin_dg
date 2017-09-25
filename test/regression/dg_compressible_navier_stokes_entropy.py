@@ -132,7 +132,7 @@ for n_eles in mesh_sizes:
     visc_domain = inner(F_v(u_vec), grad(v_vec))*dx
 
     # set up utility object for viscous terms
-    vt = DGFemViscousTerm(F_v, u_vec, v_vec, sig, G=compressible_ns_entopy_G(mu, lam, Pr, gamma, u_vec), n=n)
+    vt = DGFemSIPG(F_v, u_vec, v_vec, sig, G=compressible_ns_entopy_G(mu, lam, Pr, gamma, u_vec), n=n)
 
     # Calculate the interior face terms of the viscous component
     visc_interior = vt.interior_residual(dS)

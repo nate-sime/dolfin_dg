@@ -114,7 +114,7 @@ for n_eles in mesh_sizes:
 
     viscous_domain = inner(hyper_tensor_product(G, grad(u_vec)), grad(v_vec))*dx
 
-    vt = DGFemViscousTerm(F_v, u_vec, v_vec, sig, G, n)
+    vt = DGFemSIPG(F_v, u_vec, v_vec, sig, G, n)
     visc_interior = vt.interior_residual(dS)
     visc_exterior = vt.exterior_residual(gD, ds)
 

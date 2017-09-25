@@ -164,7 +164,7 @@ class DGFemViscousTerm:
         self.G = G
         self.n = n
 
-    def __eval_F_v(self, U):
+    def _eval_F_v(self, U):
         if len(inspect.getargspec(self.F_v).args) == 1:
             tau = self.F_v(U)
         else:
@@ -172,7 +172,7 @@ class DGFemViscousTerm:
         tau = ufl_adhere_transpose(tau)
         return tau
 
-    def __make_boundary_G(self, G, u_gamma):
+    def _make_boundary_G(self, G, u_gamma):
         if isinstance(G, ufl.core.expr.Expr):
             return replace(G, {self.U: u_gamma})
 
@@ -183,17 +183,29 @@ class DGFemViscousTerm:
         return G_gamma
 
     def interior_residual(self, dInt):
+        raise NotImplementedError("Interior residual not implemented in %s" % str(self.__class__))
+
+    def exterior_residual(self, u_gamma, dExt):
+        raise NotImplementedError("Exterior residual not implemented in %s" % str(self.__class__))
+
+    def neumann_residual(self, g_N, dExt):
+        return -inner(g_N, self.V)*dExt
+
+
+class DGFemSIPG(DGFemViscousTerm):
+
+    def interior_residual(self, dInt):
         G = self.G
         F_v, u, v, grad_v = self.F_v, self.U, self.V, self.grad_v_vec
         sig, n = self.sig, self.n
 
         residual = - inner(tensor_jump(u, n), avg(hyper_tensor_T_product(G, grad_v)))*dInt \
-                    - inner(ufl_adhere_transpose(avg(self.__eval_F_v(self.U))), tensor_jump(v, n))*dInt \
+                    - inner(ufl_adhere_transpose(avg(self._eval_F_v(self.U))), tensor_jump(v, n))*dInt \
                     + inner(sig('+')*hyper_tensor_product(g_avg(G), tensor_jump(u, n)), tensor_jump(v, n))*dInt
         return residual
 
     def exterior_residual(self, u_gamma, dExt):
-        G = self.__make_boundary_G(self.G, u_gamma)
+        G = self._make_boundary_G(self.G, u_gamma)
         F_v, u, v, grad_u, grad_v = self.F_v, self.U, self.V, grad(self.U), self.grad_v_vec
         n = self.n
 
@@ -201,10 +213,6 @@ class DGFemViscousTerm:
                     - inner(hyper_tensor_product(G, grad_u), dg_outer(v, n)) * dExt \
                     + inner(self.sig*hyper_tensor_product(G, dg_outer(u - u_gamma, n)), dg_outer(v, n)) * dExt
         return residual
-
-    def neumann_residual(self, g_N, dExt):
-
-        return -inner(g_N, self.V)*dExt
 
 
 class DGFemCurlTerm:
