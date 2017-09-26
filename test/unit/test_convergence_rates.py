@@ -70,7 +70,8 @@ class Advection(ConvergenceTest):
         def F_c(U):
             return b*U**2
 
-        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, alpha=lambda u, n: 2*u*dot(b, n))
+        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c,
+                                LocalLaxFriedrichs(lambda u, n: 2*u*dot(b, n)))
         F = ho.generate_fem_formulation(u, v)
 
         return F
@@ -97,7 +98,7 @@ class AdvectionDiffusion(ConvergenceTest):
         def F_v(u, grad_u):
             return (u + 1)*grad_u
 
-        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, alpha)
+        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, LocalLaxFriedrichs(alpha))
         eo = EllipticOperator(mesh, V, DGDirichletBC(ds, gD), F_v)
 
         F = ho.generate_fem_formulation(u, v) \

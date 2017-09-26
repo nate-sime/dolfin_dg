@@ -33,7 +33,8 @@ for ele_n in ele_ns:
     def F_c(U):
         return b*U**2
 
-    ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, alpha=lambda u, n: 2*u*dot(b, n))
+    convective_flux = LocalLaxFriedrichs(lambda u, n: 2*u*dot(b, n))
+    ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, convective_flux)
     residual = ho.generate_fem_formulation(u, v) - f*v*dx
 
     du = TrialFunction(V)

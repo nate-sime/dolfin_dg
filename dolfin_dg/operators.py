@@ -5,6 +5,8 @@ from ufl import CellVolume, FacetArea, grad, inner, \
     div, jump, avg, curl, cross, Max, dot, as_vector, as_matrix, sqrt, tr, Identity, variable, diff, exp
 from dolfin import Constant, Measure, FacetNormal, split
 
+from dolfin_dg.fluxes import LocalLaxFriedrichs
+
 
 class DGBC:
 
@@ -124,47 +126,31 @@ class MaxwellOperator(DGFemFormulation):
 
 class HyperbolicOperator(DGFemFormulation):
 
-    def __init__(self, mesh, V, bcs, F_c=lambda u: u, alpha=lambda u, n: inner(u, n)):
+    def __init__(self, mesh, V, bcs,
+                 F_c=lambda u: u,
+                 H=LocalLaxFriedrichs(lambda u, n: inner(u, n))):
         DGFemFormulation.__init__(self, mesh, V, bcs)
         self.F_c = F_c
-        self.alpha = alpha
-
-    def max_abs_eigenvalues(self, lambdas):
-        if isinstance(lambdas, ufl.core.expr.Expr):
-            return abs(lambdas)
-
-        assert isinstance(lambdas, (list, tuple))
-
-        lambdas = list(map(abs, lambdas))
-        alpha = Max(lambdas[0], lambdas[1])
-        for j in range(2, len(lambdas)):
-            alpha = Max(alpha, lambdas[j])
-        return alpha
-
+        self.H = H
 
     def generate_fem_formulation(self, u, v, dx=None, dS=None):
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
-
         n = FacetNormal(self.mesh)
-        alpha = self.max_abs_eigenvalues(self.alpha(u, n))
 
         residual = -inner(self.F_c(u), grad(v))*dx
 
-        # The following is just dot(H(u_p, u_m, n), v_p - v_m) on the interior as jumps and averages
-        avg_F = ufl_adhere_transpose(avg(self.F_c(u)))
-        alpha_interior = Max(alpha('+'), alpha('-'))
-        residual += inner(avg_F + 0.5*alpha_interior*tensor_jump(u, n), tensor_jump(v, n))*dS
+        self.H.setup(self.F_c, u("+"), u("-"), n("+"))
+        residual += inner(self.H.interior(self.F_c, u('+'), u('-'), n('+')), (v('+') - v('-')))*dS
 
         for bc in self.dirichlet_bcs:
             gD = bc.get_function()
             dSD = bc.get_boundary()
 
-            alpha_bc = self.max_abs_eigenvalues(self.alpha(gD, n))
-            bdry_alpha = Max(alpha, alpha_bc)
-            residual += inner(0.5*(dot(self.F_c(u), n) + dot(self.F_c(gD), n) + bdry_alpha*(u - gD)), v)*dSD
+            self.H.setup(self.F_c, u, gD, n)
+            residual += inner(self.H.exterior(self.F_c, u, gD, n), v)*dSD
 
         for bc in self.neumann_bcs:
             dSN = bc.get_boundary()
@@ -177,15 +163,15 @@ class HyperbolicOperator(DGFemFormulation):
 class SpacetimeBurgersOperator(
     HyperbolicOperator):
 
-    def __init__(self, mesh, V, bcs):
+    def __init__(self, mesh, V, bcs, flux=None):
 
         def F_c(u):
             return as_vector((u**2/2, u))
 
-        def alpha(u, n):
-            return u*n[0] + n[1]
+        if flux is None:
+            flux = LocalLaxFriedrichs(lambda u, n: u*n[0] + n[1])
 
-        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, alpha)
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, flux)
 
 
 class CompressibleEulerOperator(
@@ -212,7 +198,7 @@ class CompressibleEulerOperator(
             lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
             return lambdas
 
-        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, alpha)
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
 
 
 class CompressibleNavierStokesOperator(
@@ -301,7 +287,7 @@ class CompressibleEulerOperatorEntropyFormulation(
             lambdas = list(map(abs, lambdas))
             return lambdas
 
-        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, alpha)
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
 
 
 class CompressibleNavierStokesOperatorEntropyFormulation(

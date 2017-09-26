@@ -3,8 +3,9 @@ This module is provided as a reference for the homogeneity tensors of the compre
 It is used simply for regression testing (see dolfin_dg/test/regression/).
 These tensors may be automatically computed using dolfin_dg.dg_form.homogeneity_tensor().
 """
-
+from dolfin import Function
 from ufl import as_matrix
+from ufl.restriction import Restricted
 
 __author__ = 'njcs4'
 
@@ -60,3 +61,12 @@ def compressible_ns_entopy_G(mu, lam, Pr, gamma, V):
                              [0, mu*e1, (lam + 2*mu)*e2, -((lam + 2*mu)*V3**2 + mu*V2**2 - gamma*mu*V4/Pr)]])
 
     return K
+
+
+def force_zero_function_derivative(avec):
+    if isinstance(avec, Restricted):
+        if isinstance(avec.ufl_operands[0], Function):
+            return avec.ufl_operands[0].copy()(avec.side())
+    if isinstance(avec, Function):
+        return avec.copy()
+    return avec

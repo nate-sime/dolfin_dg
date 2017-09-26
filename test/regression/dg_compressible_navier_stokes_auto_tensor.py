@@ -1,6 +1,8 @@
-from dolfin import *
-from dolfin_dg import *
 import numpy as np
+from dolfin import *
+
+from dolfin_dg import *
+from dolfin_dg import force_zero_function_derivative
 
 poly_o = 1
 parameters['form_compiler']["cpp_optimize"] = True
