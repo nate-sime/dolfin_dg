@@ -44,9 +44,9 @@ ds = Measure('ds', domain=mesh, subdomain_data=exterior_bdries)
 bcs = [DGDirichletBC(ds(1), gD), DGNeumannBC(ds(2), u)]
 
 # List of fluxes to be used in the comparison
-fluxes = [("local-Lax Friedrichs", LocalLaxFriedrichs(lambda u, n: u*n[0] + n[1])),
-          ("HLLE", HLLE(lambda u, n: u*n[0] + n[1])),
-          ("Vijayasundaram", Vijayasundaram(lambda u, n: 0.5*u*n[0] + n[1], lambda u, n: 1, lambda u, n: 1))]
+fluxes = [("Vijayasundaram", Vijayasundaram(lambda u, n: 0.5*u*n[0] + n[1], lambda u, n: 1, lambda u, n: 1)),
+          ("local-Lax Friedrichs", LocalLaxFriedrichs(lambda u, n: u*n[0] + n[1])),
+          ("HLLE", HLLE(lambda u, n: u*n[0] + n[1]))]
 
 for name, flux in fluxes:
     project(gD, mesh=mesh, function=u)
