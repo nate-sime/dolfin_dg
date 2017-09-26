@@ -17,33 +17,26 @@ ele_ns = [4, 8, 16, 32, 64]
 errorl2 = np.zeros(len(ele_ns))
 errorh1 = np.zeros(len(ele_ns))
 hsizes = np.zeros(len(ele_ns))
-p = 1
+p = 2
 
 for ele_n in ele_ns:
     mesh = UnitSquareMesh(ele_n, ele_n, 'left/right')
+    n = FacetNormal(mesh)
 
     V = FunctionSpace(mesh, 'DG', p)
     v = TestFunction(V)
 
     gD = Expression('exp(x[0] - x[1])', element=V.ufl_element())
-    # u = Function(V)
-    # u = interpolate(gD, V)
-    u = interpolate(Constant(1.0), V)
-    f = Expression('0.0',
-                   element=V.ufl_element())
+    u = interpolate(gD, V)
+
+    f = Constant(0)
     b = Constant((1, 1))
-    n = FacetNormal(mesh)
-    u.rename("u", "u")
-    b.rename("b", "b")
 
     # Convective Operator
     def F_c(U):
         return b*U**2
 
-    convective_flux = Vijayasundaram(lambda u, n: 2*u*dot(b, n), lambda u, n: 1, lambda u, n: 1)
-    # convective_flux = HLLE(lambda u, n: 2*u*dot(b, n))
-    # convective_flux = LocalLaxFriedrichs(lambda u, n: 2*u*dot(b, n))
-    ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, convective_flux)
+    ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, HLLE(lambda u, n: 2*u*dot(b, n)))
     residual = ho.generate_fem_formulation(u, v) - f*v*dx
 
     du = TrialFunction(V)
