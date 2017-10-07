@@ -188,23 +188,42 @@ class CompressibleEulerOperator(
 
     def __init__(self, mesh, V, bcs, gamma=1.4):
         gamma = Constant(gamma)
+        dim = mesh.geometry().dim()
 
         def F_c(U):
-            rho, u1, u2, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0]
-            p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2))
-            H = E + p/rho
-            res = as_matrix([[rho*u1, rho*u2],
-                             [rho*u1**2 + p, rho*u1*u2],
-                             [rho*u1*u2, rho*u2**2 + p],
-                             [rho*H*u1, rho*H*u2]])
+            if dim == 2:
+                rho, u1, u2, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0]
+                p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2))
+                H = E + p/rho
+                res = as_matrix([[rho*u1, rho*u2],
+                                 [rho*u1**2 + p, rho*u1*u2],
+                                 [rho*u1*u2, rho*u2**2 + p],
+                                 [rho*H*u1, rho*H*u2]])
+            elif dim == 3:
+                rho, u1, u2, u3, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0], U[4]/U[0]
+                p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2 + u3**2))
+                H = E + p/rho
+                res = as_matrix([[rho*u1, rho*u2, rho*u3],
+                                 [rho*u1**2 + p, rho*u1*u2, rho*u1*u3],
+                                 [rho*u1*u2, rho*u2**2 + p, rho*u2*u3],
+                                 [rho*u1*u3, rho*u2*u3, rho*u3**2 + p],
+                                 [rho*H*u1, rho*H*u2, rho*H*u3]])
+
             return res
 
         def alpha(U, n):
-            rho, u1, u2, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0]
-            p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2))
-            u = as_vector([u1, u2])
-            c = sqrt(gamma*p/rho)
-            lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
+            if dim == 2:
+                rho, u1, u2, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0]
+                p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2))
+                u = as_vector([u1, u2])
+                c = sqrt(gamma*p/rho)
+                lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
+            elif dim == 3:
+                rho, u1, u2, u3, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0], U[4]/U[0]
+                p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2 + u3**2))
+                u = as_vector([u1, u2, u3])
+                c = sqrt(gamma*p/rho)
+                lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
             return lambdas
 
         HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
@@ -218,31 +237,62 @@ class CompressibleNavierStokesOperator(
         gamma = Constant(gamma)
         mu = Constant(mu)
         Pr = Constant(Pr)
+        dim = mesh.geometry().dim()
 
         def F_v(U, grad_U):
-            rho, rhou1, rhou2, rhoE = U
-            u1, u2, E = rhou1/rho, rhou2/rho, rhoE/rho
-            u = as_vector((u1, u2))
+            if dim == 2:
+                rho, rhou1, rhou2, rhoE = U
+                u1, u2, E = rhou1/rho, rhou2/rho, rhoE/rho
+                u = as_vector((u1, u2))
 
-            grad_rho = grad_U[0, :]
+                grad_rho = grad_U[0, :]
 
-            grad_xi1 = as_vector([grad_U[1, 0], grad_U[1, 1]])
-            grad_xi2 = as_vector([grad_U[2, 0], grad_U[2, 1]])
-            grad_u1 = (grad_xi1 - u1*grad_rho)/rho
-            grad_u2 = (grad_xi2 - u2*grad_rho)/rho
-            grad_u = as_matrix([[grad_u1[0], grad_u1[1]],
-                                [grad_u2[0], grad_u2[1]]])
+                grad_xi1 = as_vector([grad_U[1, 0], grad_U[1, 1]])
+                grad_xi2 = as_vector([grad_U[2, 0], grad_U[2, 1]])
+                grad_u1 = (grad_xi1 - u1*grad_rho)/rho
+                grad_u2 = (grad_xi2 - u2*grad_rho)/rho
+                grad_u = as_matrix([[grad_u1[0], grad_u1[1]],
+                                    [grad_u2[0], grad_u2[1]]])
 
-            grad_eta = grad_U[3, :]
-            grad_E = (grad_eta - E*grad_rho)/rho
+                grad_eta = grad_U[3, :]
+                grad_E = (grad_eta - E*grad_rho)/rho
 
-            tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(2))
-            K_grad_T = mu*gamma/Pr*(grad_E - dot(u, grad_u))
+                tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(2))
+                K_grad_T = mu*gamma/Pr*(grad_E - dot(u, grad_u))
 
-            return as_matrix([[0.0, 0.0],
-                              [tau[0, 0], tau[0, 1]],
-                              [tau[1, 0], tau[1, 1]],
-                              [dot(tau[0, :], u) + K_grad_T[0], (dot(tau[1, :], u)) + K_grad_T[1]]])
+                return as_matrix([[0.0, 0.0],
+                                  [tau[0, 0], tau[0, 1]],
+                                  [tau[1, 0], tau[1, 1]],
+                                  [dot(tau[0, :], u) + K_grad_T[0], (dot(tau[1, :], u)) + K_grad_T[1]]])
+            elif dim == 3:
+                rho, rhou1, rhou2, rhou3, rhoE = U
+                u1, u2, u3, E = rhou1/rho, rhou2/rho, rhou3/rho, rhoE/rho
+                u = as_vector((u1, u2, u3))
+
+                grad_rho = grad_U[0, :]
+
+                grad_xi1 = as_vector([grad_U[1, 0], grad_U[1, 1], grad_U[1, 2]])
+                grad_xi2 = as_vector([grad_U[2, 0], grad_U[2, 1], grad_U[2, 2]])
+                grad_xi3 = as_vector([grad_U[3, 0], grad_U[3, 1], grad_U[3, 2]])
+                grad_u1 = (grad_xi1 - u1*grad_rho)/rho
+                grad_u2 = (grad_xi2 - u2*grad_rho)/rho
+                grad_u3 = (grad_xi3 - u3*grad_rho)/rho
+                grad_u = as_matrix([[grad_u1[0], grad_u1[1], grad_u1[2]],
+                                    [grad_u2[0], grad_u2[1], grad_u2[2]],
+                                    [grad_u3[0], grad_u3[1], grad_u3[2]]])
+
+                grad_eta = grad_U[4, :]
+                grad_E = (grad_eta - E*grad_rho)/rho
+
+                tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(3))
+                K_grad_T = mu*gamma/Pr*(grad_E - dot(u, grad_u))
+
+                return as_matrix([[0.0, 0.0, 0.0],
+                                  [tau[0, 0], tau[0, 1], tau[0, 2]],
+                                  [tau[1, 0], tau[1, 1], tau[1, 2]],
+                                  [tau[2, 0], tau[2, 1], tau[2, 2]],
+                                  [dot(tau[0, :], u) + K_grad_T[0], (dot(tau[1, :], u)) + K_grad_T[1], (dot(tau[2, :], u)) + K_grad_T[2]]])
+
 
         CompressibleEulerOperator.__init__(self, mesh, V, bcs, gamma)
         EllipticOperator.__init__(self, mesh, V, bcs, F_v)
