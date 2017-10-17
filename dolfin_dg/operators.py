@@ -247,8 +247,9 @@ class CompressibleNavierStokesOperator(
             # TODO: check this
             grad_rho = grad_U[0, :]
             grad_rhou = as_matrix([[grad_U[j,:] for j in range(1, mesh.geometry().dim() + 1)]])[0]
-            grad_u = as_matrix([[(grad_rhou[j,:]*rho - rhou[j]*grad_rho)/rho**2 for j in range(mesh.geometry().dim())]])[0]
             grad_rhoE = grad_U[-1,:]
+            # Quotient rule to find grad(u) and grad(E)
+            grad_u = as_matrix([[(grad_rhou[j,:]*rho - rhou[j]*grad_rho)/rho**2 for j in range(mesh.geometry().dim())]])[0]
             grad_E = (grad_rhoE*rho - rhoE*grad_rho)/rho**2
 
             tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(mesh.geometry().dim()))
