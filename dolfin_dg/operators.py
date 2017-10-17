@@ -1,12 +1,10 @@
 import inspect
 
-from dolfin_dg.dg_form import DGFemViscousTerm, homogeneity_tensor, tangent_jump, tensor_jump, ufl_adhere_transpose, \
-    DGFemCurlTerm, DGFemSIPG
-import ufl
+from dolfin import Constant, Measure, FacetNormal
 from ufl import CellVolume, FacetArea, grad, inner, \
-    div, jump, avg, curl, cross, Max, dot, as_vector, as_matrix, sqrt, tr, Identity, variable, diff, exp
-from dolfin import Constant, Measure, FacetNormal, split
+    curl, dot, as_vector, as_matrix, sqrt, tr, Identity, variable, diff, exp
 
+from dolfin_dg.dg_form import DGFemViscousTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG
 from dolfin_dg.fluxes import LocalLaxFriedrichs
 
 
@@ -40,6 +38,12 @@ class DGNeumannBC(DGBC):
         DGBC.__init__(self, boundary, function)
 
 
+class DGAdiabticWallBC(DGBC):
+
+    def __init__(self, boundary, function):
+        DGBC.__init__(self, boundary, function)
+
+
 class DGFemFormulation:
 
     def __init__(self, mesh, fspace, bcs, **kwargs):
@@ -50,7 +54,7 @@ class DGFemFormulation:
         self.dirichlet_bcs = [bc for bc in bcs if isinstance(bc, DGDirichletBC)]
         self.neumann_bcs = [bc for bc in bcs if isinstance(bc, DGNeumannBC)]
 
-    def generate_fem_formulation(self, u):
+    def generate_fem_formulation(self, u, v, dx=None, dS=None, vt=None):
         raise NotImplementedError('Function not yet implemented')
 
 
@@ -191,39 +195,31 @@ class CompressibleEulerOperator(
         dim = mesh.geometry().dim()
 
         def F_c(U):
-            if dim == 2:
-                rho, u1, u2, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0]
-                p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2))
-                H = E + p/rho
-                res = as_matrix([[rho*u1, rho*u2],
-                                 [rho*u1**2 + p, rho*u1*u2],
-                                 [rho*u1*u2, rho*u2**2 + p],
-                                 [rho*H*u1, rho*H*u2]])
-            elif dim == 3:
-                rho, u1, u2, u3, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0], U[4]/U[0]
-                p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2 + u3**2))
-                H = E + p/rho
-                res = as_matrix([[rho*u1, rho*u2, rho*u3],
-                                 [rho*u1**2 + p, rho*u1*u2, rho*u1*u3],
-                                 [rho*u1*u2, rho*u2**2 + p, rho*u2*u3],
-                                 [rho*u1*u3, rho*u2*u3, rho*u3**2 + p],
-                                 [rho*H*u1, rho*H*u2, rho*H*u3]])
+            rho, E = U[0], U[-1]/U[0]
+            u = as_vector([U[j] for j in range(1, mesh.geometry().dim()+1)])/rho
+            p = (gamma - 1.0)*rho*(E - 0.5*dot(u, u))
+            H = E + p/rho
 
+            # TODO: This shouldn't require dim check
+            if dim == 2:
+                res = as_matrix([[rho*u[0], rho*u[1]],
+                                 [rho*u[0]**2 + p, rho*u[0]*u[1]],
+                                 [rho*u[0]*u[1], rho*u[1]**2 + p],
+                                 [rho*H*u[0], rho*H*u[1]]])
+            elif dim == 3:
+                res = as_matrix([[rho*u[0], rho*u[1], rho*u[2]],
+                                 [rho*u[0]**2 + p, rho*u[0]*u[1], rho*u[0]*u[2]],
+                                 [rho*u[0]*u[1], rho*u[1]**2 + p, rho*u[1]*u[2]],
+                                 [rho*u[0]*u[2], rho*u[1]*u[2], rho*u[2]**2 + p],
+                                 [rho*H*u[0], rho*H*u[1], rho*H*u[2]]])
             return res
 
         def alpha(U, n):
-            if dim == 2:
-                rho, u1, u2, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0]
-                p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2))
-                u = as_vector([u1, u2])
-                c = sqrt(gamma*p/rho)
-                lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
-            elif dim == 3:
-                rho, u1, u2, u3, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0], U[4]/U[0]
-                p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2 + u3**2))
-                u = as_vector([u1, u2, u3])
-                c = sqrt(gamma*p/rho)
-                lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
+            rho, E = U[0], U[-1]/U[0]
+            u = as_vector([U[j] for j in range(1, mesh.geometry().dim()+1)])/rho
+            p = (gamma - 1.0)*rho*(E - 0.5*dot(u, u))
+            c = sqrt(gamma*p/rho)
+            lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
             return lambdas
 
         HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
@@ -239,60 +235,64 @@ class CompressibleNavierStokesOperator(
         Pr = Constant(Pr)
         dim = mesh.geometry().dim()
 
+        if not hasattr(bcs, '__len__'):
+            bcs = [bcs]
+        self.adiabtic_wall_bcs = [bc for bc in bcs if isinstance(bc, DGAdiabticWallBC)]
+
         def F_v(U, grad_U):
+            rho, rhoE = U[0], U[-1]
+            rhou = as_vector([U[j] for j in range(1, mesh.geometry().dim()+1)])
+            u = rhou/rho
+
+            # TODO: check this
+            grad_rho = grad_U[0, :]
+            grad_rhou = as_matrix([[grad_U[j,:] for j in range(1, mesh.geometry().dim() + 1)]])[0]
+            grad_u = as_matrix([[(grad_rhou[j,:]*rho - rhou[j]*grad_rho)/rho**2 for j in range(mesh.geometry().dim())]])[0]
+            grad_rhoE = grad_U[-1,:]
+            grad_E = (grad_rhoE*rho - rhoE*grad_rho)/rho**2
+
+            tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(mesh.geometry().dim()))
+            K_grad_T = mu*gamma/Pr*(grad_E - dot(u, grad_u))
+
+            # TODO: This shouldn't require dim check
             if dim == 2:
-                rho, rhou1, rhou2, rhoE = U
-                u1, u2, E = rhou1/rho, rhou2/rho, rhoE/rho
-                u = as_vector((u1, u2))
-
-                grad_rho = grad_U[0, :]
-
-                grad_xi1 = as_vector([grad_U[1, 0], grad_U[1, 1]])
-                grad_xi2 = as_vector([grad_U[2, 0], grad_U[2, 1]])
-                grad_u1 = (grad_xi1 - u1*grad_rho)/rho
-                grad_u2 = (grad_xi2 - u2*grad_rho)/rho
-                grad_u = as_matrix([[grad_u1[0], grad_u1[1]],
-                                    [grad_u2[0], grad_u2[1]]])
-
-                grad_eta = grad_U[3, :]
-                grad_E = (grad_eta - E*grad_rho)/rho
-
-                tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(2))
-                K_grad_T = mu*gamma/Pr*(grad_E - dot(u, grad_u))
-
-                return as_matrix([[0.0, 0.0],
+                return as_matrix([[0, 0],
                                   [tau[0, 0], tau[0, 1]],
                                   [tau[1, 0], tau[1, 1]],
                                   [dot(tau[0, :], u) + K_grad_T[0], (dot(tau[1, :], u)) + K_grad_T[1]]])
             elif dim == 3:
-                rho, rhou1, rhou2, rhou3, rhoE = U
-                u1, u2, u3, E = rhou1/rho, rhou2/rho, rhou3/rho, rhoE/rho
-                u = as_vector((u1, u2, u3))
-
-                grad_rho = grad_U[0, :]
-
-                grad_xi1 = as_vector([grad_U[1, 0], grad_U[1, 1], grad_U[1, 2]])
-                grad_xi2 = as_vector([grad_U[2, 0], grad_U[2, 1], grad_U[2, 2]])
-                grad_xi3 = as_vector([grad_U[3, 0], grad_U[3, 1], grad_U[3, 2]])
-                grad_u1 = (grad_xi1 - u1*grad_rho)/rho
-                grad_u2 = (grad_xi2 - u2*grad_rho)/rho
-                grad_u3 = (grad_xi3 - u3*grad_rho)/rho
-                grad_u = as_matrix([[grad_u1[0], grad_u1[1], grad_u1[2]],
-                                    [grad_u2[0], grad_u2[1], grad_u2[2]],
-                                    [grad_u3[0], grad_u3[1], grad_u3[2]]])
-
-                grad_eta = grad_U[4, :]
-                grad_E = (grad_eta - E*grad_rho)/rho
-
-                tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(3))
-                K_grad_T = mu*gamma/Pr*(grad_E - dot(u, grad_u))
-
-                return as_matrix([[0.0, 0.0, 0.0],
+                return as_matrix([[0, 0, 0],
                                   [tau[0, 0], tau[0, 1], tau[0, 2]],
                                   [tau[1, 0], tau[1, 1], tau[1, 2]],
                                   [tau[2, 0], tau[2, 1], tau[2, 2]],
-                                  [dot(tau[0, :], u) + K_grad_T[0], (dot(tau[1, :], u)) + K_grad_T[1], (dot(tau[2, :], u)) + K_grad_T[2]]])
+                                  [dot(tau[0, :], u) + K_grad_T[0], dot(tau[1, :], u) + K_grad_T[1], dot(tau[2, :], u) + K_grad_T[2]]])
 
+        # Specialised adiabatic wall BC
+        def F_v_adiabatic(U, grad_U):
+            rho, rhoE = U[0], U[-1]
+            rhou = as_vector([U[j] for j in range(1, mesh.geometry().dim()+1)])
+            u = rhou/rho
+
+            # TODO: check this
+            grad_rho = grad_U[0, :]
+            grad_rhou = as_matrix([[grad_U[j,:] for j in range(1, mesh.geometry().dim() + 1)]])[0]
+            grad_u = as_matrix([[(grad_rhou[j,:]*rho - rhou[j]*grad_rho)/rho**2 for j in range(mesh.geometry().dim())]])[0]
+
+            tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(mesh.geometry().dim()))
+
+            if dim == 2:
+                return as_matrix([[0, 0],
+                                  [tau[0, 0], tau[0, 1]],
+                                  [tau[1, 0], tau[1, 1]],
+                                  [dot(tau[0, :], u), dot(tau[1, :], u)]])
+            elif dim == 3:
+                return as_matrix([[0, 0, 0],
+                                  [tau[0, 0], tau[0, 1], tau[0, 2]],
+                                  [tau[1, 0], tau[1, 1], tau[1, 2]],
+                                  [tau[2, 0], tau[2, 1], tau[2, 2]],
+                                  [dot(tau[0, :], u), dot(tau[1, :], u), dot(tau[2, :], u)]])
+
+        self.F_v_adiabatic = F_v_adiabatic
 
         CompressibleEulerOperator.__init__(self, mesh, V, bcs, gamma)
         EllipticOperator.__init__(self, mesh, V, bcs, F_v)
@@ -305,6 +305,23 @@ class CompressibleNavierStokesOperator(
 
         residual = EllipticOperator.generate_fem_formulation(self, u, v, dx, dS)
         residual += CompressibleEulerOperator.generate_fem_formulation(self, u, v, dx, dS)
+
+        # Specialised adiabatic wall boundary condition
+        for bc in self.adiabtic_wall_bcs:
+            h = CellVolume(self.mesh)/FacetArea(self.mesh)
+            n = FacetNormal(self.mesh)
+
+            u_gamma = bc.get_function()
+            dSD = bc.get_boundary()
+
+            self.H.setup(self.F_c, u, u_gamma, n)
+            residual += inner(self.H.exterior(self.F_c, u, u_gamma, n), v)*dSD
+
+            sigma = self.C_IP*Constant(max(self.fspace.ufl_element().degree()**2, 1))/h
+            G_adiabitic = homogeneity_tensor(self.F_v_adiabatic, u)
+            vt_adiabatic = DGFemSIPG(self.F_v_adiabatic, u, v, sigma, G_adiabitic, n)
+
+            residual += vt_adiabatic.exterior_residual(u_gamma, dSD)
 
         return residual
 

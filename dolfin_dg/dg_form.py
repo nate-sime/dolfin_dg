@@ -1,6 +1,7 @@
-from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff, dot, cross, curl
-import ufl
 import inspect
+
+import ufl
+from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff, dot, cross, curl
 
 __author__ = 'njcs4'
 
@@ -213,7 +214,6 @@ class DGFemSIPG(DGFemViscousTerm):
                     - inner(hyper_tensor_product(G, grad_u), dg_outer(v, n)) * dExt \
                     + inner(self.sig*hyper_tensor_product(G, dg_outer(u - u_gamma, n)), dg_outer(v, n)) * dExt
         return residual
-
 
 
 class DGFemNIPG(DGFemViscousTerm):
