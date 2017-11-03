@@ -22,7 +22,7 @@ from .operators import \
     CompressibleNavierStokesOperator, CompressibleNavierStokesOperatorEntropyFormulation, \
     MaxwellOperator, \
     SpacetimeBurgersOperator, \
-    DGNeumannBC, DGDirichletBC, \
+    DGNeumannBC, DGDirichletBC, DGAdiabticWallBC, \
     DGFemViscousTerm, DGFemCurlTerm
 
 # DWR highly experimental
@@ -33,3 +33,16 @@ from .dwr import \
 
 from .mark import \
     FixedFractionMarker
+
+# Compressible flow utility functions
+from .aero import \
+    conserved_variables, \
+    flow_variables, \
+    pressure, \
+    enthalpy, \
+    speed_of_sound, \
+    effective_reynolds_number, \
+    energy_density, \
+    subsonic_inflow, \
+    subsonic_outflow, \
+    no_slip
