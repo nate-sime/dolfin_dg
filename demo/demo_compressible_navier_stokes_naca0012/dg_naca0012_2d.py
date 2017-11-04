@@ -3,8 +3,15 @@ from dolfin_dg import *
 import math
 
 
-# In this example we use dual weighted residual based error estimates to compute the drag
-# coefficient of compressible flow around a NACA0012 airfoil.
+# In this example we use dual weighted residual based error estimates
+# to compute the drag coefficient of compressible flow around a NACA0012
+# airfoil.
+#
+# Note that the DWR refinement used here is highly experimental and not
+# fully supported in parallel computation.
+#
+# Performance may be improved by using mesh-to-mesh interpolation from
+# https://github.com/mikaem/fenicstools between refinement levels.
 
 
 parameters['std_out_all_processes'] = False
@@ -51,7 +58,8 @@ class CustomSolver(NewtonSolver):
         x.axpy(-theta, dx)
 
 
-mesh = Mesh("naca0012_coarse_mesh.xml")
+mesh = Mesh()
+XDMFFile("naca0012_coarse_mesh.xdmf").read(mesh)
 
 # Polynomial order
 poly_o = 1
@@ -169,8 +177,10 @@ for ref_level in range(n_ref_max):
     # If we're not on the last refinement level, apply dual-weighted-residual error
     # estimation refinement.
     if ref_level < n_ref_max - 1:
+        info("Computing a posteriori error estimates")
         est = NonlinearAPosterioriEstimator(J, F, drag, u_vec)
         markers = est.compute_cell_markers(FixedFractionMarker(frac=0.2))
+        info("Refining mesh")
         mesh = refine(mesh, cell_markers=markers)
 
     # Write the density and the adapted mesh
