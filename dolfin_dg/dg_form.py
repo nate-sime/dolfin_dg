@@ -104,7 +104,7 @@ def dg_cross(u, v):
     assert(len(u.ufl_shape) == 1 and len(v.ufl_shape) == 1)
     if u.ufl_shape[0] == 2 and v.ufl_shape[0] == 2:
         return u[0]*v[1] - u[1]*v[0]
-    return cross(u, v)
+    return ufl_adhere_transpose(cross(u, v))
 
 
 def tangent_jump(u, n):
@@ -294,9 +294,9 @@ class DGFemCurlTerm:
         F_v, u, v, curl_v = self.F_m, self.U, self.V, self.curl_v_vec
         sig, n = self.sig, self.n
 
-        residual = - dot(tangent_jump(u, n), avg(hyper_tensor_T_product(G, curl_v)))*dInt \
-                   - dot(tangent_jump(v, n), avg(self.__eval_F_v(u)))*dInt \
-                   + sig('+')*dot(hyper_tensor_product(g_avg(G), tangent_jump(u, n)), tangent_jump(v, n))*dInt
+        residual = - inner(tangent_jump(u, n), avg(hyper_tensor_T_product(G, curl_v)))*dInt \
+                   - inner(tangent_jump(v, n), avg(self.__eval_F_v(u)))*dInt \
+                   + sig('+')*inner(hyper_tensor_product(g_avg(G), tangent_jump(u, n)), tangent_jump(v, n))*dInt
 
         return residual
 
@@ -305,7 +305,7 @@ class DGFemCurlTerm:
         F_v, u, v, grad_u, curl_v = self.F_m, self.U, self.V, curl(self.U), self.curl_v_vec
         n = self.n
 
-        residual = - dot(dg_cross(n, u - u_gamma), hyper_tensor_T_product(G, curl_v))*dExt \
-                   - dot(dg_cross(n, v), hyper_tensor_product(G, grad_u))*dExt \
-                   + self.sig*dot(hyper_tensor_product(G, dg_cross(n, u - u_gamma)), dg_cross(n, v))*dExt
+        residual = - inner(dg_cross(n, u - u_gamma), hyper_tensor_T_product(G, curl_v))*dExt \
+                   - inner(dg_cross(n, v), hyper_tensor_product(G, grad_u))*dExt \
+                   + self.sig*inner(hyper_tensor_product(G, dg_cross(n, u - u_gamma)), dg_cross(n, v))*dExt
         return residual
