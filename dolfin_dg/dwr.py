@@ -1,5 +1,5 @@
 from dolfin import *
-from mark import Marker
+from .mark import Marker
 
 
 def dual(form, w, z=None):
