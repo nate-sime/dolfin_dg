@@ -3,6 +3,10 @@ from dolfin_dg import *
 from dolfin_dg import ringleb
 import numpy as np
 
+# Due to the complexity of implementing the Ringleb mesh, this
+# demo is not supported in parallel computations.
+
+
 parameters['form_compiler']["cpp_optimize"] = True
 parameters['form_compiler']["optimize"] = True
 parameters['form_compiler']['representation'] = 'uflacs'
