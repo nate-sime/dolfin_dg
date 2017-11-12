@@ -156,7 +156,7 @@ class HyperbolicOperator(DGFemFormulation):
 
         residual = -inner(self.F_c(u), grad(v))*dx
 
-        self.H.setup(self.F_c, u("+"), u("-"), n("+"))
+        self.H.setup(self.F_c, u('+'), u('-'), n('+'))
         residual += inner(self.H.interior(self.F_c, u('+'), u('-'), n('+')), (v('+') - v('-')))*dS
 
         for bc in self.dirichlet_bcs:
