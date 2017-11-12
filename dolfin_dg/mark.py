@@ -27,6 +27,6 @@ class FixedFractionMarker(Marker):
         # Populate cell markers
         markers = CellFunction("bool", ind.mesh(), False)
         for i in idx:
-            markers[i] = True
+            markers[int(i)] = True
 
         return markers
