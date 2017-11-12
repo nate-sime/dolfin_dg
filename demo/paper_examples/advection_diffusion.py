@@ -32,13 +32,12 @@ for ele_n in ele_ns:
     def F_c(u):
         return b*u**2
 
-    def alpha(u, n):
-        return 2*u*dot(b, n)
+    H = LocalLaxFriedrichs(lambda u, n: 2*u*dot(b, n))
 
     def F_v(u, grad_u):
         return (u + 1)*grad_u
 
-    ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, alpha)
+    ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, H)
     eo = EllipticOperator(mesh, V, DGDirichletBC(ds, gD), F_v)
 
     residual = ho.generate_fem_formulation(u, v) \
