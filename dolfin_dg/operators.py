@@ -6,6 +6,7 @@ from ufl import CellVolume, FacetArea, grad, inner, \
 
 from dolfin_dg.dg_form import DGFemViscousTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG
 from dolfin_dg.fluxes import LocalLaxFriedrichs
+from dolfin_dg.aero import conserved_variables, flow_variables, pressure, enthalpy, speed_of_sound
 
 
 class DGBC:
@@ -195,10 +196,9 @@ class CompressibleEulerOperator(
         dim = mesh.geometry().dim()
 
         def F_c(U):
-            rho, E = U[0], U[-1]/U[0]
-            u = as_vector([U[j] for j in range(1, mesh.geometry().dim()+1)])/rho
-            p = (gamma - 1.0)*rho*(E - 0.5*dot(u, u))
-            H = E + p/rho
+            rho, u, E = flow_variables(U)
+            p = pressure(U)
+            H = enthalpy(U)
 
             # TODO: This shouldn't require dim check
             if dim == 2:
@@ -215,10 +215,9 @@ class CompressibleEulerOperator(
             return res
 
         def alpha(U, n):
-            rho, E = U[0], U[-1]/U[0]
-            u = as_vector([U[j] for j in range(1, mesh.geometry().dim()+1)])/rho
-            p = (gamma - 1.0)*rho*(E - 0.5*dot(u, u))
-            c = sqrt(gamma*p/rho)
+            rho, u, E = flow_variables(U)
+            p = pressure(U)
+            c = speed_of_sound(p, rho)
             lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
             return lambdas
 
@@ -240,8 +239,7 @@ class CompressibleNavierStokesOperator(
         self.adiabtic_wall_bcs = [bc for bc in bcs if isinstance(bc, DGAdiabticWallBC)]
 
         def F_v(U, grad_U):
-            rho, rhoE = U[0], U[-1]
-            rhou = as_vector([U[j] for j in range(1, mesh.geometry().dim()+1)])
+            rho, rhou, rhoE = conserved_variables(U)
             u = rhou/rho
 
             # TODO: check this
@@ -270,8 +268,7 @@ class CompressibleNavierStokesOperator(
 
         # Specialised adiabatic wall BC
         def F_v_adiabatic(U, grad_U):
-            rho, rhoE = U[0], U[-1]
-            rhou = as_vector([U[j] for j in range(1, mesh.geometry().dim()+1)])
+            rho, rhou, rhoE = conserved_variables(U)
             u = rhou/rho
 
             # TODO: check this

@@ -14,9 +14,7 @@ def flow_variables(U):
 
 
 def pressure(U, gamma=1.4):
-    rho, E = U[0], U[-1]/U[0]
-    dim = U.ufl_shape[0] - 2
-    u = as_vector([U[j] for j in range(1, dim + 1)])/rho
+    rho, u, E = flow_variables(U)
     p = (gamma - 1.0)*rho*(E - 0.5*dot(u, u))
     return p
 
@@ -51,6 +49,7 @@ def subsonic_outflow(p_out, u_vec):
     rhoE_out = energy_density(p_out, rho, u)
     dim = u_vec.ufl_shape[0] - 2
     return as_vector([rho] + [u_vec[j] for j in range(1, dim+1)] + [rhoE_out])
+
 
 def no_slip(U):
     rho, rhou, rhoE = conserved_variables(U)
