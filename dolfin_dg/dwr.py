@@ -12,7 +12,7 @@ def dual(form, w, z=None):
 
 class NonlinearAPosterioriEstimator:
 
-    def __init__(self, J, F, j, u_h, bcs=None, p_inc=1):
+    def __init__(self, J, F, j, u_h, bcs=None, p_inc=1, options_prefix=None):
         assert(len(F.arguments()) == 1)
         assert(len(J.arguments()) == 2)
         assert(len(j.arguments()) == 0)
@@ -22,6 +22,8 @@ class NonlinearAPosterioriEstimator:
 
         if not hasattr(bcs, "__len__"):
             bcs = (bcs,)
+
+        self.options_prefix = options_prefix
 
         V = F.arguments()[0].function_space()
         e = V.ufl_element()
@@ -63,7 +65,17 @@ class NonlinearAPosterioriEstimator:
 
         # Solve the dual problem
         z_s = Function(self.V_star)
-        solve(dual_M == dual_j, z_s, self.bcs, solver_parameters={'linear_solver': 'mumps'})
+
+        if self.options_prefix is None:
+            solve(dual_M == dual_j, z_s, self.bcs, solver_parameters={'linear_solver': 'mumps'})
+        else:
+            dM, dj = PETScMatrix(), PETScVector()
+            assemble_system(dual_M, dual_j, self.bcs)
+            linear_solver = PETScKrylovSolver()
+            linear_solver.set_operator(dM)
+            linear_solver.set_options_prefix(self.options_prefix)
+            linear_solver.set_from_options()
+            linear_solver.solve(z_s.vector(), dj)
 
         return z_s
 
