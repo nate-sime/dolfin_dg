@@ -42,6 +42,9 @@ class NonlinearAPosterioriEstimator:
         self.j = j
         self.u_h = u_h
 
+        info("NonlinearAPosterioriEstimator space and dual space size: (%d, %d)"
+             % (V.dim(), self.V_star.dim()))
+
     def compute_cell_markers(self, marker):
         assert(isinstance(marker, Marker))
         eta_k = self.compute_indicators()
@@ -70,11 +73,11 @@ class NonlinearAPosterioriEstimator:
             solve(dual_M == dual_j, z_s, self.bcs, solver_parameters={'linear_solver': 'mumps'})
         else:
             dM, dj = PETScMatrix(), PETScVector()
-            assemble_system(dual_M, dual_j, self.bcs)
+            assemble_system(dual_M, dual_j, self.bcs, A_tensor=dM, b_tensor=dj)
             linear_solver = PETScKrylovSolver()
-            linear_solver.set_operator(dM)
             linear_solver.set_options_prefix(self.options_prefix)
             linear_solver.set_from_options()
+            linear_solver.set_operator(dM)
             linear_solver.solve(z_s.vector(), dj)
 
         return z_s

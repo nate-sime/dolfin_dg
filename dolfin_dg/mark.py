@@ -46,7 +46,7 @@ class FixedFractionMarkerParallel(Marker):
         ind_array = comm.gather(ind.array(), 0)
 
         if comm.rank == 0:
-            offsets = np.cumsum(map(len, ind_array))
+            offsets = np.cumsum(list(map(len, ind_array)))
             assert(len(offsets) == comm.size)
             ind_array = np.hstack(ind_array)
 
