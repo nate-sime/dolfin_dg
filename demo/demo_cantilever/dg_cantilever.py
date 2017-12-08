@@ -2,6 +2,11 @@ import numpy as np
 from dolfin import *
 from dolfin_dg import *
 
+# This demo reproduces the numerical experiment shown in Section 4.1 of
+# L. Noels and R. Radovitzky, A general discontinuous galerkin method for finite hyperelasticity. formulation
+# and numerical applications, Internat. J. Numer. Methods Engrg. 68 (2006), no. 1, 64–97.
+# Here we compute the small-strain deflection of a cantilever.
+
 # Optimization options for the form compiler
 parameters["form_compiler"]["cpp_optimize"] = True
 parameters["form_compiler"]["representation"] = "uflacs"
