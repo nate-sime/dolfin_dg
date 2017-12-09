@@ -32,7 +32,7 @@ from .dwr import \
     dual
 
 from .mark import \
-    FixedFractionMarker
+    FixedFractionMarker, FixedFractionMarkerParallel
 
 # Compressible flow utility functions
 from .aero import \

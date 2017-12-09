@@ -101,7 +101,7 @@ class NonlinearAPosterioriEstimator:
         mesh = self.V_star.mesh()
 
         # Put the values of the projection into a cell function
-        cf = CellFunction("double", mesh, 0.0)
+        cf = MeshFunction("double", mesh, mesh.topology().dim(), 0.0)
         for c in cells(mesh):
             cf[c] = eta.vector()[c.index()][0] # Why does this return an array?
         return cf

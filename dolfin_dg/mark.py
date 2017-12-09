@@ -14,14 +14,13 @@ class FixedFractionMarker(Marker):
         self.frac = frac
 
     def mark(self, ind):
-        assert(isinstance(ind, dolfin.cpp.mesh.CellFunctionDouble))
         assert(ind.dim() == ind.mesh().topology().dim())
         assert(ind.cpp_value_type() == "double")
 
         # Sort the numpy array of cell function indicators
         idx = np.argsort(-ind.array())
 
-        # Choose only the largest fraction requested TODO: fix for parallel
+        # Choose only the largest fraction requested
         idx = idx[0:int(max(self.frac*len(idx), 1))]
 
         # Populate cell markers
@@ -38,29 +37,39 @@ class FixedFractionMarkerParallel(Marker):
         self.frac = frac
 
     def mark(self, ind):
-        assert(isinstance(ind, dolfin.cpp.mesh.CellFunctionDouble))
         assert(ind.dim() == ind.mesh().topology().dim())
         assert(ind.cpp_value_type() == "double")
 
+        # Communicate all of the indicator values to process 0
+        # It is important to preserve their order
         comm = ind.mesh().mpi_comm().tompi4py()
         ind_array = comm.gather(ind.array(), 0)
 
         if comm.rank == 0:
+            # On process 0 we argument sort the indicators to find
+            # the indices of the cells with the `frac' largest
+            # error estimates.
+
+            # The offsets are the global element index offsets assigned
+            # to each process
             offsets = np.cumsum(list(map(len, ind_array)))
             assert(len(offsets) == comm.size)
-            ind_array = np.hstack(ind_array)
 
             # Sort the numpy array of cell function indicators
+            ind_array = np.hstack(ind_array)
             idx = np.argsort(-ind_array)
 
             # Choose only the largest fraction requested
             idx = idx[0:int(max(self.frac*len(idx), 1))]
 
+            # Utiltiy functino to find which process owns a global cell index
             def owning_process(idx):
                 for p in range(comm.size):
                     if idx < offsets[p]:
                         return p
 
+            # Generate a list of the cell indices to be refined and communicate
+            # them back to their process owners
             comm_back = [[] for p in range(comm.size)]
             for i in idx:
                 p = owning_process(i)
@@ -71,7 +80,8 @@ class FixedFractionMarkerParallel(Marker):
         idx = comm.scatter(comm_back)
 
         # Populate cell markers
-        markers = CellFunction("bool", ind.mesh(), False)
+        markers = MeshFunction("bool", ind.mesh(),
+                               ind.mesh().topology().dim(), False)
         for i in idx:
             markers[int(i)] = True
 
