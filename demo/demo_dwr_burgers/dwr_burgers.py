@@ -31,7 +31,7 @@ for it in range(N):
 
     v = TestFunction(V)
 
-    ff = FacetFunction("size_t", mesh, 0)
+    ff = MeshFunction("size_t", mesh, mesh.topology().dim()-1, 0)
     CompiledSubDomain("on_boundary").mark(ff, 1)
     CompiledSubDomain("near(x[1], 0.0) || near(x[0], 0.0)").mark(ff, 2)
     ds = Measure("ds", subdomain_data=ff)

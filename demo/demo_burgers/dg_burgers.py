@@ -36,7 +36,7 @@ v = TestFunction(V)
 n = FacetNormal(mesh)
 
 # Establish exterior boundary components and construct measure
-exterior_bdries = FacetFunction('size_t', mesh)
+exterior_bdries = MeshFunction('size_t', mesh, mesh.topology().dim() - 1)
 fixed_ds = FixedBC()
 fixed_ds.mark(exterior_bdries, 1)
 free_ds = FreeBC()

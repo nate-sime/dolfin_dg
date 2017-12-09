@@ -1,4 +1,6 @@
+import ufl
 from dolfin import *
+
 from .mark import Marker
 
 
@@ -120,6 +122,6 @@ class LinearAPosterioriEstimator(NonlinearAPosterioriEstimator):
         J = derivative(F, u_h)
 
         u = j.arguments()[0]
-        j = replace(j, {u: u_h})
+        j = ufl.replace(j, {u: u_h})
 
         NonlinearAPosterioriEstimator.__init__(self, J, F, j, u_h, bcs=bcs, p_inc=p_inc)
