@@ -56,13 +56,13 @@ h1_plt = plt.figure(2).add_subplot(1, 1, 1)
 rate_messages = []
 for name, flux in fluxes:
     error = np.array([compute_error(ele_n, flux) for ele_n in ele_ns])
-    h_sizes = error[:,2]
+    h_sizes = error[:, 2]
 
-    print error[:, 0]
     l2_rates = compute_rate(error[:, 0], h_sizes)
     h1_rates = compute_rate(error[:, 1], h_sizes)
 
-    rate_messages += ["%s flux\nL2 rates: %s\nH1 rates: %s" % (name, str(l2_rates), str(h1_rates))]
+    rate_messages += ["%s flux\nL2 rates: %s\nH1 rates: %s"
+                      % (name, str(l2_rates), str(h1_rates))]
 
     l2_plt.loglog(h_sizes, error[:, 0], "-x")
     h1_plt.loglog(h_sizes, error[:, 1], "--x")
