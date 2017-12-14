@@ -44,6 +44,10 @@ Installation
 Docker image
 ------------
 
+
+.. image:: https://quay.io/repository/natesime/dolfin_dg/status
+
+
 Follow the instructions for installing https://fenicsproject.org/download/. A docker image 
 of the dolfin_dg master branch is available:
 
