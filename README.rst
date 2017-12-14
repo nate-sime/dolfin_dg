@@ -38,6 +38,16 @@ dolfin_dg depends on the core components of the FEniCS project (https://fenicspr
 dolfin_dg requires python 3.
 
 
+Automated testing
+=================
+
+.. image:: https://bitbucket-badges.useast.atlassian.io/badge/nate-sime/dolfin_dg.svg
+   :target: https://bitbucket.org/nate-sime/dolfin_dg/addon/pipelines/home
+   :alt: Pipelines Build Status
+
+Unit tests are provided in ``test/unit/test_*.py``.
+
+
 Installation
 ============
 
