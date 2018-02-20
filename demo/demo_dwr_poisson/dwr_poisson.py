@@ -2,8 +2,8 @@ from dolfin import *
 from dolfin_dg import *
 import matplotlib.pyplot as plt
 
-if MPI.size(mpi_comm_world()) > 1:
-    error("Dual weighted residual (DWR) functionality not fully supported in parallel.")
+if MPI.size(MPI.comm_world) > 1:
+    NotImplementedError("Dual weighted residual (DWR) functionality not fully supported in parallel.")
 
 # Demo taken from FEniCS course Lecture 11. A. Logg and M. Rognes
 # https://fenicsproject.org/pub/course/lectures/2013-11-logg-fcc/lecture_11_error_control.pdf
@@ -40,8 +40,7 @@ for it in range(7):
     lape = LinearAPosterioriEstimator(a, L, j_h, soln, bcs)
     markers = lape.compute_cell_markers(FixedFractionMarker(frac=0.2))
 
-
-    mesh = refine(mesh, cell_markers=markers, redistribute=True)
+    mesh = refine(mesh, markers, redistribute=True)
 
 plt.loglog(dwr_dofs, dwr_errors)
 

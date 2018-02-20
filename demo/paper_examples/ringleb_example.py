@@ -14,7 +14,7 @@ parameters["ghost_mode"] = "shared_facet"
 parameters["form_compiler"]["quadrature_degree"] = 10
 
 
-class RinglebAnalSoln(Expression):
+class RinglebAnalSoln(UserExpression):
     def eval(self, value, x):
         val = ringleb.ringleb_anal_soln(x[0], x[1])
         value[0] = val[0]
@@ -71,7 +71,7 @@ for n_nodes in mesh_sizes:
     V = VectorFunctionSpace(mesh, 'DG', poly_o, dim=4)
     v_vec = TestFunction(V)
 
-    facet = FacetFunction('size_t', mesh, 0)
+    facet = MeshFunction('size_t', mesh, 1, 0)
 
     for f in facets(mesh):
         if f.exterior():
@@ -105,6 +105,6 @@ for n_nodes in mesh_sizes:
 
     run_count += 1
 
-if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
+if MPI.rank(mesh.mpi_comm()) == 0:
     print('k L2', np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:]))
     print('k H1', np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:]))

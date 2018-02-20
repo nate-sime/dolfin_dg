@@ -1,4 +1,6 @@
 import numpy as np
+import ufl
+
 from dolfin import *
 
 from dolfin_dg import *
@@ -63,9 +65,9 @@ for n_eles in mesh_sizes:
         forward_evs = construct_evs(U_p, n_p)
         reverse_evs = construct_evs(U_m, n_p)
 
-        return Max(
-            Max(Max(forward_evs[0], forward_evs[1]), forward_evs[2]),
-            Max(Max(reverse_evs[0], reverse_evs[1]), reverse_evs[2])
+        return ufl.Max(
+            ufl.Max(ufl.Max(forward_evs[0], forward_evs[1]), forward_evs[2]),
+            ufl.Max(ufl.Max(reverse_evs[0], reverse_evs[1]), reverse_evs[2])
         )
 
     def H(U_p, U_m, n_p):
@@ -126,7 +128,7 @@ for n_eles in mesh_sizes:
     run_count+=1
 
 
-if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
+if MPI.rank(mesh.mpi_comm()) == 0:
     print(','.join(map(str, errorl2)))
     print(','.join(map(str, errorh1)))
     print(','.join(map(str, hsizes)))

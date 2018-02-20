@@ -66,7 +66,7 @@ for n_eles in mesh_sizes:
     hsizes[run_count] = mesh.hmax()
     run_count += 1
 
-if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
+if MPI.rank(mesh.mpi_comm()) == 0:
     print(','.join(map(str, errorl2)))
     print(','.join(map(str, errorh1)))
     print(','.join(map(str, hsizes)))

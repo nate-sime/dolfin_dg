@@ -589,15 +589,15 @@ def ringleb_mesh(n_x, n_y, curved=False):
 
     mesh = fin.Mesh()
     me = fin.MeshEditor()
-    me.open(mesh, 2, 2)
+    me.open(mesh, "triangle", 2, 2)
     me.init_vertices(no_nodes)
     me.init_cells(no_eles)
 
     for j in range(len(x)):
-        me.add_vertex(j, x[j], y[j])
+        me.add_vertex(j, [x[j], y[j]])
 
     for j in range(c_v.shape[0]):
-        me.add_cell(j, c_v[j, 0], c_v[j, 1], c_v[j, 2])
+        me.add_cell(j, [c_v[j, 0], c_v[j, 1], c_v[j, 2]])
 
     me.close()
 

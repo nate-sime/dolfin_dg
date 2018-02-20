@@ -1,3 +1,4 @@
+import dolfin
 from dolfin import *
 import numpy as np
 
@@ -15,7 +16,7 @@ class FixedFractionMarker(Marker):
 
     def mark(self, ind):
         assert(ind.dim() == ind.mesh().topology().dim())
-        assert(ind.cpp_value_type() == "double")
+        assert(isinstance(ind, dolfin.cpp.mesh.MeshFunctionDouble))
 
         # Sort the numpy array of cell function indicators
         idx = np.argsort(-ind.array())
@@ -24,7 +25,9 @@ class FixedFractionMarker(Marker):
         idx = idx[0:int(max(self.frac*len(idx), 1))]
 
         # Populate cell markers
-        markers = CellFunction("bool", ind.mesh(), False)
+        markers = MeshFunction("bool", ind.mesh(),
+                               ind.mesh().topology().dim(),
+                               False)
         for i in idx:
             markers[int(i)] = True
 
@@ -38,11 +41,11 @@ class FixedFractionMarkerParallel(Marker):
 
     def mark(self, ind):
         assert(ind.dim() == ind.mesh().topology().dim())
-        assert(ind.cpp_value_type() == "double")
+        assert(isinstance(ind, dolfin.cpp.mesh.MeshFunctionDouble))
 
         # Communicate all of the indicator values to process 0
         # It is important to preserve their order
-        comm = ind.mesh().mpi_comm().tompi4py()
+        comm = ind.mesh().mpi_comm()
         ind_array = comm.gather(ind.array(), 0)
 
         if comm.rank == 0:

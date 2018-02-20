@@ -1,5 +1,7 @@
 from dolfin import *
 from dolfin_dg import *
+
+import ufl
 import math
 
 
@@ -30,10 +32,7 @@ class Problem(NonlinearProblem):
         assemble(self.L, tensor=b)
 
     def J(self, A, x):
-        tic()
         assemble(self.a, tensor=A)
-        elapsed_time = toc()
-        info("Jacobian assembly time: %.3e s" % elapsed_time)
 
 
 # Use a Newton solver with custom damping parameter
@@ -93,24 +92,34 @@ WALL = 3
 # Write the adapted meshes
 xdmf = XDMFFile("adapted_naca0012_meshes.xdmf")
 
-# Record information in this lists
+# Initialise a snes solver
+solver = PETScSNESSolver()
+PETScOptions.set("snes_monitor")
+PETScOptions.set("snes_divergence_tolerance", -1.0)
+# PETScOptions.set("ksp_view")
+PETScOptions.set("ksp_type", "preonly")
+PETScOptions.set("pc_type", "lu")
+# PETScOptions.set("pc_factor_mat_solver_type", "mumps")
+
+# Record information in this list
 results = []
 
 # Maximum number of refinement levels
-n_ref_max = 7
+n_ref_max = 1
 for ref_level in range(n_ref_max):
     info("Refinement level %d" % ref_level)
 
     # Label the boundary compoonents of the mesh. Initially label all exterior facets
     # as the adiabatic wall, then label the exterior facets far from the airfoil
     # as the inlet and outlet based on the angle of attack.
-    bdry_ff = FacetFunction('size_t', mesh, 0)
+    bdry_ff = MeshFunction('size_t', mesh, 1, 0)
     CompiledSubDomain("on_boundary").mark(bdry_ff, WALL)
     for f in facets(mesh):
         x = f.midpoint()
         if not f.exterior() or (x[0]*x[0] + x[1]*x[1]) < 4.0:
             continue
-        bdry_ff[f] = INLET if f.normal().dot(n_in) < 0.0 else OUTLET
+        bdry_ff[f] = INLET if f.normal()[0]*n_in[0] + f.normal()[1]*n_in[1] < 0.0 \
+            else OUTLET
 
     ds = Measure('ds', domain=mesh, subdomain_data=bdry_ff)
 
@@ -139,7 +148,6 @@ for ref_level in range(n_ref_max):
     J = derivative(F, u_vec)
 
     # Setup the problem and solve
-    solver = CustomSolver()
     problem = Problem(J, F, [])
     solver.solve(problem, u_vec.vector())
 
@@ -156,7 +164,7 @@ for ref_level in range(n_ref_max):
     h = CellVolume(mesh)/FacetArea(mesh)
     sigma = Constant(20.0)*Constant(max(poly_o**2, 1))/h
     G_adiabitic = homogeneity_tensor(ce.F_v_adiabatic, u_vec)
-    G_adiabitic = replace(G_adiabitic, {u_vec: no_slip_bc})
+    G_adiabitic = ufl.replace(G_adiabitic, {u_vec: no_slip_bc})
 
     # The drag coefficient
     psi_drag = as_vector((cos(attack), sin(attack)))
@@ -181,7 +189,7 @@ for ref_level in range(n_ref_max):
         est = NonlinearAPosterioriEstimator(J, F, drag, u_vec)
         markers = est.compute_cell_markers(FixedFractionMarker(frac=0.2))
         info("Refining mesh")
-        mesh = refine(mesh, cell_markers=markers)
+        mesh = refine(mesh, markers)
 
     # Write the density and the adapted mesh
     xdmf.write(u_vec.sub(0), float(ref_level))

@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 parameters["ghost_mode"] = "shared_facet"
 parameters["refinement_algorithm"] = "plaza_with_parent_facets"
 
-if MPI.size(mpi_comm_world()) > 1:
-    error("Dual weighted residual (DWR) functionality not fully supported in parallel.")
+if MPI.size(MPI.comm_world) > 1:
+    raise NotImplementedError("Dual weighted residual (DWR) functionality not fully supported in parallel.")
 
 mesh = RectangleMesh(Point(0., 0.), Point(3., 2.), 8, 6)
 
@@ -67,7 +67,7 @@ for it in range(N):
     # Compute dual-weighted residual error and refine the mesh
     est = NonlinearAPosterioriEstimator(J, F, j, u)
     markers = est.compute_cell_markers(FixedFractionMarker(frac=0.1))
-    mesh = refine(mesh, cell_markers=markers, redistribute=True)
+    mesh = refine(mesh, markers, redistribute=True)
 
 plt.figure()
 plt.loglog(dofs, errors)

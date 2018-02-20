@@ -7,7 +7,7 @@ from .mark import Marker
 def dual(form, w, z=None):
     if not z is None:
         v, u = form.arguments()
-        return replace(form, {u: w, v: z})
+        return ufl.replace(form, {u: w, v: z})
     u = form.arguments()[0]
     return replace(form, {u: w})
 
@@ -33,9 +33,9 @@ class NonlinearAPosterioriEstimator:
 
         # Copy and homogenise BCs
         for bc in bcs:
-            if bc.user_sub_domain() is None:
+            if bc.user_subdomain() is None:
                 raise NotImplementedError("BCs defined by mesh functions not yet supported")
-        self.bcs = [DirichletBC(self.V_star, bc.value(), bc.user_sub_domain()) for bc in bcs]
+        self.bcs = [DirichletBC(self.V_star, bc.value(), bc.user_subdomain()) for bc in bcs]
         for bc in self.bcs:
             bc.homogenize()
 
@@ -91,7 +91,7 @@ class NonlinearAPosterioriEstimator:
         DG0 = FunctionSpace(self.V_star.mesh(), "DG", 0)
         dg_0 = TestFunction(DG0)
 
-        dwr = replace(self.F, {v: z*dg_0})
+        dwr = ufl.replace(self.F, {v: z*dg_0})
 
         dwr_vec = assemble(dwr)
         dwr_vec.abs()
@@ -105,7 +105,7 @@ class NonlinearAPosterioriEstimator:
         # Put the values of the projection into a cell function
         cf = MeshFunction("double", mesh, mesh.topology().dim(), 0.0)
         for c in cells(mesh):
-            cf[c] = eta.vector()[c.index()][0] # Why does this return an array?
+            cf[c] = eta.vector()[c.index()]
         return cf
 
 
@@ -118,7 +118,7 @@ class LinearAPosterioriEstimator(NonlinearAPosterioriEstimator):
 
         F = a - L
         v, u = F.arguments()
-        F = replace(F, {u: u_h})
+        F = ufl.replace(F, {u: u_h})
         J = derivative(F, u_h)
 
         u = j.arguments()[0]
