@@ -16,7 +16,6 @@ parameters['form_compiler']["quadrature_degree"] = 4
 
 class Problem(NonlinearProblem):
     def __init__(self, a, L, bcs):
-        # self.assembler = SystemAssembler(a, L, bcs)
         self.a = a
         self.L = L
         NonlinearProblem.__init__(self)
@@ -25,15 +24,12 @@ class Problem(NonlinearProblem):
         assemble(self.L, tensor=b)
 
     def J(self, A, x):
-        tic()
         assemble(self.a, tensor=A)
-        info("Matrix assembly time: " + str(toc()))
 
 
 class CustomSolver(NewtonSolver):
     def __init__(self):
-        self.solver = PETScKrylovSolver()
-        NewtonSolver.__init__(self, mesh.mpi_comm(), self.solver, PETScFactory.instance())
+        NewtonSolver.__init__(self, mesh.mpi_comm(), PETScKrylovSolver(), PETScFactory.instance())
 
     def solver_setup(self, A, P, problem, iteration):
         self.linear_solver().set_operator(A)
@@ -41,7 +37,7 @@ class CustomSolver(NewtonSolver):
         PETScOptions.set("ksp_type", "gmres")
         PETScOptions.set("ksp_rtol", 1e-3)
 
-        self.solver.set_from_options()
+        self.linear_solver().set_from_options()
 
 
 run_count = 0

@@ -23,7 +23,7 @@ parameters["form_compiler"]["quadrature_degree"] = 4
 
 # Define a Nonlinear problem to assemble the residual and Jacobian
 class Problem(NonlinearProblem):
-    def __init__(self, a, L, bcs):
+    def __init__(self, a, L):
         self.a = a
         self.L = L
         NonlinearProblem.__init__(self)
@@ -38,8 +38,8 @@ class Problem(NonlinearProblem):
 # Use a Newton solver with custom damping parameter
 class CustomSolver(NewtonSolver):
     def __init__(self):
-        self.solver = PETScKrylovSolver()
-        NewtonSolver.__init__(self, mesh.mpi_comm(), self.solver, PETScFactory.instance())
+        NewtonSolver.__init__(self, mesh.mpi_comm(),
+                              PETScKrylovSolver(), PETScFactory.instance())
 
     def solver_setup(self, A, P, problem, iteration):
         self.linear_solver().set_operator(A)
@@ -48,7 +48,7 @@ class CustomSolver(NewtonSolver):
         PETScOptions.set("pc_type", "lu")
         PETScOptions.set("pc_factor_mat_solver_package", "mumps")
 
-        self.solver.set_from_options()
+        self.linear_solver().set_from_options()
 
     def update_solution(self, x, dx, relaxation_parameter, nonlinear_problem, iteration):
         tau = 1.0
@@ -92,24 +92,15 @@ WALL = 3
 # Write the adapted meshes
 xdmf = XDMFFile("adapted_naca0012_meshes.xdmf")
 
-# Initialise a snes solver
-solver = PETScSNESSolver()
-PETScOptions.set("snes_monitor")
-PETScOptions.set("snes_divergence_tolerance", -1.0)
-# PETScOptions.set("ksp_view")
-PETScOptions.set("ksp_type", "preonly")
-PETScOptions.set("pc_type", "lu")
-# PETScOptions.set("pc_factor_mat_solver_type", "mumps")
-
 # Record information in this list
 results = []
 
 # Maximum number of refinement levels
-n_ref_max = 1
+n_ref_max = 2
 for ref_level in range(n_ref_max):
     info("Refinement level %d" % ref_level)
 
-    # Label the boundary compoonents of the mesh. Initially label all exterior facets
+    # Label the boundary components of the mesh. Initially label all exterior facets
     # as the adiabatic wall, then label the exterior facets far from the airfoil
     # as the inlet and outlet based on the angle of attack.
     bdry_ff = MeshFunction('size_t', mesh, 1, 0)
@@ -118,7 +109,7 @@ for ref_level in range(n_ref_max):
         x = f.midpoint()
         if not f.exterior() or (x[0]*x[0] + x[1]*x[1]) < 4.0:
             continue
-        bdry_ff[f] = INLET if f.normal()[0]*n_in[0] + f.normal()[1]*n_in[1] < 0.0 \
+        bdry_ff[f] = INLET if f.normal().dot(n_in) < 0.0 \
             else OUTLET
 
     ds = Measure('ds', domain=mesh, subdomain_data=bdry_ff)
@@ -148,7 +139,8 @@ for ref_level in range(n_ref_max):
     J = derivative(F, u_vec)
 
     # Setup the problem and solve
-    problem = Problem(J, F, [])
+    problem = Problem(J, F)
+    solver = CustomSolver()
     solver.solve(problem, u_vec.vector())
 
     # Assemble variables required for the lift and drag computation
@@ -187,7 +179,7 @@ for ref_level in range(n_ref_max):
     if ref_level < n_ref_max - 1:
         info("Computing a posteriori error estimates")
         est = NonlinearAPosterioriEstimator(J, F, drag, u_vec)
-        markers = est.compute_cell_markers(FixedFractionMarker(frac=0.2))
+        markers = est.compute_cell_markers(FixedFractionMarkerParallel(frac=0.2))
         info("Refining mesh")
         mesh = refine(mesh, markers)
 
