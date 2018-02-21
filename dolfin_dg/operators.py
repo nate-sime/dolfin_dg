@@ -201,6 +201,10 @@ class CompressibleEulerOperator(
             H = enthalpy(U)
 
             # TODO: This shouldn't require dim check
+            if dim == 1:
+                res = as_matrix([[rho*u[0]],
+                                 [rho*u[0]**2 + p],
+                                 [rho*H*u[0]]])
             if dim == 2:
                 res = as_matrix([[rho*u[0], rho*u[1]],
                                  [rho*u[0]**2 + p, rho*u[0]*u[1]],
