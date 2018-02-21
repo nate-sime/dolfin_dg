@@ -1,4 +1,5 @@
 import ufl
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -70,5 +71,6 @@ info("Steps taken: %d, L2 error at final time step: %.3e" % (j + 1, errors[-1]))
 plt.plot(np.arange(0.0, tmax+float(dt), float(dt)), errors)
 plt.xlabel(r"$t$")
 plt.ylabel(r"$\Vert u(x, t) - u_h(x, t)\Vert_{L_2(\Omega)}$")
+plt.gca().yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%.1e"))
 plt.xlim((0, tmax))
 plt.show()
