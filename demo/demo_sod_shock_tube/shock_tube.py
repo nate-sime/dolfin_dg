@@ -30,7 +30,7 @@ u1, u5 = 0.0, 0.0
 e1, e5 = aero.energy_density(p1, rho1, u1), aero.energy_density(p5, rho5, u5)
 
 # Project the initial conditions onto the left and right of the
-# diaphragm by constructing a new integraiton measure
+# diaphragm by constructing a new integration measure
 cf = MeshFunction("size_t", mesh, 1, 5)
 CompiledSubDomain("x[0] <= 0.5").mark(cf, 1)
 dx_p = Measure("dx", subdomain_data=cf)
