@@ -16,7 +16,6 @@ parameters['form_compiler']["quadrature_degree"] = 4
 
 class Problem(NonlinearProblem):
     def __init__(self, a, L, bcs):
-        # self.assembler = SystemAssembler(a, L, bcs)
         self.a = a
         self.L = L
         NonlinearProblem.__init__(self)
@@ -25,15 +24,12 @@ class Problem(NonlinearProblem):
         assemble(self.L, tensor=b)
 
     def J(self, A, x):
-        tic()
         assemble(self.a, tensor=A)
-        info("Matrix assembly time: " + str(toc()))
 
 
 class CustomSolver(NewtonSolver):
     def __init__(self):
-        self.solver = PETScKrylovSolver()
-        NewtonSolver.__init__(self, mesh.mpi_comm(), self.solver, PETScFactory.instance())
+        NewtonSolver.__init__(self, mesh.mpi_comm(), PETScKrylovSolver(), PETScFactory.instance())
 
     def solver_setup(self, A, P, problem, iteration):
         self.linear_solver().set_operator(A)
@@ -41,7 +37,7 @@ class CustomSolver(NewtonSolver):
         PETScOptions.set("ksp_type", "gmres")
         PETScOptions.set("ksp_rtol", 1e-3)
 
-        self.solver.set_from_options()
+        self.linear_solver().set_from_options()
 
 
 run_count = 0
@@ -90,6 +86,6 @@ for ele_n in ele_ns:
 
     run_count += 1
 
-if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
+if MPI.rank(mesh.mpi_comm()) == 0:
     print(np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:]))
     print(np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:]))

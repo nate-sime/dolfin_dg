@@ -1,3 +1,6 @@
+from dolfin import *
+
+import ufl
 
 __author__ = 'njcs4'
 
@@ -7,7 +10,6 @@ __author__ = 'njcs4'
 # careful how long your domain is in time to ensure a stable solution, as the
 # shock becomes more prominent
 
-from dolfin import *
 parameters["ghost_mode"] = "shared_facet"
 parameters['form_compiler']['representation'] = 'uflacs'
 
@@ -50,7 +52,7 @@ def F_c(u):
 # Define local-Lax Friedrichs flux
 # alpha is the maximum of the flux Jacobian eigenvalues
 def H(u_p, u_m, n):
-    alpha = Max(abs(u_p*n[0] + n[1]), abs(-u_m*n[0] - n[1]))  # note that n^+ = -n^-
+    alpha = ufl.Max(abs(u_p*n[0] + n[1]), abs(-u_m*n[0] - n[1]))  # note that n^+ = -n^-
     return Constant(0.5)*(dot(F_c(u_p), n) + dot(F_c(u_m), n) + alpha*(u_p - u_m))
 
 # Volume integration terms

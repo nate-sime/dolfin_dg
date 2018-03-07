@@ -99,7 +99,7 @@ for n in range(1, 7):
     local_tip_disp = u(beta/2, beta/2, L)[1] if distance < DOLFIN_EPS else None
 
     # Once found, broadcast the displacement at the tip to process 0.
-    comm = mesh.mpi_comm().tompi4py()
+    comm = mesh.mpi_comm()
     computed_tip_displacements = comm.gather(local_tip_disp)
     if comm.rank == 0:
         # If process 0 has received more than one valid tip displacement from the other processes,
@@ -111,7 +111,7 @@ for n in range(1, 7):
         tip_disp.append(valid_displacements[0])
 
 
-if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
+if MPI.rank(mesh.mpi_comm()) == 0:
     # Compute internal strain energy and tip displacement error
     error_wint = np.abs(np.array(W_int, dtype=np.double) - 10.0)
     error_tip_disp = np.abs(np.array(tip_disp, dtype=np.double) - 2e-3)

@@ -1,4 +1,6 @@
 import numpy as np
+import ufl
+
 from dolfin import *
 
 from dolfin_dg import ringleb, force_zero_function_derivative
@@ -13,7 +15,7 @@ parameters["ghost_mode"] = "shared_facet"
 parameters["form_compiler"]["quadrature_degree"] = 10
 
 
-class RinglebAnalSoln(Expression):
+class RinglebAnalSoln(UserExpression):
     def eval(self, value, x):
         val = ringleb.ringleb_anal_soln(x[0], x[1])
         value[0] = val[0]
@@ -68,15 +70,15 @@ errorh1 = np.array([0]*len(mesh_sizes), dtype=np.double)
 hsizes = np.array([0]*len(mesh_sizes), dtype=np.double)
 
 for n_nodes in mesh_sizes:
-    # mesh = ringleb.ringleb_mesh(n_nodes, n_nodes, curved=False)
-    mesh = Mesh()
-    XDMFFile('ringleb_meshes/ringleb_mesh_%d_curved.xdmf' % n_nodes).read(mesh)
+    mesh = ringleb.ringleb_mesh(n_nodes, n_nodes, curved=False)
+    # mesh = Mesh()
+    # XDMFFile('ringleb_meshes/ringleb_mesh_%d_curved.xdmf' % n_nodes).read(mesh)
 
     V = VectorFunctionSpace(mesh, 'DG', poly_o, dim=4)
     du = TrialFunction(V)
     v_vec = TestFunction(V)
 
-    facet = FacetFunction('size_t', mesh, 0)
+    facet = MeshFunction('size_t', mesh, 1, 0)
 
     for f in facets(mesh):
         if f.exterior():
@@ -116,9 +118,9 @@ for n_nodes in mesh_sizes:
         forward_evs = construct_evs(U_p, n_p)
         reverse_evs = construct_evs(U_m, n_p)
 
-        return Max(
-            Max(Max(forward_evs[0], forward_evs[1]), forward_evs[2]),
-            Max(Max(reverse_evs[0], reverse_evs[1]), reverse_evs[2])
+        return ufl.Max(
+            ufl.Max(ufl.Max(forward_evs[0], forward_evs[1]), forward_evs[2]),
+            ufl.Max(ufl.Max(reverse_evs[0], reverse_evs[1]), reverse_evs[2])
         )
 
     def H(U_p, U_m, n_p):
@@ -159,6 +161,6 @@ print('||u - u_h||_L2', list(map(flt, errorl2)))
 print('||u - u_h||_H1', list(map(flt, errorh1)))
 print('DoF', mesh_dofs)
 
-if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
+if MPI.rank(mesh.mpi_comm()) == 0:
     print('k L2', np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:]))
     print('k H1', np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:]))

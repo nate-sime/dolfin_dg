@@ -1,5 +1,6 @@
 from dolfin import *
-from dolfin_dg import *
+
+import ufl
 import numpy as np
 
 __author__ = 'njcs4'
@@ -32,7 +33,7 @@ for n_ele in n_eles:
         return b*(U+1)**2
     
     def H(U_p, U_m, n_p):
-        alpha = 2.0*Max(abs((U_p+1) * dot(b, n_p)), abs((U_m + 1) * dot(b, -n_p)))
+        alpha = 2.0*ufl.Max(abs((U_p+1) * dot(b, n_p)), abs((U_m + 1) * dot(b, -n_p)))
         value = Constant(0.5)*(dot(F_c(U_p), n_p) + dot(F_c(U_m), n_p) + alpha*(U_p - U_m))
         return value
     
@@ -51,6 +52,6 @@ for n_ele in n_eles:
     hsizes[run_count] = mesh.hmax()
     run_count += 1
 
-if dolfin.MPI.rank(mesh.mpi_comm()) == 0:
+if MPI.rank(mesh.mpi_comm()) == 0:
     print((np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:])))
     print((np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:])))

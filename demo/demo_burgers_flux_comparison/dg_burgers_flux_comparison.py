@@ -36,7 +36,8 @@ u = project(gD, V)
 v = TestFunction(V)
 
 # Establish exterior boundary components and construct measure
-exterior_bdries = FacetFunction('size_t', mesh)
+exterior_bdries = MeshFunction('size_t', mesh,
+                               mesh.topology().dim()-1, 0)
 FixedBC().mark(exterior_bdries, 1)
 FreeBC().mark(exterior_bdries, 2)
 ds = Measure('ds', domain=mesh, subdomain_data=exterior_bdries)

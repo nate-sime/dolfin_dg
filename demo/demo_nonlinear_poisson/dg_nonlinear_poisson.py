@@ -1,6 +1,5 @@
 from dolfin import *
 from dolfin_dg import *
-import numpy as np
 
 __author__ = 'njcs4'
 
@@ -13,7 +12,7 @@ u, v = Function(V), TestFunction(V)
 
 f = Expression("x[0]*sin(x[1])", degree=1)
 
-facets = FacetFunction("size_t", mesh, 0)
+facets = MeshFunction("size_t", mesh, 1, 0)
 AutoSubDomain(lambda x, on_boundary: near(x[0], 1.0) and on_boundary).mark(facets, 1)
 
 ds = Measure("ds", subdomain_data=facets)
