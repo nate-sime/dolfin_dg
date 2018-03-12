@@ -46,7 +46,7 @@ class CustomSolver(NewtonSolver):
 
         PETScOptions.set("ksp_type", "preonly")
         PETScOptions.set("pc_type", "lu")
-        PETScOptions.set("pc_factor_mat_solver_package", "mumps")
+        PETScOptions.set("pc_factor_mat_solver_type", "mumps")
 
         self.linear_solver().set_from_options()
 
@@ -96,7 +96,7 @@ xdmf = XDMFFile("adapted_naca0012_meshes.xdmf")
 results = []
 
 # Maximum number of refinement levels
-n_ref_max = 2
+n_ref_max = 3
 for ref_level in range(n_ref_max):
     info("Refinement level %d" % ref_level)
 
