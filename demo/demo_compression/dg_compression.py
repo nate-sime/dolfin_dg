@@ -101,7 +101,7 @@ for ref_level in range(n_ref_max):
         info("Computing a posteriori error estimates")
         PETScOptions.set("dual_ksp_type", "preonly")
         PETScOptions.set("dual_pc_type", "lu")
-        PETScOptions.set("dual_pc_factor_mat_solver_package", "mumps")
+        PETScOptions.set("dual_pc_factor_mat_solver_type", "mumps")
 
         est = NonlinearAPosterioriEstimator(J, F, W_int*dx, u, options_prefix="dual_")
         markers = est.compute_cell_markers(FixedFractionMarkerParallel(frac=0.1))
