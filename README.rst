@@ -102,6 +102,15 @@ Contributors
 * Nate J. C. Sime njcs4@cam.ac.uk
 * Paul Houston Paul.Houston@nottingham.ac.uk
 
+
+Citing
+======
+
+Houston, Paul and Sime, Nathan, 
+*Automatic symbolic computation for discontinuous Galerkin finite element methods*,
+SIAM Journal on Scientific Computing, (In Press).
+
+
 License
 =======
 
