@@ -1,9 +1,8 @@
-from dolfin import *
-from dolfin_dg import *
-
 import ufl
 import math
 
+from dolfin import *
+from dolfin_dg import *
 
 # In this example we use dual weighted residual based error estimates
 # to compute the drag coefficient of compressible flow around a NACA0012
@@ -14,7 +13,6 @@ import math
 #
 # Performance may be improved by using mesh-to-mesh interpolation from
 # https://github.com/mikaem/fenicstools between refinement levels.
-
 
 parameters['std_out_all_processes'] = False
 parameters["ghost_mode"] = "shared_facet"

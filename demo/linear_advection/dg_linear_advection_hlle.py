@@ -1,9 +1,7 @@
-from dolfin import *
-from dolfin_dg import *
 import numpy as np
 
-from dolfin_dg.fluxes import Vijayasundaram
-import matplotlib.pyplot as plt
+from dolfin import *
+from dolfin_dg import *
 
 __author__ = 'njcs4'
 
@@ -36,7 +34,8 @@ for ele_n in ele_ns:
     def F_c(U):
         return b*U**2
 
-    ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, HLLE(lambda u, n: 2*u*dot(b, n)))
+    flux_function = HLLE(lambda u, n: 2*u*dot(b, n))
+    ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, flux_function)
     residual = ho.generate_fem_formulation(u, v) - f*v*dx
 
     du = TrialFunction(V)

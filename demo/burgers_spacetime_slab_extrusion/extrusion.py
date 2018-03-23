@@ -1,17 +1,13 @@
-from dolfin_dg.fluxes import Vijayasundaram
-
-__author__ = 'njcs4'
-
-
 import numpy as np
 import matplotlib.pyplot as plt
 
 from dolfin import *
 from dolfin_dg import *
 
+__author__ = 'njcs4'
+
 parameters["ghost_mode"] = "shared_facet"
 parameters['form_compiler']['representation'] = 'uflacs'
-
 
 class LastFunc(UserExpression):
 

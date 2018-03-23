@@ -10,7 +10,8 @@ from .dg_form import \
 
 from .fluxes import \
     LocalLaxFriedrichs, \
-    HLLE
+    HLLE, \
+    Vijayasundaram
 
 from dolfin_dg.tensors import force_zero_function_derivative
 
