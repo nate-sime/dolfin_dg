@@ -56,6 +56,27 @@ class ConvergenceTest:
         assert abs(rate1[0] - 1.0) < self.TOL
 
 
+class Advection1D(ConvergenceTest):
+
+    def gD(self, V):
+        return Expression('exp(x[0])', element=V.ufl_element())
+
+    def generate_form(self, mesh, V, u, v):
+        gD = self.gD(V)
+        u.interpolate(gD)
+        b = Constant(1)
+
+        # Convective Operator
+        def F_c(U):
+            return b*U
+
+        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c,
+                                LocalLaxFriedrichs(lambda u, n: dot(b, n)))
+        F = ho.generate_fem_formulation(u, v) - gD*v*dx
+
+        return F
+
+
 class Advection(ConvergenceTest):
 
     def gD(self, V):
@@ -223,6 +244,10 @@ class Poisson(ConvergenceTest):
 
         return F
 
+@pytest.fixture
+def IntervalMeshes():
+    return [UnitIntervalMesh(16),
+            UnitIntervalMesh(32)]
 
 @pytest.fixture
 def SquareMeshes():
@@ -233,6 +258,11 @@ def SquareMeshes():
 def SquareMeshesPi():
     return [RectangleMesh(Point(0, 0), Point(pi, pi), 32, 32, 'right'),
             RectangleMesh(Point(0, 0), Point(pi, pi), 64, 64, 'right')]
+
+
+@pytest.mark.parametrize("conv_test", [Advection1D])
+def test_interval_problems(conv_test, IntervalMeshes):
+    conv_test(IntervalMeshes).run_test()
 
 
 @pytest.mark.parametrize("conv_test", [Advection,
