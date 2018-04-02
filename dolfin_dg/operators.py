@@ -152,9 +152,15 @@ class HyperbolicOperator(DGFemFormulation):
             dx = Measure('dx', domain=self.mesh)
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
-        n = FacetNormal(self.mesh)
 
-        residual = -inner(self.F_c(u), grad(v))*dx
+        n = FacetNormal(self.mesh)
+        if len(n.ufl_shape) == 1 and n.ufl_shape[0] == 1:
+            n = n[0]
+
+        F_c_eval = self.F_c(u)
+        if len(F_c_eval.ufl_shape) == 0:
+            F_c_eval = as_vector((F_c_eval,))
+        residual = -inner(F_c_eval, grad(v))*dx
 
         self.H.setup(self.F_c, u('+'), u('-'), n('+'))
         residual += inner(self.H.interior(self.F_c, u('+'), u('-'), n('+')), (v('+') - v('-')))*dS

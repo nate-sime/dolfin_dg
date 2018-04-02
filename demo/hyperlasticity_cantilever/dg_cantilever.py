@@ -1,4 +1,5 @@
 import numpy as np
+
 from dolfin import *
 from dolfin_dg import *
 

@@ -39,7 +39,7 @@ gD5 = as_vector((rho5, rho5*u5, e5))
 u_vec = Function(V)
 solve(dot(du, v)*dx == dot(gD1, v)*dx_p(1) + dot(gD5, v)*dx_p(5), u_vec)
 
-# The previous time step and predictor-corrector theta scheme terms
+# The previous time step and theta scheme terms
 dt = Constant(5e-4)
 un = Function(V)
 theta = Constant(0.5)

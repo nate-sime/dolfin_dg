@@ -3,6 +3,10 @@ from dolfin_dg import *
 
 __author__ = 'njcs4'
 
+# This demo is a reproduction of the nonlinear Poisson;
+# however, using DG FEM.
+# http://fenics.readthedocs.io/projects/dolfin/en/stable/demos/nonlinear-poisson/python/demo_nonlinear-poisson.py.html
+
 parameters["ghost_mode"] = "shared_facet"
 
 mesh = UnitSquareMesh(32, 32)

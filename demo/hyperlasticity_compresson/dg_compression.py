@@ -49,7 +49,7 @@ xdmf = XDMFFile("displacement.xdmf")
 dof_count = []
 energies = []
 
-# DWR-mesh refinement iteration
+# Goal oriented adaptive mesh refinement
 n_ref_max = 2
 for ref_level in range(n_ref_max):
     V = VectorFunctionSpace(mesh, "DG", poly_o)

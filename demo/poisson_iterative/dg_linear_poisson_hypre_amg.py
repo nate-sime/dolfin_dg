@@ -1,10 +1,17 @@
-from dolfin import *
-from dolfin_dg import *
 import numpy as np
 
+from dolfin import *
+from dolfin_dg import *
 
 __author__ = 'njcs4'
 
+# We compute the DG approximation of
+#   -∇²u = f   in  Ω
+#      u = gᴰ  on ∂Ω
+# where Ω is the unit cube. We use a Krylov iterative method
+# to approximate the solution of the underlying linear system.
+# f and gᴰ are formulated for the (a priori known) solution
+#      u = u=sin(πx)sin(πy)sin(πz).
 
 parameters['std_out_all_processes'] = False
 parameters['form_compiler']["cpp_optimize"] = True
@@ -12,14 +19,12 @@ parameters['form_compiler']["optimize"] = True
 parameters['form_compiler']['representation'] = 'uflacs'
 parameters["ghost_mode"] = "shared_facet"
 
-
 run_count = 0
 ele_ns = [4, 8, 16, 32]
 errorl2 = np.zeros(len(ele_ns))
 errorh1 = np.zeros(len(ele_ns))
 hsizes = np.zeros(len(ele_ns))
 p = 1
-
 
 for ele_n in ele_ns:
     mesh = UnitCubeMesh(ele_n, ele_n, ele_n)

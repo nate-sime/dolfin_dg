@@ -1,9 +1,15 @@
-from dolfin import *
-from dolfin_dg import *
 import numpy as np
 import matplotlib.pyplot as plt
 
+from dolfin import *
+from dolfin_dg import *
+
 __author__ = 'njcs4'
+
+
+if MPI.size(MPI.comm_world) > 1:
+    NotImplementedError("Plotting in this demo will not work in parallel.")
+
 
 parameters['form_compiler']["cpp_optimize"] = True
 parameters['form_compiler']["optimize"] = True
@@ -21,7 +27,6 @@ p = 2
 fluxes = [("SIPG", DGFemSIPG),
           ("NIPG", DGFemNIPG),
           ("Baumann-Oden", DGFemBO)]
-
 
 # Solve the linear Poisson problem and return the L2 and H1 errors, in addition
 # to the mesh size.

@@ -1,9 +1,10 @@
-from dolfin import *
-from dolfin_dg import *
 import matplotlib.pyplot as plt
 
+from dolfin import *
+from dolfin_dg import *
+
 if MPI.size(MPI.comm_world) > 1:
-    NotImplementedError("Dual weighted residual (DWR) functionality not fully supported in parallel.")
+    NotImplementedError("Plotting in this demo will not work in parallel.")
 
 # Demo taken from FEniCS course Lecture 11. A. Logg and M. Rognes
 # https://fenicsproject.org/pub/course/lectures/2013-11-logg-fcc/lecture_11_error_control.pdf
