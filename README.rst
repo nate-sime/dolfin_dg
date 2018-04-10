@@ -30,6 +30,16 @@ Here :math:`\mathcal{L}(\cdot; \cdot)` is a semilinear operator (nonlinear in th
 The DG FEM formulation of the above equation is notoriously verbose to define. Programming the code to compute the DG FEM approximation :math:`u_h \in V_h` is a large task. dolfin_dg provides utility functions for the automatic formulation of the DG FEM discretisation of the weak formulation. These functions work with DOLFIN to facilitate simple implementation and efficient computation of the DG approximation of nonlinear FEM problems.
 
 
+More details and citing
+------------
+
+Paul Houston and Nathan Sime, 
+*Automatic symbolic computation for discontinuous Galerkin finite element methods*,
+SIAM Journal on Scientific Computing, (In Press).
+
+Preprint https://arxiv.org/abs/1804.02338.
+
+
 Dependencies
 ============
 
@@ -101,14 +111,6 @@ Contributors
 
 * Nate J. C. Sime njcs4@cam.ac.uk
 * Paul Houston Paul.Houston@nottingham.ac.uk
-
-
-Citing
-======
-
-Houston, Paul and Sime, Nathan, 
-*Automatic symbolic computation for discontinuous Galerkin finite element methods*,
-SIAM Journal on Scientific Computing, (In Press).
 
 
 License
