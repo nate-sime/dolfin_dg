@@ -109,7 +109,7 @@ Install dolfin_dg
 Contributors
 ============
 
-* Nate J. C. Sime njcs4@cam.ac.uk
+* Nate J. C. Sime nsime@carnegiescience.edu
 * Paul Houston Paul.Houston@nottingham.ac.uk
 
 
