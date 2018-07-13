@@ -35,7 +35,7 @@ More details and citing
 
 Paul Houston and Nathan Sime, 
 *Automatic symbolic computation for discontinuous Galerkin finite element methods*,
-SIAM Journal on Scientific Computing, (In Press).
+SIAM Journal on Scientific Computing, 2018, 40(3), C327–C357, https://doi.org/10.1137/17M1129751.
 
 Preprint https://arxiv.org/abs/1804.02338.
 
