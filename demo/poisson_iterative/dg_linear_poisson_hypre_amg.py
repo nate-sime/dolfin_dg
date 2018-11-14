@@ -11,7 +11,7 @@ __author__ = 'njcs4'
 # where Ω is the unit cube. We use a Krylov iterative method
 # to approximate the solution of the underlying linear system.
 # f and gᴰ are formulated for the (a priori known) solution
-#      u = u=sin(πx)sin(πy)sin(πz).
+#      u = sin(πx)sin(πy)sin(πz).
 
 parameters['std_out_all_processes'] = False
 parameters['form_compiler']["cpp_optimize"] = True
