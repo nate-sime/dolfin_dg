@@ -120,7 +120,7 @@ def dg_outer(*args):
 
 
 def homogeneity_tensor(F_v, u, as_dict=False):
-    if not len(inspect.getargspec(F_v).args) == 2:
+    if not len(inspect.getfullargspec(F_v).args) == 2:
         raise TypeError("Function F_v must have 2 arguments, (u, grad_u)")
 
     G = {}
@@ -166,7 +166,7 @@ class DGFemViscousTerm:
         self.n = n
 
     def _eval_F_v(self, U):
-        if len(inspect.getargspec(self.F_v).args) == 1:
+        if len(inspect.getfullargspec(self.F_v).args) == 1:
             tau = self.F_v(U)
         else:
             tau = self.F_v(U, grad(U))
@@ -272,7 +272,7 @@ class DGFemCurlTerm:
         self.n = n
 
     def __eval_F_v(self, U):
-        if len(inspect.getargspec(self.F_m).args) == 1:
+        if len(inspect.getfullargspec(self.F_m).args) == 1:
             tau = self.F_m(U)
         else:
             tau = self.F_m(U, curl(U))

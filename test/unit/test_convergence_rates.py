@@ -1,6 +1,7 @@
 import pytest
 from dolfin import *
 from dolfin_dg.operators import *
+from dolfin_dg.nitsche import NitscheBoundary
 import numpy as np
 
 __author__ = 'njcs4'
@@ -14,12 +15,14 @@ parameters["ghost_mode"] = "shared_facet"
 
 class ConvergenceTest:
 
-    def __init__(self, meshes, norm0="l2", norm1="h1", m=1, TOL=0.5e-1):
+    def __init__(self, meshes, element=None, norm0="l2", norm1="h1", TOL=0.5e-1):
         self.meshes = meshes
         self.norm0 = norm0
         self.norm1 = norm1
-        self.m = m
         self.TOL = TOL
+        if element is None:
+            element = FiniteElement("DG", self.meshes[0].ufl_cell(), 1)
+        self.element = element
 
     def gD(self, V):
         pass
@@ -35,10 +38,7 @@ class ConvergenceTest:
 
         run_count = 0
         for mesh in self.meshes:
-            if self.m == 1:
-                V = FunctionSpace(mesh, "DG", 1)
-            else:
-                V = VectorFunctionSpace(mesh, "DG", 1, dim=self.m)
+            V = FunctionSpace(mesh, self.element)
             u, v = Function(V), TestFunction(V)
             gD = self.gD(V)
             residual = self.generate_form(mesh, V, u, v)
@@ -244,6 +244,24 @@ class Poisson(ConvergenceTest):
 
         return F
 
+
+class PoissonNistcheBC(ConvergenceTest):
+    def gD(self, V):
+        return Expression('sin(pi*x[0])*sin(pi*x[1]) + 1.0', element=V.ufl_element())
+
+    def generate_form(self, mesh, V, u, v):
+        gD = self.gD(V)
+        u.interpolate(gD)
+        def F_v(u, grad_u):
+            return (u+1)*grad_u
+        f = Expression('2*pow(pi, 2)*(sin(pi*x[0])*sin(pi*x[1]) + 2.0)*sin(pi*x[0])*sin(pi*x[1]) - pow(pi, 2)*pow(sin(pi*x[0]), 2)*pow(cos(pi*x[1]), 2) - pow(pi, 2)*pow(sin(pi*x[1]), 2)*pow(cos(pi*x[0]), 2)',
+                       element=V.ufl_element())
+        nbc = NitscheBoundary(F_v, u, v)
+        F = dot(F_v(u, grad(u)), grad(v))*dx + nbc.nistche_bc_residual(gD, ds) - f*v*dx
+
+        return F
+
+
 @pytest.fixture
 def IntervalMeshes():
     return [UnitIntervalMesh(16),
@@ -275,19 +293,26 @@ def test_square_problems(conv_test, SquareMeshes):
 
 @pytest.mark.parametrize("conv_test", [Maxwell])
 def test_dim_2_problem(conv_test, SquareMeshes):
-    conv_test(SquareMeshes, m=2, norm1="hcurl").run_test()
+    element = VectorElement("DG", SquareMeshes[0].ufl_cell(), 1, dim=2)
+    conv_test(SquareMeshes, element, norm1="hcurl").run_test()
 
 
 @pytest.mark.parametrize("conv_test", [Euler])
 def test_square_euler_problems(conv_test):
     meshes = [RectangleMesh(Point(0, 0), Point(.5*pi, .5*pi), 8, 8, 'right'),
               RectangleMesh(Point(0, 0), Point(.5*pi, .5*pi), 16, 16, 'right')]
-    conv_test(meshes, m=4).run_test()
+    element = VectorElement("DG", meshes[0].ufl_cell(), 1, dim=4)
+    conv_test(meshes, element).run_test()
 
 
 @pytest.mark.parametrize("conv_test", [NavierStokes,
                                        NavierStokesEntropy])
 def test_square_navier_stokes_problems(conv_test, SquareMeshesPi):
-    conv_test(SquareMeshesPi, m=4, TOL=0.06).run_test()
+    element = VectorElement("DG", SquareMeshesPi[0].ufl_cell(), 1, dim=4)
+    conv_test(SquareMeshesPi, element, TOL=0.06).run_test()
 
 
+@pytest.mark.parametrize("conv_test", [PoissonNistcheBC])
+def test_square_navier_stokes_problems(conv_test, SquareMeshes):
+    element = FiniteElement("CG", SquareMeshes[0].ufl_cell(), 1)
+    conv_test(SquareMeshes, element).run_test()

@@ -47,3 +47,6 @@ from .aero import \
     subsonic_inflow, \
     subsonic_outflow, \
     no_slip
+
+# Utility for generating Nitsche boundary conditions
+from .nitsche import NitscheBoundary

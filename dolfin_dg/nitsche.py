@@ -4,16 +4,20 @@ from dolfin_dg import DGFemSIPG, homogeneity_tensor
 
 class NitscheBoundary:
 
-    def __init__(self, F_v, u, v):
+    def __init__(self, F_v, u, v, C_IP=None, DGFemClass=None):
+
+        if C_IP is None:
+            h = CellDiameter(u.function_space().mesh())
+            C_IP = Constant(20.0 * max(u.function_space().ufl_element().degree() ** 2, 1)) / h
 
         G = homogeneity_tensor(F_v, u)
-        h = CellDiameter(u.function_space().mesh())
-        C_IP = Constant(20.0)
         n = FacetNormal(u.function_space().mesh())
-        sigma = C_IP * Constant(max(u.function_space().ufl_element().degree() ** 2, 1)) / h
-        vt = DGFemSIPG(F_v, u, v, sigma, G, n)
+
+        if DGFemClass is None:
+            DGFemClass = DGFemSIPG
+        vt = DGFemClass(F_v, u, v, C_IP, G, n)
 
         self.vt = vt
 
-    def weak_nitsche_bc_form(self, ds, u_bc):
-        return self.vt.exterior_residual(ds, u_bc)
+    def nistche_bc_residual(self, u_bc, ds):
+        return self.vt.exterior_residual(u_bc, ds)
