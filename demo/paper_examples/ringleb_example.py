@@ -4,10 +4,10 @@ from dolfin_dg import ringleb
 import numpy as np
 
 
-if MPI.rank(MPI.comm_world) > 1:
+if MPI.size(MPI.comm_world) > 1:
     raise NotImplementedError(
-        "Due to the complexity of implementing the Ringleb mesh, this"
-         "demo is not supported in parallel computations.")
+        "Due to the complexity of implementing the Ringleb mesh, this "
+        "demo is not supported in parallel computations.")
 
 
 parameters['form_compiler']["cpp_optimize"] = True
