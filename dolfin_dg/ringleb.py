@@ -610,8 +610,7 @@ def ringleb_mesh(n_x, n_y, curved=False):
                 v0 = fin.Vertex(mesh, f.entities(0)[0]).midpoint()
                 v1 = fin.Vertex(mesh, f.entities(0)[1]).midpoint()
                 x0, y0 = ringleb_boundary_shape(0.5, v0[0], v0[1], v1[0], v1[1])
-                pt = fin.Point(x0, y0)
                 e_idx = mesh.geometry().get_entity_index(1, 0, f.index())
-                mesh.geometry().set(e_idx, np.array([pt[0], pt[1]]))
+                mesh.coordinates()[e_idx] = np.array([x0, y0])
 
     return mesh
