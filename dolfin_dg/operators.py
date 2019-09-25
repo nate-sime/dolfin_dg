@@ -1,8 +1,8 @@
 import inspect
 
-from dolfin import Constant, Measure, FacetNormal
+from dolfin import Constant, FacetNormal
 from ufl import CellVolume, FacetArea, grad, inner, \
-    curl, dot, as_vector, as_matrix, sqrt, tr, Identity, variable, diff, exp
+    curl, dot, as_vector, as_matrix, sqrt, tr, Identity, variable, diff, exp, Measure
 
 from dolfin_dg.dg_form import DGFemViscousTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG
 from dolfin_dg.fluxes import LocalLaxFriedrichs
