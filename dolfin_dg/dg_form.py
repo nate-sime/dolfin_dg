@@ -161,7 +161,7 @@ class DGFemViscousTerm:
         self.U = u_vec
         self.V = v_vec
         self.grad_v_vec = grad(v_vec)
-        self.sig = sigma
+        self.sigma = sigma
         self.G = G
         self.n = n
 
@@ -202,25 +202,25 @@ class DGClassicalSecondOrderDiscretisation(DGFemViscousTerm):
     def interior_residual(self, dInt):
         G = self.G
         F_v, u, v, grad_v = self.F_v, self.U, self.V, self.grad_v_vec
-        sig, n = self.sig, self.n
+        sigma, n = self.sigma, self.n
         delta = self.delta
 
         residual = delta * inner(tensor_jump(u, n), avg(hyper_tensor_T_product(G, grad_v))) * dInt \
                    - inner(ufl_adhere_transpose(avg(self._eval_F_v(self.U))), tensor_jump(v, n)) * dInt
-        if sig != 0:
-            residual += inner(sig('+') * hyper_tensor_product(g_avg(G), tensor_jump(u, n)), tensor_jump(v, n)) * dInt
+        if sigma is not None:
+            residual += inner(sigma('+') * hyper_tensor_product(g_avg(G), tensor_jump(u, n)), tensor_jump(v, n)) * dInt
         return residual
 
     def exterior_residual(self, u_gamma, dExt):
         G = self._make_boundary_G(self.G, u_gamma)
         F_v, u, v, grad_u, grad_v = self.F_v, self.U, self.V, grad(self.U), self.grad_v_vec
-        n = self.n
+        sigma, n = self.sigma, self.n
         delta = self.delta
 
         residual = delta * inner(dg_outer(u - u_gamma, n), hyper_tensor_T_product(G, grad_v)) * dExt\
                    - inner(hyper_tensor_product(G, grad_u), dg_outer(v, n)) * dExt
-        if self.sig != 0:
-            residual += inner(self.sig * hyper_tensor_product(G, dg_outer(u - u_gamma, n)), dg_outer(v, n)) * dExt
+        if sigma is not None:
+            residual += inner(sigma * hyper_tensor_product(G, dg_outer(u - u_gamma, n)), dg_outer(v, n)) * dExt
         return residual
 
 
@@ -242,7 +242,7 @@ class DGFemBO(DGClassicalSecondOrderDiscretisation):
 
     def __init__(self,  F_v, u_vec, v_vec, sigma, G, n):
         delta = +1
-        sigma = 0
+        sigma = None
         super().__init__( F_v, u_vec, v_vec, sigma, G, n, delta)
 
 
