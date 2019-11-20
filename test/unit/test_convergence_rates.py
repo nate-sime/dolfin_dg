@@ -15,13 +15,11 @@ parameters["ghost_mode"] = "shared_facet"
 
 class ConvergenceTest:
 
-    def __init__(self, meshes, element=None, norm0="l2", norm1="h1", TOL=0.5e-1):
+    def __init__(self, meshes, element, norm0="l2", norm1="h1", TOL=0.5e-1):
         self.meshes = meshes
         self.norm0 = norm0
         self.norm1 = norm1
         self.TOL = TOL
-        if element is None:
-            element = FiniteElement("DG", self.meshes[0].ufl_cell(), 1)
         self.element = element
 
     def gD(self, V):
@@ -52,8 +50,14 @@ class ConvergenceTest:
         rate0 = np.log(error0[0:-1]/error0[1:])/np.log(hsizes[0:-1]/hsizes[1:])
         rate1 = np.log(error1[0:-1]/error1[1:])/np.log(hsizes[0:-1]/hsizes[1:])
 
-        assert abs(rate0[0] - 2.0) < self.TOL
-        assert abs(rate1[0] - 1.0) < self.TOL
+        assert abs(rate0[0] - self.expected_norm0_rate()) < self.TOL
+        assert abs(rate1[0] - self.expected_norm1_rate()) < self.TOL
+
+    def expected_norm0_rate(self):
+        return float(self.element.degree() + 1)
+
+    def expected_norm1_rate(self):
+        return float(self.element.degree())
 
 
 class Advection1D(ConvergenceTest):
@@ -280,7 +284,8 @@ def SquareMeshesPi():
 
 @pytest.mark.parametrize("conv_test", [Advection1D])
 def test_interval_problems(conv_test, IntervalMeshes):
-    conv_test(IntervalMeshes).run_test()
+    element = FiniteElement("DG", IntervalMeshes[0].ufl_cell(), 1)
+    conv_test(IntervalMeshes, element).run_test()
 
 
 @pytest.mark.parametrize("conv_test", [Advection,
@@ -288,7 +293,8 @@ def test_interval_problems(conv_test, IntervalMeshes):
                                        Burgers,
                                        Poisson])
 def test_square_problems(conv_test, SquareMeshes):
-    conv_test(SquareMeshes).run_test()
+    element = FiniteElement("DG", SquareMeshes[0].ufl_cell(), 1)
+    conv_test(SquareMeshes, element).run_test()
 
 
 @pytest.mark.parametrize("conv_test", [Maxwell])
