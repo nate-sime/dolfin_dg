@@ -292,14 +292,14 @@ class PoissonNistcheBC(ConvergenceTest):
                        element=V.ufl_element())
         nbc = NitscheBoundary(F_v, u, v)
         F = dot(F_v(u, grad(u)), grad(v))*dx - f*v*dx
-        F += nbc.nistche_bc_residual(gD, ds)
+        F += nbc.nitsche_bc_residual(gD, ds)
 
         ff = MeshFunction("size_t", mesh, mesh.topology().dim() - 1, 0)
         asd = AutoSubDomain(lambda x, on: abs(x[0] - 0.25) < 1e-10)
         asd.mark(ff, 1)
         dS = Measure("dS", subdomain_data=ff)
 
-        F += nbc.nistche_interior_bc_residual(gD, dS(1))
+        F += nbc.nitsche_bc_residual_on_interior(gD, dS(1))
 
         return F
 

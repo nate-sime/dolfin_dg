@@ -19,8 +19,8 @@ class NitscheBoundary:
 
         self.vt = vt
 
-    def nistche_bc_residual(self, u_bc, ds):
+    def nitsche_bc_residual(self, u_bc, ds):
         return self.vt.exterior_residual(u_bc, ds)
 
-    def nistche_interior_bc_residual(self, u_bc, dS):
+    def nitsche_bc_residual_on_interior(self, u_bc, dS):
         return self.vt.exterior_residual_on_interior(u_bc, dS)

@@ -38,7 +38,7 @@ for j, ele_n in enumerate(ele_ns):
     bc = NitscheBoundary(F_v, u, v)
 
     residual = dot(F_v(u, grad(u)), grad(v)) * dx - f * v * dx
-    residual += bc.nistche_bc_residual(gD, ds)
+    residual += bc.nitsche_bc_residual(gD, ds)
 
     solve(residual == 0, u)
 
