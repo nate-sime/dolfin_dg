@@ -294,6 +294,13 @@ class PoissonNistcheBC(ConvergenceTest):
         F = dot(F_v(u, grad(u)), grad(v))*dx - f*v*dx
         F += nbc.nistche_bc_residual(gD, ds)
 
+        ff = MeshFunction("size_t", mesh, mesh.topology().dim() - 1, 0)
+        asd = AutoSubDomain(lambda x, on: abs(x[0] - 0.25) < 1e-10)
+        asd.mark(ff, 1)
+        dS = Measure("dS", subdomain_data=ff)
+
+        F += nbc.nistche_interior_bc_residual(gD, dS(1))
+
         return F
 
 
@@ -353,15 +360,15 @@ def test_square_navier_stokes_problems(conv_test, SquareMeshesPi):
     conv_test(SquareMeshesPi, element, TOL=0.06).run_test()
 
 
+# -- 2D non-conventional DG tests
+@pytest.mark.parametrize("conv_test", [PoissonBO])
+def test_square_baumann_oden_problems(conv_test, SquareMeshes):
+    element = FiniteElement("DG", SquareMeshes[0].ufl_cell(), 2)
+    conv_test(SquareMeshes, element).run_test()
+
+
 # -- Nitsche CG tests
 @pytest.mark.parametrize("conv_test", [PoissonNistcheBC])
 def test_square_nitsche_cg_problems(conv_test, SquareMeshes):
     element = FiniteElement("CG", SquareMeshes[0].ufl_cell(), 1)
-    conv_test(SquareMeshes, element).run_test()
-
-
-# -- 2D non-conventional DG tests
-@pytest.mark.parametrize("conv_test", [PoissonBO])
-def test_square_baumannoden_problems(conv_test, SquareMeshes):
-    element = FiniteElement("DG", SquareMeshes[0].ufl_cell(), 2)
     conv_test(SquareMeshes, element).run_test()
