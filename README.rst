@@ -31,7 +31,7 @@ The DG FEM formulation of the above equation is notoriously verbose to define. P
 
 
 More details and citing
-------------
+-----------------------
 
 Paul Houston and Nathan Sime, 
 *Automatic symbolic computation for discontinuous Galerkin finite element methods*,
@@ -51,7 +51,7 @@ dolfin_dg requires python 3.
 Automated testing
 =================
 
-.. image:: https://bitbucket-badges.useast.atlassian.io/badge/nate-sime/dolfin_dg.svg
+.. image:: https://img.shields.io/bitbucket/pipelines/nate-sime/dolfin_dg
    :target: https://bitbucket.org/nate-sime/dolfin_dg/addon/pipelines/home
    :alt: Pipelines Build Status
 
