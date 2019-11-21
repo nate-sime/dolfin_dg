@@ -368,7 +368,6 @@ class CompressibleEulerOperatorEntropyFormulation(
             u = as_vector([u1, u2])
             c = sqrt(gamma*p/rho)
             lambdas = [dot(u, n) - c, dot(u, n), dot(u, n), dot(u, n) + c]
-            lambdas = list(map(abs, lambdas))
             return lambdas
 
         HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
