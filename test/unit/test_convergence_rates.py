@@ -1,7 +1,9 @@
 import pytest
 from dolfin import *
+
 from dolfin_dg.operators import *
 from dolfin_dg.nitsche import NitscheBoundary
+from dolfin_dg.dg_form import DGFemBO, DGFemNIPG
 import numpy as np
 
 __author__ = 'njcs4'
@@ -50,14 +52,16 @@ class ConvergenceTest:
         rate0 = np.log(error0[0:-1]/error0[1:])/np.log(hsizes[0:-1]/hsizes[1:])
         rate1 = np.log(error1[0:-1]/error1[1:])/np.log(hsizes[0:-1]/hsizes[1:])
 
-        assert abs(rate0[0] - self.expected_norm0_rate()) < self.TOL
-        assert abs(rate1[0] - self.expected_norm1_rate()) < self.TOL
+        self.check_norm0_rates(rate0)
+        self.check_norm1_rates(rate1)
 
-    def expected_norm0_rate(self):
-        return float(self.element.degree() + 1)
+    def check_norm0_rates(self, rate0):
+        expected_rate = float(self.element.degree() + 1)
+        assert abs(rate0[0] - expected_rate) < self.TOL
 
-    def expected_norm1_rate(self):
-        return float(self.element.degree())
+    def check_norm1_rates(self, rate1):
+        expected_rate = float(self.element.degree())
+        assert abs(rate1[0] - expected_rate) < self.TOL
 
 
 class Advection1D(ConvergenceTest):
@@ -238,15 +242,41 @@ class Poisson(ConvergenceTest):
     def gD(self, V):
         return Expression('sin(pi*x[0])*sin(pi*x[1]) + 1.0', element=V.ufl_element())
 
-    def generate_form(self, mesh, V, u, v):
+    def generate_form(self, mesh, V, u, v, vt=None):
+        if vt is None:
+            raise RuntimeError("No viscous term provided")
         gD = self.gD(V)
         u.interpolate(gD)
         f = Expression('2*pow(pi, 2)*(sin(pi*x[0])*sin(pi*x[1]) + 2.0)*sin(pi*x[0])*sin(pi*x[1]) - pow(pi, 2)*pow(sin(pi*x[0]), 2)*pow(cos(pi*x[1]), 2) - pow(pi, 2)*pow(sin(pi*x[1]), 2)*pow(cos(pi*x[0]), 2)',
                        element=V.ufl_element())
         pe = PoissonOperator(mesh, V, DGDirichletBC(ds, gD), kappa=u + 1)
-        F = pe.generate_fem_formulation(u, v) - f*v*dx
+        F = pe.generate_fem_formulation(u, v, vt=vt) - f*v*dx
 
         return F
+
+
+class PoissonSIPG(Poisson):
+
+    def generate_form(self, mesh, V, u, v):
+        return super().generate_form(mesh, V, u, v, vt=DGFemSIPG)
+
+
+class PoissonBO(Poisson):
+
+    def generate_form(self, mesh, V, u, v):
+        return super().generate_form(mesh, V, u, v, vt=DGFemBO)
+
+    def check_norm0_rates(self, rate0):
+        degree = self.element.degree()
+        even_degree = degree % 2 == 0
+        expected_rate = degree if even_degree else degree + 1
+        assert abs(rate0[0] - expected_rate) < self.TOL
+
+
+class PoissonNIPG(Poisson):
+
+    def generate_form(self, mesh, V, u, v):
+        return super().generate_form(mesh, V, u, v, vt=DGFemNIPG)
 
 
 class PoissonNistcheBC(ConvergenceTest):
@@ -261,11 +291,13 @@ class PoissonNistcheBC(ConvergenceTest):
         f = Expression('2*pow(pi, 2)*(sin(pi*x[0])*sin(pi*x[1]) + 2.0)*sin(pi*x[0])*sin(pi*x[1]) - pow(pi, 2)*pow(sin(pi*x[0]), 2)*pow(cos(pi*x[1]), 2) - pow(pi, 2)*pow(sin(pi*x[1]), 2)*pow(cos(pi*x[0]), 2)',
                        element=V.ufl_element())
         nbc = NitscheBoundary(F_v, u, v)
-        F = dot(F_v(u, grad(u)), grad(v))*dx + nbc.nistche_bc_residual(gD, ds) - f*v*dx
+        F = dot(F_v(u, grad(u)), grad(v))*dx - f*v*dx
+        F += nbc.nistche_bc_residual(gD, ds)
 
         return F
 
 
+# -- Mesh fixtures
 @pytest.fixture
 def IntervalMeshes():
     return [UnitIntervalMesh(16),
@@ -282,23 +314,26 @@ def SquareMeshesPi():
             RectangleMesh(Point(0, 0), Point(pi, pi), 64, 64, 'right')]
 
 
+# -- 1D conventional DG tests
 @pytest.mark.parametrize("conv_test", [Advection1D])
 def test_interval_problems(conv_test, IntervalMeshes):
     element = FiniteElement("DG", IntervalMeshes[0].ufl_cell(), 1)
     conv_test(IntervalMeshes, element).run_test()
 
 
+# -- 2D conventional DG tests
 @pytest.mark.parametrize("conv_test", [Advection,
                                        AdvectionDiffusion,
                                        Burgers,
-                                       Poisson])
+                                       PoissonNIPG,
+                                       PoissonSIPG])
 def test_square_problems(conv_test, SquareMeshes):
     element = FiniteElement("DG", SquareMeshes[0].ufl_cell(), 1)
     conv_test(SquareMeshes, element).run_test()
 
 
 @pytest.mark.parametrize("conv_test", [Maxwell])
-def test_dim_2_problem(conv_test, SquareMeshes):
+def test_square_maxwell_problem(conv_test, SquareMeshes):
     element = VectorElement("DG", SquareMeshes[0].ufl_cell(), 1, dim=2)
     conv_test(SquareMeshes, element, norm1="hcurl").run_test()
 
@@ -318,7 +353,15 @@ def test_square_navier_stokes_problems(conv_test, SquareMeshesPi):
     conv_test(SquareMeshesPi, element, TOL=0.06).run_test()
 
 
+# -- Nitsche CG tests
 @pytest.mark.parametrize("conv_test", [PoissonNistcheBC])
-def test_square_navier_stokes_problems(conv_test, SquareMeshes):
+def test_square_nitsche_cg_problems(conv_test, SquareMeshes):
     element = FiniteElement("CG", SquareMeshes[0].ufl_cell(), 1)
+    conv_test(SquareMeshes, element).run_test()
+
+
+# -- 2D non-conventional DG tests
+@pytest.mark.parametrize("conv_test", [PoissonBO])
+def test_square_baumannoden_problems(conv_test, SquareMeshes):
+    element = FiniteElement("DG", SquareMeshes[0].ufl_cell(), 2)
     conv_test(SquareMeshes, element).run_test()
