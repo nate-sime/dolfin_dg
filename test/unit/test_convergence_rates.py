@@ -11,13 +11,13 @@ __author__ = 'njcs4'
 parameters['form_compiler']["cpp_optimize"] = True
 parameters['form_compiler']["optimize"] = True
 parameters['form_compiler']['representation'] = 'uflacs'
-parameters['form_compiler']["quadrature_degree"] = 8
+parameters['form_compiler']["quadrature_degree"] = 4
 parameters["ghost_mode"] = "shared_facet"
 
 
 class ConvergenceTest:
 
-    def __init__(self, meshes, element, norm0="l2", norm1="h1", TOL=0.5e-1):
+    def __init__(self, meshes, element, norm0="l2", norm1="h1", TOL=5e-2):
         self.meshes = meshes
         self.norm0 = norm0
         self.norm1 = norm1
