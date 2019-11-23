@@ -11,13 +11,13 @@ __author__ = 'njcs4'
 parameters['form_compiler']["cpp_optimize"] = True
 parameters['form_compiler']["optimize"] = True
 parameters['form_compiler']['representation'] = 'uflacs'
-parameters['form_compiler']["quadrature_degree"] = 8
+parameters['form_compiler']["quadrature_degree"] = 4
 parameters["ghost_mode"] = "shared_facet"
 
 
 class ConvergenceTest:
 
-    def __init__(self, meshes, element, norm0="l2", norm1="h1", TOL=0.5e-1):
+    def __init__(self, meshes, element, norm0="l2", norm1="h1", TOL=5e-2):
         self.meshes = meshes
         self.norm0 = norm0
         self.norm1 = norm1
@@ -44,8 +44,8 @@ class ConvergenceTest:
             residual = self.generate_form(mesh, V, u, v)
             solve(residual == 0, u)
 
-            error0[run_count] = errornorm(gD, u, norm_type=self.norm0, degree_rise=3)
-            error1[run_count] = errornorm(gD, u, norm_type=self.norm1, degree_rise=3)
+            error0[run_count] = self.compute_error_norm0(gD, u)
+            error1[run_count] = self.compute_error_norm1(gD, u)
             hsizes[run_count] = mesh.hmax()
             run_count += 1
 
@@ -54,6 +54,12 @@ class ConvergenceTest:
 
         self.check_norm0_rates(rate0)
         self.check_norm1_rates(rate1)
+
+    def compute_error_norm0(self, gD, u):
+        return errornorm(gD, u, norm_type=self.norm0, degree_rise=3)
+
+    def compute_error_norm1(self, gD, u):
+        return errornorm(gD, u, norm_type=self.norm1, degree_rise=3)
 
     def check_norm0_rates(self, rate0):
         expected_rate = float(self.element.degree() + 1)
@@ -304,6 +310,52 @@ class PoissonNistcheBC(ConvergenceTest):
         return F
 
 
+class StokesTest(ConvergenceTest):
+
+    def gD(self, W):
+        u_soln = Expression(("-(x[1]*cos(x[1]) + sin(x[1]))*exp(x[0])",
+                             "x[1] * sin(x[1]) * exp(x[0])"),
+                            degree=W.sub(0).ufl_element().degree() + 1,
+                            domain=W.mesh())
+        p_soln = Expression("2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
+                            degree=W.sub(1).ufl_element().degree() + 1,
+                            domain=W.mesh())
+        return u_soln, p_soln
+
+    def generate_form(self, mesh, W, U, V):
+        u = ufl.as_vector((U[0], U[1]))
+        p = U[2]
+
+        v = ufl.as_vector((V[0], V[1]))
+        q = V[2]
+
+        def F_v(u, grad_u):
+            return grad_u - p * Identity(2)
+
+        u_soln, p_soln = self.gD(W)
+
+        ff = MeshFunction("size_t", mesh, mesh.topology().dim() - 1, 0)
+        CompiledSubDomain("near(x[0], 0.0) or near(x[1], 0.0)").mark(ff, 1)
+        CompiledSubDomain("near(x[0], 1.0) or near(x[1], 1.0)").mark(ff, 2)
+        ds = Measure("ds", subdomain_data=ff)
+        dsD, dsN = ds(1), ds(2)
+
+        facet_n = FacetNormal(mesh)
+        gN = (grad(u_soln) - p_soln * Identity(2)) * facet_n
+        bcs = [DGDirichletBC(dsD, u_soln), DGNeumannBC(dsN, gN)]
+
+        pe = Stokes(mesh, W, bcs, F_v)
+        F = pe.generate_fem_formulation(u, v, p, q)
+
+        return F
+
+    def compute_error_norm0(self, gD, u):
+        return errornorm(gD[0], u.sub(0), norm_type=self.norm0, degree_rise=3)
+
+    def compute_error_norm1(self, gD, u):
+        return errornorm(gD[0], u.sub(0), norm_type=self.norm1, degree_rise=3)
+
+
 # -- Mesh fixtures
 @pytest.fixture
 def IntervalMeshes():
@@ -358,6 +410,13 @@ def test_square_euler_problems(conv_test):
 def test_square_navier_stokes_problems(conv_test, SquareMeshesPi):
     element = VectorElement("DG", SquareMeshesPi[0].ufl_cell(), 1, dim=4)
     conv_test(SquareMeshesPi, element, TOL=0.06).run_test()
+
+
+@pytest.mark.parametrize("conv_test", [StokesTest])
+def test_square_stokes_problems(conv_test, SquareMeshes):
+    element = MixedElement([VectorElement("DG", SquareMeshes[0].ufl_cell(), 2),
+                            FiniteElement("DG", SquareMeshes[0].ufl_cell(), 1)])
+    conv_test(SquareMeshes, element, TOL=0.06).run_test()
 
 
 # -- 2D non-conventional DG tests

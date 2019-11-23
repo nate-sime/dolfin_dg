@@ -1,10 +1,12 @@
 import inspect
 
+import ufl
 from dolfin import Constant, FacetNormal
 from ufl import CellVolume, FacetArea, grad, inner, \
     curl, dot, as_vector, as_matrix, sqrt, tr, Identity, variable, diff, exp, Measure
 
-from dolfin_dg.dg_form import DGFemViscousTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG
+from dolfin_dg.dg_form import DGFemViscousTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG, \
+    DGFemStokesTerm
 from dolfin_dg.fluxes import LocalLaxFriedrichs
 from dolfin_dg.aero import conserved_variables, flow_variables, pressure, enthalpy, speed_of_sound
 
@@ -423,5 +425,38 @@ class CompressibleNavierStokesOperatorEntropyFormulation(
 
         residual = EllipticOperator.generate_fem_formulation(self, u, v, dx, dS)
         residual += CompressibleEulerOperatorEntropyFormulation.generate_fem_formulation(self, u, v, dx, dS)
+
+        return residual
+
+
+class Stokes(DGFemFormulation):
+
+    def __init__(self, mesh, fspace, bcs, F_v, C_IP=10.0):
+        DGFemFormulation.__init__(self, mesh, fspace, bcs)
+        self.F_v = F_v
+        self.C_IP = C_IP
+
+    def generate_fem_formulation(self, u, v, p, q, dx=None, dS=None):
+        if dx is None:
+            dx = Measure('dx', domain=self.mesh)
+        if dS is None:
+            dS = Measure('dS', domain=self.mesh)
+
+        h = CellVolume(self.mesh)/FacetArea(self.mesh)
+        n = FacetNormal(self.mesh)
+        sigma = self.C_IP*Constant(max(self.fspace.ufl_element().degree()**2, 1))/h
+        G = homogeneity_tensor(self.F_v, u)
+        delta = -1
+
+        vt = DGFemStokesTerm(self.F_v, u, p, v, q, sigma, G, n, delta)
+
+        residual = inner(self.F_v(u, grad(u)), grad(v))*dx + q*ufl.div(u)*dx
+        residual += vt.interior_residual(dS)
+
+        for dbc in self.dirichlet_bcs:
+            residual += vt.exterior_residual(dbc.get_function(), dbc.get_boundary())
+
+        for dbc in self.neumann_bcs:
+            residual += vt.neumann_residual(dbc.get_function(), dbc.get_boundary())
 
         return residual

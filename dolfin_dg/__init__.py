@@ -24,7 +24,7 @@ from .operators import \
     MaxwellOperator, \
     SpacetimeBurgersOperator, \
     DGNeumannBC, DGDirichletBC, DGAdiabticWallBC, \
-    DGFemViscousTerm, DGFemCurlTerm
+    DGFemViscousTerm, DGFemCurlTerm, Stokes
 
 # DWR highly experimental
 from .dwr import \
