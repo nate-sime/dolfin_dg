@@ -402,7 +402,7 @@ class CompressibleNavierStokesOperatorEntropyFormulation(
         return residual
 
 
-class Stokes(DGFemFormulation):
+class StokesOperator(DGFemFormulation):
 
     def __init__(self, mesh, fspace, bcs, F_v, C_IP=10.0):
         DGFemFormulation.__init__(self, mesh, fspace, bcs)

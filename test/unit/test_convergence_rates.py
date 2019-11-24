@@ -2,7 +2,7 @@ import pytest
 from dolfin import *
 
 from dolfin_dg.operators import *
-from dolfin_dg.nitsche import NitscheBoundary
+from dolfin_dg.nitsche import NitscheBoundary, StokesNitscheBoundary
 from dolfin_dg.dg_form import DGFemBO, DGFemNIPG
 import numpy as np
 
@@ -335,8 +335,8 @@ class StokesTest(ConvergenceTest):
         u_soln, p_soln = self.gD(W)
 
         ff = MeshFunction("size_t", mesh, mesh.topology().dim() - 1, 0)
-        CompiledSubDomain("near(x[0], 0.0) or near(x[1], 0.0)").mark(ff, 1)
-        CompiledSubDomain("near(x[0], 1.0) or near(x[1], 1.0)").mark(ff, 2)
+        AutoSubDomain(lambda x, on: near(x[0], 0.0) or near(x[1], 0.0)).mark(ff, 1)
+        AutoSubDomain(lambda x, on: near(x[0], 1.0) or near(x[1], 1.0)).mark(ff, 2)
         ds = Measure("ds", subdomain_data=ff)
         dsD, dsN = ds(1), ds(2)
 
@@ -344,7 +344,7 @@ class StokesTest(ConvergenceTest):
         gN = (grad(u_soln) - p_soln * Identity(2)) * facet_n
         bcs = [DGDirichletBC(dsD, u_soln), DGNeumannBC(dsN, gN)]
 
-        pe = Stokes(mesh, W, bcs, F_v)
+        pe = StokesOperator(mesh, W, bcs, F_v)
         F = pe.generate_fem_formulation(u, v, p, q)
 
         return F
@@ -354,6 +354,67 @@ class StokesTest(ConvergenceTest):
 
     def compute_error_norm1(self, gD, u):
         return errornorm(gD[0], u.sub(0), norm_type=self.norm1, degree_rise=3)
+
+
+class StokesNitscheTest(ConvergenceTest):
+
+    def gD(self, W):
+        u_soln = Expression(("-(x[1]*cos(x[1]) + sin(x[1]))*exp(x[0])",
+                             "x[1] * sin(x[1]) * exp(x[0])"),
+                            degree=W.sub(0).ufl_element().degree() + 2,
+                            domain=W.mesh())
+        p_soln = Expression("2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
+                            degree=W.sub(1).ufl_element().degree() + 1,
+                            domain=W.mesh())
+        return u_soln, p_soln
+
+    def generate_form(self, mesh, W, U, V):
+        u = ufl.as_vector((U[0], U[1]))
+        p = U[2]
+
+        v = ufl.as_vector((V[0], V[1]))
+        q = V[2]
+
+        def F_v(u, grad_u, p_local=None):
+            if p_local is None:
+                p_local = p
+            return (Constant(10.0) + Constant(1.0) * dot(u, u)) * grad_u - p_local * Identity(2)
+
+        u_soln, p_soln = self.gD(W)
+
+        ff = MeshFunction("size_t", mesh, mesh.topology().dim() - 1, 0)
+        AutoSubDomain(lambda x, on: near(x[0], 0.0) or near(x[1], 0.0)).mark(ff, 1)
+        AutoSubDomain(lambda x, on: near(x[0], 1.0) or near(x[1], 1.0)).mark(ff, 2)
+        AutoSubDomain(lambda x, on: near(x[0], 0.25)).mark(ff, 3)
+
+        ds = Measure("ds", subdomain_data=ff)
+        dsD, dsN = ds(1), ds(2)
+
+        dS = Measure("dS", subdomain_data=ff)
+        dSint = dS(3)
+
+        # Domain
+        f = -div(F_v(u_soln, grad(u_soln), p_soln))
+        F = inner(F_v(u, grad(u)), grad(v)) * dx + q * div(u) * dx - dot(f, v)*dx
+
+        # Neumann
+        facet_n = FacetNormal(mesh)
+        gN = F_v(u_soln, grad(u_soln), p_soln) * facet_n
+        F -= dot(gN, v) * dsN
+
+        # Dirichlet
+        stokes_nitsche = StokesNitscheBoundary(F_v, u, p, v, q)
+        F += stokes_nitsche.nitsche_bc_residual(u_soln, dsD)
+        F += stokes_nitsche.nitsche_bc_residual_on_interior(u_soln, dSint)
+
+        return F
+
+    def compute_error_norm0(self, gD, u):
+        return errornorm(gD[0], u.sub(0), norm_type=self.norm0, degree_rise=3)
+
+    def compute_error_norm1(self, gD, u):
+        return errornorm(gD[0], u.sub(0), norm_type=self.norm1, degree_rise=3)
+
 
 
 # -- Mesh fixtures
@@ -416,7 +477,7 @@ def test_square_navier_stokes_problems(conv_test, SquareMeshesPi):
 def test_square_stokes_problems(conv_test, SquareMeshes):
     element = MixedElement([VectorElement("DG", SquareMeshes[0].ufl_cell(), 2),
                             FiniteElement("DG", SquareMeshes[0].ufl_cell(), 1)])
-    conv_test(SquareMeshes, element, TOL=0.06).run_test()
+    conv_test(SquareMeshes, element).run_test()
 
 
 # -- 2D non-conventional DG tests
@@ -430,4 +491,11 @@ def test_square_baumann_oden_problems(conv_test, SquareMeshes):
 @pytest.mark.parametrize("conv_test", [PoissonNistcheBC])
 def test_square_nitsche_cg_problems(conv_test, SquareMeshes):
     element = FiniteElement("CG", SquareMeshes[0].ufl_cell(), 1)
+    conv_test(SquareMeshes, element).run_test()
+
+
+@pytest.mark.parametrize("conv_test", [StokesNitscheTest])
+def test_square_stokes_nitsche_problems(conv_test, SquareMeshes):
+    element = MixedElement([VectorElement("CG", SquareMeshes[0].ufl_cell(), 2),
+                            FiniteElement("CG", SquareMeshes[0].ufl_cell(), 1)])
     conv_test(SquareMeshes, element).run_test()

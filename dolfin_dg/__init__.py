@@ -23,8 +23,9 @@ from .operators import \
     CompressibleNavierStokesOperator, CompressibleNavierStokesOperatorEntropyFormulation, \
     MaxwellOperator, \
     SpacetimeBurgersOperator, \
+    StokesOperator, \
     DGNeumannBC, DGDirichletBC, DGAdiabticWallBC, \
-    DGFemViscousTerm, DGFemCurlTerm, Stokes
+    DGFemViscousTerm, DGFemCurlTerm, DGFemStokesTerm
 
 # DWR highly experimental
 from .dwr import \
@@ -49,4 +50,4 @@ from .aero import \
     no_slip
 
 # Utility for generating Nitsche boundary conditions
-from .nitsche import NitscheBoundary
+from .nitsche import NitscheBoundary, StokesNitscheBoundary

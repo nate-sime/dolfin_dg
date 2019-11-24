@@ -120,8 +120,9 @@ def dg_outer(*args):
 
 
 def homogeneity_tensor(F_v, u, as_dict=False):
-    if not len(inspect.getfullargspec(F_v).args) == 2:
-        raise TypeError("Function F_v must have 2 arguments, (u, grad_u)")
+    if len(inspect.getfullargspec(F_v).args) < 2:
+        raise TypeError("Function F_v must have at least 2 arguments, "
+                        "(u, grad_u, *args **kwargs)")
 
     G = {}
 
