@@ -78,7 +78,7 @@ rho_in = Constant(rho_0)
 u_in = u_ref*as_vector((Constant(cos(attack)), Constant(sin(attack))))
 
 # The initial guess used in the Newton solver. Here we use the inlet flow.
-rhoE_in_guess = energy_density(p_0, rho_in, u_in)
+rhoE_in_guess = energy_density(p_0, rho_in, u_in, gamma)
 gD_guess = as_vector((rho_in, rho_in*u_in[0], rho_in*u_in[1], rhoE_in_guess))
 
 # Assign variable names to the inlet, outlet and adiabatic wall BCs. These indices
@@ -121,9 +121,9 @@ for ref_level in range(n_ref_max):
     v_vec = TestFunction(V)
 
     # The subsonic inlet, adiabatic wall and subsonic outlet conditions
-    inflow = subsonic_inflow(rho_in, u_in, u_vec)
+    inflow = subsonic_inflow(rho_in, u_in, u_vec, gamma)
     no_slip_bc = no_slip(u_vec)
-    outflow = subsonic_outflow(p_0, u_vec)
+    outflow = subsonic_outflow(p_0, u_vec, gamma)
 
     # Assemble these conditions into DG BCs
     bcs = [DGDirichletBC(ds(INLET), inflow),
@@ -144,7 +144,7 @@ for ref_level in range(n_ref_max):
     # Assemble variables required for the lift and drag computation
     n = FacetNormal(mesh)
     rho, u, E = flow_variables(u_vec)
-    p = pressure(u_vec)
+    p = pressure(u_vec, gamma)
     l_ref = Constant(1.0)
     tau = 1.0/Re*(grad(u) + grad(u).T - 2.0/3.0*(tr(grad(u)))*Identity(2))
     C_infty = 0.5*rho_in*u_ref**2*l_ref

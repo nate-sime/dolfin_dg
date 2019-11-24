@@ -8,7 +8,7 @@ from ufl import CellVolume, FacetArea, grad, inner, \
 from dolfin_dg.dg_form import DGFemViscousTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG, \
     DGFemStokesTerm
 from dolfin_dg.fluxes import LocalLaxFriedrichs
-from dolfin_dg.aero import conserved_variables, flow_variables, pressure, enthalpy, speed_of_sound
+from dolfin_dg import aero
 
 
 class DGBC:
@@ -204,32 +204,20 @@ class CompressibleEulerOperator(
         dim = mesh.geometry().dim()
 
         def F_c(U):
-            rho, u, E = flow_variables(U)
-            p = pressure(U)
-            H = enthalpy(U)
+            rho, u, E = aero.flow_variables(U)
+            p = aero.pressure(U, gamma=gamma)
+            H = aero.enthalpy(U, gamma=gamma)
 
-            # TODO: This shouldn't require dim check
-            if dim == 1:
-                res = as_matrix([[rho*u[0]],
-                                 [rho*u[0]**2 + p],
-                                 [rho*H*u[0]]])
-            if dim == 2:
-                res = as_matrix([[rho*u[0], rho*u[1]],
-                                 [rho*u[0]**2 + p, rho*u[0]*u[1]],
-                                 [rho*u[0]*u[1], rho*u[1]**2 + p],
-                                 [rho*H*u[0], rho*H*u[1]]])
-            elif dim == 3:
-                res = as_matrix([[rho*u[0], rho*u[1], rho*u[2]],
-                                 [rho*u[0]**2 + p, rho*u[0]*u[1], rho*u[0]*u[2]],
-                                 [rho*u[0]*u[1], rho*u[1]**2 + p, rho*u[1]*u[2]],
-                                 [rho*u[0]*u[2], rho*u[1]*u[2], rho*u[2]**2 + p],
-                                 [rho*H*u[0], rho*H*u[1], rho*H*u[2]]])
+            res = as_matrix([[*rho*u],
+                             *([*(rho*ufl.outer(u, u) + p*Identity(dim))[d,:]] for d in range(dim)),
+                             [*rho*H*u]])
+
             return res
 
         def alpha(U, n):
-            rho, u, E = flow_variables(U)
-            p = pressure(U)
-            c = speed_of_sound(p, rho)
+            rho, u, E = aero.flow_variables(U)
+            p = aero.pressure(U, gamma=gamma)
+            c = aero.speed_of_sound(p, rho, gamma=gamma)
             lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
             return lambdas
 
@@ -251,36 +239,28 @@ class CompressibleNavierStokesOperator(
         self.adiabtic_wall_bcs = [bc for bc in bcs if isinstance(bc, DGAdiabticWallBC)]
 
         def F_v(U, grad_U):
-            rho, rhou, rhoE = conserved_variables(U)
+            rho, rhou, rhoE = aero.conserved_variables(U)
             u = rhou/rho
 
             # TODO: check this
             grad_rho = grad_U[0, :]
-            grad_rhou = as_matrix([[grad_U[j,:] for j in range(1, mesh.geometry().dim() + 1)]])[0]
+            grad_rhou = as_matrix([*([*grad_U[j,:]] for j in range(1, dim + 1))])
             grad_rhoE = grad_U[-1,:]
             # Quotient rule to find grad(u) and grad(E)
-            grad_u = as_matrix([[(grad_rhou[j,:]*rho - rhou[j]*grad_rho)/rho**2 for j in range(mesh.geometry().dim())]])[0]
+            grad_u = as_matrix([*([*(grad_rhou[j,:]*rho - rhou[j]*grad_rho)/rho**2] for j in range(dim))])
             grad_E = (grad_rhoE*rho - rhoE*grad_rho)/rho**2
 
-            tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(mesh.geometry().dim()))
+            tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(dim))
             K_grad_T = mu*gamma/Pr*(grad_E - dot(u, grad_u))
 
-            # TODO: This shouldn't require dim check
-            if dim == 2:
-                return as_matrix([[0, 0],
-                                  [tau[0, 0], tau[0, 1]],
-                                  [tau[1, 0], tau[1, 1]],
-                                  [dot(tau[0, :], u) + K_grad_T[0], (dot(tau[1, :], u)) + K_grad_T[1]]])
-            elif dim == 3:
-                return as_matrix([[0, 0, 0],
-                                  [tau[0, 0], tau[0, 1], tau[0, 2]],
-                                  [tau[1, 0], tau[1, 1], tau[1, 2]],
-                                  [tau[2, 0], tau[2, 1], tau[2, 2]],
-                                  [dot(tau[0, :], u) + K_grad_T[0], dot(tau[1, :], u) + K_grad_T[1], dot(tau[2, :], u) + K_grad_T[2]]])
+            res = as_matrix([[0]*dim,
+                             *([*tau[d,:]] for d in range(dim)),
+                             [*(tau * u + K_grad_T)]])
+            return res
 
         # Specialised adiabatic wall BC
         def F_v_adiabatic(U, grad_U):
-            rho, rhou, rhoE = conserved_variables(U)
+            rho, rhou, rhoE = aero.conserved_variables(U)
             u = rhou/rho
 
             # TODO: check this
@@ -288,19 +268,12 @@ class CompressibleNavierStokesOperator(
             grad_rhou = as_matrix([[grad_U[j,:] for j in range(1, mesh.geometry().dim() + 1)]])[0]
             grad_u = as_matrix([[(grad_rhou[j,:]*rho - rhou[j]*grad_rho)/rho**2 for j in range(mesh.geometry().dim())]])[0]
 
-            tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(mesh.geometry().dim()))
+            tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(dim))
 
-            if dim == 2:
-                return as_matrix([[0, 0],
-                                  [tau[0, 0], tau[0, 1]],
-                                  [tau[1, 0], tau[1, 1]],
-                                  [dot(tau[0, :], u), dot(tau[1, :], u)]])
-            elif dim == 3:
-                return as_matrix([[0, 0, 0],
-                                  [tau[0, 0], tau[0, 1], tau[0, 2]],
-                                  [tau[1, 0], tau[1, 1], tau[1, 2]],
-                                  [tau[2, 0], tau[2, 1], tau[2, 2]],
-                                  [dot(tau[0, :], u), dot(tau[1, :], u), dot(tau[2, :], u)]])
+            res = as_matrix([[0]*dim,
+                             *([*tau[d,:]] for d in range(dim)),
+                             [*(tau * u)]])
+            return res
 
         self.F_v_adiabatic = F_v_adiabatic
 
