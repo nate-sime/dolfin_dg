@@ -361,7 +361,7 @@ class StokesNitscheTest(ConvergenceTest):
     def gD(self, W):
         u_soln = Expression(("-(x[1]*cos(x[1]) + sin(x[1]))*exp(x[0])",
                              "x[1] * sin(x[1]) * exp(x[0])"),
-                            degree=W.sub(0).ufl_element().degree() + 1,
+                            degree=W.sub(0).ufl_element().degree() + 2,
                             domain=W.mesh())
         p_soln = Expression("2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
                             degree=W.sub(1).ufl_element().degree() + 1,
@@ -375,8 +375,10 @@ class StokesNitscheTest(ConvergenceTest):
         v = ufl.as_vector((V[0], V[1]))
         q = V[2]
 
-        def F_v(u, grad_u):
-            return grad_u - p * Identity(2)
+        def F_v(u, grad_u, p_local=None):
+            if p_local is None:
+                p_local = p
+            return (Constant(10.0) + Constant(1.0) * dot(u, u)) * grad_u - p_local * Identity(2)
 
         u_soln, p_soln = self.gD(W)
 
@@ -392,11 +394,12 @@ class StokesNitscheTest(ConvergenceTest):
         dSint = dS(3)
 
         # Domain
-        F = inner(F_v(u, grad(u)), grad(v)) * dx + q * div(u) * dx
+        f = -div(F_v(u_soln, grad(u_soln), p_soln))
+        F = inner(F_v(u, grad(u)), grad(v)) * dx + q * div(u) * dx - dot(f, v)*dx
 
         # Neumann
         facet_n = FacetNormal(mesh)
-        gN = (grad(u_soln) - p_soln * Identity(2)) * facet_n
+        gN = F_v(u_soln, grad(u_soln), p_soln) * facet_n
         F -= dot(gN, v) * dsN
 
         # Dirichlet
@@ -492,7 +495,7 @@ def test_square_nitsche_cg_problems(conv_test, SquareMeshes):
 
 
 @pytest.mark.parametrize("conv_test", [StokesNitscheTest])
-def test_square_stokes_problems(conv_test, SquareMeshes):
+def test_square_stokes_nitsche_problems(conv_test, SquareMeshes):
     element = MixedElement([VectorElement("CG", SquareMeshes[0].ufl_cell(), 2),
                             FiniteElement("CG", SquareMeshes[0].ufl_cell(), 1)])
     conv_test(SquareMeshes, element).run_test()
