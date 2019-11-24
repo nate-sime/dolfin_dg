@@ -45,7 +45,7 @@ for n in range(4, 6):
     def F_v(u, grad_u):
         return grad_u - p*Identity(2)
 
-    stokes = Stokes(mesh, W, bcs, F_v)
+    stokes = StokesOperator(mesh, W, bcs, F_v)
     F = stokes.generate_fem_formulation(u, v, p, q)
     J = derivative(F, U, dU)
 
