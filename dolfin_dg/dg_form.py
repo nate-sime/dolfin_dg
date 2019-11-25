@@ -18,6 +18,14 @@ def ufl_T(v):
     return v.T
 
 
+def normal_proj(u, n):
+    return ufl.outer(n, n) * u
+
+
+def tangential_proj(u, n):
+    return (ufl.Identity(u.ufl_shape[0]) - ufl.outer(n, n)) * u
+
+
 def g_avg(G):
     if isinstance(G, ufl.core.expr.Expr):
         return avg(G)
@@ -350,4 +358,37 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
 
     def exterior_residual_on_interior(self, u_gamma, dExt):
         return sum(self._exterior_residual_no_integral(u_gamma)(side) * dExt
+                   for side in ("+", "-"))
+
+    def _slip_exterior_residual_no_integral(self, u_gamma, f2):
+        p, q = self.p, self.q
+
+        G = self._make_boundary_G(self.G, u_gamma)
+        u, v, grad_u, grad_v = self.U, self.V, grad(self.U), self.grad_v_vec
+        sigma, n = self.sigma, self.n
+        delta = self.delta
+
+        # Velocity block
+        # residual = delta * inner(dg_outer(u - u_gamma, n), hyper_tensor_T_product(G, grad_v)) \
+        #            - inner(self._eval_F_v(u, grad_u), dg_outer(v, n))
+        # if sigma is not None:
+        #     residual += inner(sigma * hyper_tensor_product(G, dg_outer(u - u_gamma, n)), dg_outer(v, n))
+        residual = delta * inner(u - u_gamma, normal_proj(hyper_tensor_T_product(G, grad_v) * n, n)) \
+                   - inner(normal_proj(self._eval_F_v(u, grad_u) * n, n), v)
+        if sigma is not None:
+            residual += inner(sigma * normal_proj(hyper_tensor_product(G, dg_outer(u - u_gamma, n)) * n, n), v)
+
+        # Continuity block
+        residual += - dot(u - u_gamma, n) * q
+
+        # Tangential force
+        residual -= dot(tangential_proj(f2, n), v)
+
+        return residual
+
+    def slip_exterior_residual(self, u_gamma, f2, dExt):
+        return self._slip_exterior_residual_no_integral(u_gamma, f2) * dExt
+
+    def slip_exterior_residual_on_interior(self, u_gamma, f2, dExt):
+        return sum(self._slip_exterior_residual_no_integral(u_gamma, f2)(side) * dExt
                    for side in ("+", "-"))
