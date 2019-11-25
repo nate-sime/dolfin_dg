@@ -39,7 +39,12 @@ class StokesNitscheBoundary:
             return u
 
         U = get_terminal_operand_coefficient(u)
-        mesh = U.function_space().mesh()
+
+        # dolfin-x workaround
+        if callable(U.function_space):
+            mesh = U.function_space().mesh()
+        else:
+            mesh = U.function_space.mesh
 
         if C_IP is None:
             degree = U.sub(0).function_space().ufl_element().degree()

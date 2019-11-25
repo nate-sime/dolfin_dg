@@ -369,10 +369,6 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
         delta = self.delta
 
         # Velocity block
-        # residual = delta * inner(dg_outer(u - u_gamma, n), hyper_tensor_T_product(G, grad_v)) \
-        #            - inner(self._eval_F_v(u, grad_u), dg_outer(v, n))
-        # if sigma is not None:
-        #     residual += inner(sigma * hyper_tensor_product(G, dg_outer(u - u_gamma, n)), dg_outer(v, n))
         residual = delta * inner(u - u_gamma, normal_proj(hyper_tensor_T_product(G, grad_v) * n, n)) \
                    - inner(normal_proj(self._eval_F_v(u, grad_u) * n, n), v)
         if sigma is not None:
