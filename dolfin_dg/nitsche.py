@@ -58,3 +58,9 @@ class StokesNitscheBoundary:
 
     def nitsche_bc_residual_on_interior(self, u_bc, dS):
         return self.vt.exterior_residual_on_interior(u_bc, dS)
+
+    def slip_nitsche_bc_residual(self, u_bc, f2, ds):
+        return self.vt.slip_exterior_residual(u_bc, f2, ds)
+
+    def slip_nitsche_bc_residual_on_interior(self, u_bc, f2, dS):
+        return self.vt.slip_exterior_residual_on_interior(u_bc, f2, dS)

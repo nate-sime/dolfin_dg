@@ -368,7 +368,7 @@ class StokesNitscheTest(ConvergenceTest):
                             domain=W.mesh())
         return u_soln, p_soln
 
-    def generate_form(self, mesh, W, U, V):
+    def generate_form(self, mesh, W, U, V, slip_bc=False):
         u = ufl.as_vector((U[0], U[1]))
         p = U[2]
 
@@ -402,10 +402,16 @@ class StokesNitscheTest(ConvergenceTest):
         gN = F_v(u_soln, grad(u_soln), p_soln) * facet_n
         F -= dot(gN, v) * dsN
 
-        # Dirichlet
+        # Nitsche BC
         stokes_nitsche = StokesNitscheBoundary(F_v, u, p, v, q)
-        F += stokes_nitsche.nitsche_bc_residual(u_soln, dsD)
-        F += stokes_nitsche.nitsche_bc_residual_on_interior(u_soln, dSint)
+        if slip_bc:
+            f2 = F_v(u_soln, grad(u_soln), 0) * facet_n
+            F += stokes_nitsche.slip_nitsche_bc_residual(u_soln, f2, dsD)
+            F += stokes_nitsche.slip_nitsche_bc_residual_on_interior(u_soln, f2, dSint)
+        else:
+            # Dirichlet
+            F += stokes_nitsche.nitsche_bc_residual(u_soln, dsD)
+            F += stokes_nitsche.nitsche_bc_residual_on_interior(u_soln, dSint)
 
         return F
 
@@ -415,6 +421,11 @@ class StokesNitscheTest(ConvergenceTest):
     def compute_error_norm1(self, gD, u):
         return errornorm(gD[0], u.sub(0), norm_type=self.norm1, degree_rise=3)
 
+
+class StokesNitscheSlipBCTest(StokesNitscheTest):
+
+    def generate_form(self, mesh, W, U, V):
+        return super().generate_form(mesh, W, U, V, slip_bc=True)
 
 
 # -- Mesh fixtures
@@ -494,7 +505,8 @@ def test_square_nitsche_cg_problems(conv_test, SquareMeshes):
     conv_test(SquareMeshes, element).run_test()
 
 
-@pytest.mark.parametrize("conv_test", [StokesNitscheTest])
+@pytest.mark.parametrize("conv_test", [StokesNitscheTest,
+                                       StokesNitscheSlipBCTest])
 def test_square_stokes_nitsche_problems(conv_test, SquareMeshes):
     element = MixedElement([VectorElement("CG", SquareMeshes[0].ufl_cell(), 2),
                             FiniteElement("CG", SquareMeshes[0].ufl_cell(), 1)])
