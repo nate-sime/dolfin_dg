@@ -50,13 +50,3 @@ for j, ele_n in enumerate(ele_ns):
 if MPI.rank(mesh.mpi_comm()) == 0:
     print("L2 convergence rates: " + str(np.log(errorl2[0:-1] / errorl2[1:]) / np.log(hsizes[0:-1] / hsizes[1:])))
     print("H1 convergence rates: " + str(np.log(errorh1[0:-1] / errorh1[1:]) / np.log(hsizes[0:-1] / hsizes[1:])))
-
-
-
-    F_v = lambda u, grad_u: (u + 1) * grad_u
-    bc = NitscheBoundary(F_v, u, v)
-
-    residual = dot(F_v(u, grad(u)), grad(v)) * dx - f * v * dx
-    residual += bc.nitsche_bc_residual(gD, ds)
-
-    solve(residual == 0, u)
