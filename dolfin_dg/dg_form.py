@@ -365,7 +365,7 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
         residual = list(map(lambda Fj: Fj*dExt, self._exterior_residual_no_integral(u_gamma)))
         if not self.block_form:
             residual = sum(residual)
-        return  residual
+        return residual
 
     def exterior_residual_on_interior(self, u_gamma, dExt):
         residual = list(map(lambda Fj: sum(Fj(side)*dExt for side in ("+", "-")),

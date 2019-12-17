@@ -57,9 +57,7 @@ for n in range(2, 7):
 
     l2error_u = assemble((u - u_soln) ** 2 * dx)**0.5
     l2error_p = assemble((p - p_soln) ** 2 * dx)**0.5
-    info("l2error_u %.12e, l2error_p %.12e" % (l2error_u, l2error_p))
 
-    print(assemble(div(u)**2*dx))
     hs.append(mesh.hmin())
     l2errors_u.append(l2error_u)
     l2errors_p.append(l2error_p)
