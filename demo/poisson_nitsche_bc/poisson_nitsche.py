@@ -17,6 +17,7 @@ parameters['form_compiler']["optimize"] = True
 parameters['form_compiler']['representation'] = 'uflacs'
 parameters["ghost_mode"] = "shared_facet"
 
+p_order = 1
 run_count = 0
 ele_ns = [4, 8, 16, 32, 64, 128]
 errorl2 = np.zeros(len(ele_ns))
@@ -26,17 +27,16 @@ hsizes = np.zeros(len(ele_ns))
 for j, ele_n in enumerate(ele_ns):
     mesh = UnitSquareMesh(ele_n, ele_n)
 
-    V = FunctionSpace(mesh, 'CG', 1)
+    V = FunctionSpace(mesh, 'CG', p_order)
     u, v = Function(V), TestFunction(V)
 
-    gD = Expression('sin(pi*x[0])*sin(pi*x[1]) + 1.0', element=V.ufl_element())
-    f = Expression(
-        '2*pow(pi, 2)*(sin(pi*x[0])*sin(pi*x[1]) + 2.0)*sin(pi*x[0])*sin(pi*x[1]) - pow(pi, 2)*pow(sin(pi*x[0]), 2)*pow(cos(pi*x[1]), 2) - pow(pi, 2)*pow(sin(pi*x[1]), 2)*pow(cos(pi*x[0]), 2)',
-        element=V.ufl_element())
+    gD = Expression('sin(pi*x[0])*sin(pi*x[1]) + 1.0',
+                    domain=mesh, degree=p_order+1)
 
     F_v = lambda u, grad_u: (u + 1) * grad_u
     bc = NitscheBoundary(F_v, u, v)
 
+    f = -div(F_v(gD, grad(gD)))
     residual = dot(F_v(u, grad(u)), grad(v)) * dx - f * v * dx
     residual += bc.nitsche_bc_residual(gD, ds)
 
