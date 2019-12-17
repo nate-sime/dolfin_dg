@@ -163,6 +163,13 @@ def homogeneity_tensor(F_v, u, as_dict=False):
     return G
 
 
+def _get_terminal_operand_coefficient(u):
+    if not isinstance(u, ufl.Coefficient):
+        return _get_terminal_operand_coefficient(
+            u.ufl_operands[0])
+    return u
+
+
 class DGFemViscousTerm:
 
     def __init__(self, F_v, u_vec, v_vec, sigma, G, n):
@@ -183,13 +190,7 @@ class DGFemViscousTerm:
         return tau
 
     def _make_boundary_G(self, G, u_gamma):
-        def get_terminal_operand_coefficient(u):
-            if not isinstance(u, ufl.Coefficient):
-                return get_terminal_operand_coefficient(
-                    u.ufl_operands[0])
-            return u
-
-        U = get_terminal_operand_coefficient(self.U)
+        U = _get_terminal_operand_coefficient(self.U)
 
         if isinstance(G, ufl.core.expr.Expr):
             return replace(G, {U: u_gamma})
@@ -327,21 +328,28 @@ class DGFemCurlTerm:
 
 class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
 
-    def __init__(self, F_v, u, p, v, q, sigma, G, n, delta):
+    def __init__(self, F_v, u, p, v, q, sigma, G, n, delta,
+                 block_form=False):
         self.u, self.v = u, v
         self.p, self.q = p, q
+        self.block_form = block_form
         super().__init__(F_v, u, v, sigma, G, n, delta)
 
     def _make_boundary_G(self, G, u_gamma):
-        return super()._make_boundary_G(G, ufl.as_vector((*u_gamma, 0)))
+        U = _get_terminal_operand_coefficient(self.U)
+        if U.ufl_shape[0] > u_gamma.ufl_shape[0]:
+            u_gamma = ufl.as_vector((*u_gamma, 0))
+        return super()._make_boundary_G(G, u_gamma)
 
     def interior_residual(self, dInt):
         u = self.u
         p, q = self.p, self.q
         n = self.n
 
-        residual = super().interior_residual(dInt)
-        residual += -ufl.jump(u, n) * avg(q) * dInt
+        residual = [super().interior_residual(dInt),
+                    -ufl.jump(u, n) * avg(q) * dInt]
+        if not self.block_form:
+            residual = sum(residual)
         return residual
 
     def _exterior_residual_no_integral(self, u_gamma):
@@ -349,16 +357,22 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
         p, q = self.p, self.q
         n = self.n
 
-        residual = super()._exterior_residual_no_integral(u_gamma)
-        residual += - dot(u - u_gamma, n) * q
+        residual = [super()._exterior_residual_no_integral(u_gamma),
+                    - dot(u - u_gamma, n) * q]
         return residual
 
     def exterior_residual(self, u_gamma, dExt):
-        return self._exterior_residual_no_integral(u_gamma) * dExt
+        residual = list(map(lambda Fj: Fj*dExt, self._exterior_residual_no_integral(u_gamma)))
+        if not self.block_form:
+            residual = sum(residual)
+        return  residual
 
     def exterior_residual_on_interior(self, u_gamma, dExt):
-        return sum(self._exterior_residual_no_integral(u_gamma)(side) * dExt
-                   for side in ("+", "-"))
+        residual = list(map(lambda Fj: sum(Fj(side)*dExt for side in ("+", "-")),
+                            self._exterior_residual_no_integral(u_gamma)))
+        if not self.block_form:
+            residual = sum(residual)
+        return residual
 
     def _slip_exterior_residual_no_integral(self, u_gamma, f2):
         p, q = self.p, self.q
@@ -369,22 +383,29 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
         delta = self.delta
 
         # Velocity block
-        residual = delta * inner(u - u_gamma, normal_proj(hyper_tensor_T_product(G, grad_v) * n, n)) \
+        F0 = delta * inner(u - u_gamma, normal_proj(hyper_tensor_T_product(G, grad_v) * n, n)) \
                    - inner(normal_proj(self._eval_F_v(u, grad_u) * n, n), v)
         if sigma is not None:
-            residual += inner(sigma * normal_proj(hyper_tensor_product(G, dg_outer(u - u_gamma, n)) * n, n), v)
-
-        # Continuity block
-        residual += - dot(u - u_gamma, n) * q
+            F0 += inner(sigma * normal_proj(hyper_tensor_product(G, dg_outer(u - u_gamma, n)) * n, n), v)
 
         # Tangential force
-        residual -= dot(tangential_proj(f2, n), v)
+        F0 -= dot(tangential_proj(f2, n), v)
 
-        return residual
+        # Continuity block
+        F1 = - dot(u - u_gamma, n) * q
+
+        return [F0, F1]
 
     def slip_exterior_residual(self, u_gamma, f2, dExt):
-        return self._slip_exterior_residual_no_integral(u_gamma, f2) * dExt
+        residual = list(map(lambda Fj: Fj*dExt,
+                            self._slip_exterior_residual_no_integral(u_gamma, f2)))
+        if not self.block_form:
+            residual = sum(residual)
+        return residual
 
     def slip_exterior_residual_on_interior(self, u_gamma, f2, dExt):
-        return sum(self._slip_exterior_residual_no_integral(u_gamma, f2)(side) * dExt
-                   for side in ("+", "-"))
+        residual = list(map(lambda Fj: sum(Fj(side)*dExt for side in ("+", "-")),
+                            self._slip_exterior_residual_no_integral(u_gamma, f2)))
+        if not self.block_form:
+            residual = sum(residual)
+        return residual

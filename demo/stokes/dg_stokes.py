@@ -12,7 +12,7 @@ l2errors_u = []
 l2errors_p = []
 hs = []
 
-for n in range(4, 6):
+for n in range(2, 7):
     mesh = UnitSquareMesh(2**n, 2**n, "left")
 
     Ve = VectorElement("DG", mesh.ufl_cell(), p_order)
@@ -29,8 +29,11 @@ for n in range(4, 6):
     x, y = SpatialCoordinate(mesh)
 
     u_soln = Expression(("-(x[1]*cos(x[1]) + sin(x[1]))*exp(x[0])",
-                           "x[1] * sin(x[1]) * exp(x[0])"), degree=W.sub(0).ufl_element().degree(), domain=mesh)
-    p_soln = Expression("2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0", degree=W.sub(1).ufl_element().degree() + 1)
+                           "x[1] * sin(x[1]) * exp(x[0])"),
+                        degree=W.sub(0).ufl_element().degree() + 1,
+                        domain=mesh)
+    p_soln = Expression("2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
+                        degree=W.sub(1).ufl_element().degree() + 1)
 
     ff = MeshFunction("size_t", mesh, mesh.topology().dim() - 1, 0)
     CompiledSubDomain("near(x[0], 0.0) or near(x[1], 0.0)").mark(ff, 1)

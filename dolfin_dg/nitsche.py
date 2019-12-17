@@ -30,7 +30,8 @@ class NitscheBoundary:
 
 class StokesNitscheBoundary:
 
-    def __init__(self, F_v, u, p, v, q, C_IP=None, delta=-1):
+    def __init__(self, F_v, u, p, v, q, C_IP=None, delta=-1,
+                 block_form=False):
 
         def get_terminal_operand_coefficient(u):
             if not isinstance(u, ufl.Coefficient):
@@ -54,7 +55,8 @@ class StokesNitscheBoundary:
         G = homogeneity_tensor(F_v, u)
         n = FacetNormal(mesh)
 
-        vt = DGFemStokesTerm(F_v, u, p, v, q, C_IP, G, n, delta)
+        vt = DGFemStokesTerm(F_v, u, p, v, q, C_IP, G, n, delta,
+                             block_form=block_form)
 
         self.vt = vt
 
