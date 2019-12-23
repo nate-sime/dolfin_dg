@@ -456,16 +456,50 @@ class StokesNitscheSlipManualTest(StokesNitscheTest):
         return F
 
 
+class NitscheMixedElement(ConvergenceTest):
+
+    def get_num_sub_spaces(self, V):
+        return ufl.Coefficient(V).ufl_shape[0]
+
+    def gD(self, V):
+        num_sub_spaces = self.get_num_sub_spaces(V)
+        return Expression(['sin(pi*x[0])*sin(pi*x[1])'] * num_sub_spaces,
+                          element=V.ufl_element())
+
+    def generate_form(self, mesh, V, u, v):
+        gD = self.gD(V)
+        u.interpolate(gD)
+        num_sub_spaces = self.get_num_sub_spaces(V)
+        f = Expression(['2.0*pi*pi*sin(pi*x[0])*sin(pi*x[1])'] * num_sub_spaces,
+                       element=V.ufl_element())
+        F = inner(grad(u), grad(v)) * dx - inner(f, v) * dx
+
+        def F_v(u, grad_u):
+            return grad_u
+
+        for u_sub, v_sub in zip(ufl.split(u), ufl.split(v)):
+            nbc = NitscheBoundary(F_v, u_sub, v_sub)
+            if u_sub.ufl_shape:
+                u_gamma = Constant([0.0] * u_sub.ufl_shape[0])
+            else:
+                u_gamma = Constant(0.0)
+            F += nbc.nitsche_bc_residual(u_gamma, ds)
+
+        return F
+
+
 # -- Mesh fixtures
 @pytest.fixture
 def IntervalMeshes():
     return [UnitIntervalMesh(16),
             UnitIntervalMesh(32)]
 
+
 @pytest.fixture
 def SquareMeshes():
     return [UnitSquareMesh(16, 16, 'left/right'),
             UnitSquareMesh(32, 32, 'left/right')]
+
 
 @pytest.fixture
 def SquareMeshesPi():
@@ -530,6 +564,22 @@ def test_square_baumann_oden_problems(conv_test, SquareMeshes):
 @pytest.mark.parametrize("conv_test", [PoissonNistcheBC])
 def test_square_nitsche_cg_problems(conv_test, SquareMeshes):
     element = FiniteElement("CG", SquareMeshes[0].ufl_cell(), 1)
+    conv_test(SquareMeshes, element).run_test()
+
+
+mixed_elements_for_testing = [
+    MixedElement([VectorElement("CG", ufl.triangle, 1),
+                  FiniteElement("CG", ufl.triangle, 1)]),
+    MixedElement([FiniteElement("CG", ufl.triangle, 1),
+                  VectorElement("CG", ufl.triangle, 1)]),
+    MixedElement([FiniteElement("CG", ufl.triangle, 1),
+                  VectorElement("CG", ufl.triangle, 1),
+                  FiniteElement("CG", ufl.triangle, 1), ])
+]
+
+@pytest.mark.parametrize("element", mixed_elements_for_testing)
+@pytest.mark.parametrize("conv_test", [NitscheMixedElement])
+def test_square_nitsche_cg_problems(conv_test, SquareMeshes, element):
     conv_test(SquareMeshes, element).run_test()
 
 
