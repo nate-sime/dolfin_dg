@@ -217,13 +217,17 @@ class DGFemViscousTerm:
         U = self.U
         U_soln = _get_terminal_operand_coefficient(U)
 
+        # Reshape u_gamma if U_soln is from x mixed space
         bc_shape = u_gamma.ufl_shape[0] if u_gamma.ufl_shape else 1
         soln_shape = U_soln.ufl_shape[0] if U_soln.ufl_shape else 1
         if soln_shape > bc_shape:
             U_soln_idx = _get_ufl_list_tensor_indices(U)
             if not hasattr(U_soln_idx, "__len__"):
                 U_soln_idx = (U_soln_idx,)
-            u_gamma_vec = [0] * soln_shape
+
+            # Construct new u_gamma from existing U_soln and replace
+            # bc components with their prescribed data
+            u_gamma_vec = [u_sub for u_sub in U_soln]
             if not u_gamma.ufl_shape:
                 u_gamma = [u_gamma]
             for j, idx in enumerate(U_soln_idx):
@@ -273,6 +277,9 @@ class DGClassicalSecondOrderDiscretisation(DGFemViscousTerm):
 
     def _exterior_residual_no_integral(self, u_gamma):
         G = self._make_boundary_G(self.G, u_gamma)
+        from ufl.algorithms.apply_derivatives import apply_derivatives
+        from ufl.algorithms.apply_algebra_lowering import apply_algebra_lowering
+        # G = apply_derivatives(apply_algebra_lowering(G))
         u, v, grad_u, grad_v = self.U, self.V, grad(self.U), self.grad_v_vec
         sigma, n = self.sigma, self.n
         delta = self.delta
@@ -281,6 +288,9 @@ class DGClassicalSecondOrderDiscretisation(DGFemViscousTerm):
                    - inner(self._eval_F_v(u, grad_u), dg_outer(v, n))
         if sigma is not None:
             residual += inner(sigma * hyper_tensor_product(G, dg_outer(u - u_gamma, n)), dg_outer(v, n))
+
+        residual = apply_derivatives(apply_algebra_lowering(residual))
+        # quit()
         return residual
 
     def exterior_residual(self, u_gamma, dExt):
