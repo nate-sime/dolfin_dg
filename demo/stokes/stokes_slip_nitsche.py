@@ -65,7 +65,6 @@ for j, ele_n in enumerate(ele_ns):
     stokes_nitsche = StokesNitscheBoundary(F_v, u, p, v, q, delta=-1)
     F += stokes_nitsche.slip_nitsche_bc_residual(u_soln, g_tau, ds)
 
-    bcs = []
     solve(F == 0, U)
 
     uh = U.sub(0, deepcopy=True)
