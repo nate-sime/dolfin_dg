@@ -6,18 +6,18 @@ from dolfin_dg.dg_form import DGFemStokesTerm
 
 class NitscheBoundary:
 
-    def __init__(self, F_v, u, v, C_IP=None, DGFemClass=None):
+    def __init__(self, F_v, u, v, sigma=None, DGFemClass=None):
 
-        if C_IP is None:
+        if sigma is None:
             h = CellDiameter(u.function_space().mesh())
-            C_IP = Constant(20.0 * max(u.function_space().ufl_element().degree() ** 2, 1)) / h
+            sigma = Constant(20.0 * max(u.function_space().ufl_element().degree() ** 2, 1)) / h
 
         G = homogeneity_tensor(F_v, u)
         n = FacetNormal(u.function_space().mesh())
 
         if DGFemClass is None:
             DGFemClass = DGFemSIPG
-        vt = DGFemClass(F_v, u, v, C_IP, G, n)
+        vt = DGFemClass(F_v, u, v, sigma, G, n)
 
         self.vt = vt
 
@@ -30,7 +30,7 @@ class NitscheBoundary:
 
 class StokesNitscheBoundary:
 
-    def __init__(self, F_v, u, p, v, q, C_IP=None, delta=-1,
+    def __init__(self, F_v, u, p, v, q, sigma=None, delta=-1,
                  block_form=False):
 
         def get_terminal_operand_coefficient(u):
@@ -47,15 +47,15 @@ class StokesNitscheBoundary:
         else:
             mesh = U.function_space.mesh
 
-        if C_IP is None:
+        if sigma is None:
             degree = U.sub(0).function_space().ufl_element().degree()
             h = CellDiameter(mesh)
-            C_IP = Constant(20.0 * max(degree ** 2, 1)) / h
+            sigma = Constant(20.0 * max(degree ** 2, 1)) / h
 
         G = homogeneity_tensor(F_v, u)
         n = FacetNormal(mesh)
 
-        vt = DGFemStokesTerm(F_v, u, p, v, q, C_IP, G, n, delta,
+        vt = DGFemStokesTerm(F_v, u, p, v, q, sigma, G, n, delta,
                              block_form=block_form)
 
         self.vt = vt
