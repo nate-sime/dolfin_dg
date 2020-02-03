@@ -172,6 +172,30 @@ def _get_terminal_operand_coefficient(u):
     return u
 
 
+def _get_ufl_element_degree(u):
+    # Assume either a coefficient or ufl indexed operand
+    if isinstance(u, ufl.Coefficient):
+        return u.ufl_element().degree()
+    if isinstance(u, ufl.tensors.ListTensor):
+        return _get_ufl_element_degree(_get_terminal_operand_coefficient(u))
+    else:
+        coeff, idx = u.ufl_operands
+        element = coeff.ufl_element()
+        return element.degree()
+
+
+def _get_ufl_list_tensor_indices(u):
+    if isinstance(u, ufl.tensors.ListTensor):
+        return list(map(_get_ufl_list_tensor_indices, u.ufl_operands))
+    return u.ufl_operands[1][0]._value
+
+
+def generate_default_sipg_penalty_term(u, C_IP=20.0):
+    h = ufl.CellDiameter(u.ufl_domain())
+    ufl_degree = _get_ufl_element_degree(u)
+    return C_IP * max(ufl_degree ** 2, 1) / h
+
+
 class DGFemTerm(abc.ABC):
 
     def __init__(self, F_v, u_vec, v_vec, sigma, G, n):
@@ -187,15 +211,33 @@ class DGFemTerm(abc.ABC):
         pass
 
     def _make_boundary_G(self, G, u_gamma):
-        U = _get_terminal_operand_coefficient(self.U)
+        U = self.U
+        U_soln = _get_terminal_operand_coefficient(U)
+
+        # Reshape u_gamma if U_soln is from x mixed space
+        bc_shape = u_gamma.ufl_shape[0] if u_gamma.ufl_shape else 1
+        soln_shape = U_soln.ufl_shape[0] if U_soln.ufl_shape else 1
+        if soln_shape > bc_shape:
+            U_soln_idx = _get_ufl_list_tensor_indices(U)
+            if not hasattr(U_soln_idx, "__len__"):
+                U_soln_idx = (U_soln_idx,)
+
+            # Construct new u_gamma from existing U_soln and replace
+            # bc components with their prescribed data
+            u_gamma_vec = [u_sub for u_sub in U_soln]
+            if not u_gamma.ufl_shape:
+                u_gamma = [u_gamma]
+            for j, idx in enumerate(U_soln_idx):
+                u_gamma_vec[idx] = u_gamma[j]
+            u_gamma = ufl.as_vector(u_gamma_vec)
 
         if isinstance(G, ufl.core.expr.Expr):
-            return replace(G, {U: u_gamma})
+            return replace(G, {U_soln: u_gamma})
 
         assert(isinstance(G, dict))
         G_gamma = {}
         for idx, tensor in G.items():
-            G_gamma[idx] = replace(tensor, {U: u_gamma})
+            G_gamma[idx] = replace(tensor, {U_soln: u_gamma})
         return G_gamma
 
     @abc.abstractmethod
@@ -336,12 +378,6 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
         self.p, self.q = p, q
         self.block_form = block_form
         super().__init__(F_v, u, v, sigma, G, n, delta)
-
-    def _make_boundary_G(self, G, u_gamma):
-        U = _get_terminal_operand_coefficient(self.U)
-        if U.ufl_shape[0] > u_gamma.ufl_shape[0]:
-            u_gamma = ufl.as_vector((*u_gamma, 0))
-        return super()._make_boundary_G(G, u_gamma)
 
     def interior_residual(self, dInt):
         u = self.u
