@@ -2,7 +2,7 @@
 __author__ = 'njcs4'
 
 from .dg_form import \
-    DGFemViscousTerm, DGFemSIPG, DGFemNIPG, DGFemBO, \
+    DGFemTerm, DGFemSIPG, DGFemNIPG, DGFemBO, \
     hyper_tensor_product, hyper_tensor_T_product, \
     homogeneity_tensor, \
     dg_cross, dg_outer, \
@@ -26,7 +26,7 @@ from .operators import \
     SpacetimeBurgersOperator, \
     StokesOperator, \
     DGNeumannBC, DGDirichletBC, DGAdiabticWallBC, \
-    DGFemViscousTerm, DGFemCurlTerm, DGFemStokesTerm
+    DGFemTerm, DGFemCurlTerm, DGFemStokesTerm
 
 # DWR highly experimental
 from .dwr import \

@@ -1,7 +1,9 @@
 import inspect
+import abc
 
 import ufl
-from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff, dot, cross, curl
+from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff, dot, \
+    cross, curl
 
 __author__ = 'njcs4'
 
@@ -170,24 +172,19 @@ def _get_terminal_operand_coefficient(u):
     return u
 
 
-class DGFemViscousTerm:
+class DGFemTerm(abc.ABC):
 
     def __init__(self, F_v, u_vec, v_vec, sigma, G, n):
         self.F_v = F_v
         self.U = u_vec
         self.V = v_vec
-        self.grad_v_vec = grad(v_vec)
         self.sigma = sigma
         self.G = G
         self.n = n
 
+    @abc.abstractmethod
     def _eval_F_v(self, U, grad_U):
-        if len(inspect.getfullargspec(self.F_v).args) == 1:
-            tau = self.F_v(U)
-        else:
-            tau = self.F_v(U, grad_U)
-        tau = ufl_adhere_transpose(tau)
-        return tau
+        pass
 
     def _make_boundary_G(self, G, u_gamma):
         U = _get_terminal_operand_coefficient(self.U)
@@ -201,29 +198,41 @@ class DGFemViscousTerm:
             G_gamma[idx] = replace(tensor, {U: u_gamma})
         return G_gamma
 
+    @abc.abstractmethod
     def interior_residual(self, dInt):
-        raise NotImplementedError("Interior residual not implemented in %s" % str(self.__class__))
+        pass
 
+    @abc.abstractmethod
     def exterior_residual(self, u_gamma, dExt):
-        raise NotImplementedError("Exterior residual not implemented in %s" % str(self.__class__))
+        pass
 
+    @abc.abstractmethod
     def exterior_residual_on_interior(self, u_gamma, dExt):
-        raise NotImplementedError("Exterior residual not implemented in %s" % str(self.__class__))
+        pass
 
+    @abc.abstractmethod
     def neumann_residual(self, g_N, dExt):
         return -inner(g_N, self.V)*dExt
 
 
-class DGClassicalSecondOrderDiscretisation(DGFemViscousTerm):
+class DGClassicalSecondOrderDiscretisation(DGFemTerm):
 
     def __init__(self, F_v, u_vec, v_vec, sigma, G, n, delta):
         super().__init__(F_v, u_vec, v_vec, sigma, G, n)
         self.delta = delta
 
+    def _eval_F_v(self, U, grad_U):
+        if len(inspect.getfullargspec(self.F_v).args) == 1:
+            tau = self.F_v(U)
+        else:
+            tau = self.F_v(U, grad_U)
+        tau = ufl_adhere_transpose(tau)
+        return tau
+
     def interior_residual(self, dInt):
         G = self.G
-        u, v, grad_v = self.U, self.V, self.grad_v_vec
-        grad_u = grad(u)
+        u, v = self.U, self.V
+        grad_u, grad_v = grad(u), grad(v)
         sigma, n = self.sigma, self.n
         delta = self.delta
 
@@ -235,7 +244,8 @@ class DGClassicalSecondOrderDiscretisation(DGFemViscousTerm):
 
     def _exterior_residual_no_integral(self, u_gamma):
         G = self._make_boundary_G(self.G, u_gamma)
-        u, v, grad_u, grad_v = self.U, self.V, grad(self.U), self.grad_v_vec
+        u, v = self.U, self.V
+        grad_u, grad_v = grad(u), grad(v)
         sigma, n = self.sigma, self.n
         delta = self.delta
 
@@ -251,6 +261,9 @@ class DGClassicalSecondOrderDiscretisation(DGFemViscousTerm):
     def exterior_residual_on_interior(self, u_gamma, dExt):
         return sum(self._exterior_residual_no_integral(u_gamma)(side) * dExt
                    for side in ("+", "-"))
+
+    def neumann_residual(self, g_N, dExt):
+        return -inner(g_N, self.V)*dExt
 
 
 class DGFemSIPG(DGClassicalSecondOrderDiscretisation):
@@ -275,55 +288,44 @@ class DGFemBO(DGClassicalSecondOrderDiscretisation):
         super().__init__( F_v, u_vec, v_vec, sigma, G, n, delta)
 
 
-class DGFemCurlTerm:
+class DGFemCurlTerm(DGFemTerm):
 
-    def __init__(self, F_m, u_vec, v_vec, sigma, G, n):
-        self.F_m = F_m
-        self.U = u_vec
-        self.V = v_vec
-        self.curl_v_vec = curl(v_vec)
-        self.sig = sigma
-        self.G = G
-        self.n = n
-
-    def __eval_F_v(self, U):
-        if len(inspect.getfullargspec(self.F_m).args) == 1:
-            tau = self.F_m(U)
+    def _eval_F_v(self, U):
+        if len(inspect.getfullargspec(self.F_v).args) == 1:
+            tau = self.F_v(U)
         else:
-            tau = self.F_m(U, curl(U))
+            tau = self.F_v(U, curl(U))
         tau = ufl_adhere_transpose(tau)
         return tau
 
-    def __make_boundary_G(self, G, u_gamma):
-        if isinstance(G, ufl.core.expr.Expr):
-            return replace(G, {self.U: u_gamma})
-
-        assert(isinstance(G, dict))
-        G_gamma = {}
-        for idx, tensor in G.items():
-            G_gamma[idx] = replace(tensor, {self.U: u_gamma})
-        return G_gamma
-
     def interior_residual(self, dInt):
         G = self.G
-        F_v, u, v, curl_v = self.F_m, self.U, self.V, self.curl_v_vec
-        sig, n = self.sig, self.n
+        F_v, u, v = self.F_v, self.U, self.V
+        curl_u, curl_v = curl(u), curl(v)
+        sigma, n = self.sigma, self.n
 
         residual = - inner(tangent_jump(u, n), avg(hyper_tensor_T_product(G, curl_v)))*dInt \
-                   - inner(tangent_jump(v, n), avg(self.__eval_F_v(u)))*dInt \
-                   + sig('+')*inner(hyper_tensor_product(g_avg(G), tangent_jump(u, n)), tangent_jump(v, n))*dInt
+                   - inner(tangent_jump(v, n), avg(self._eval_F_v(u)))*dInt \
+                   + sigma('+')*inner(hyper_tensor_product(g_avg(G), tangent_jump(u, n)), tangent_jump(v, n))*dInt
 
         return residual
 
     def exterior_residual(self, u_gamma, dExt):
-        G = self.__make_boundary_G(self.G, u_gamma)
-        F_v, u, v, grad_u, curl_v = self.F_m, self.U, self.V, curl(self.U), self.curl_v_vec
-        n = self.n
+        G = self._make_boundary_G(self.G, u_gamma)
+        F_v, u, v = self.F_v, self.U, self.V
+        curl_u, curl_v = curl(u), curl(v)
+        sigma, n = self.sigma, self.n
 
         residual = - inner(dg_cross(n, u - u_gamma), hyper_tensor_T_product(G, curl_v))*dExt \
-                   - inner(dg_cross(n, v), hyper_tensor_product(G, grad_u))*dExt \
-                   + self.sig*inner(hyper_tensor_product(G, dg_cross(n, u - u_gamma)), dg_cross(n, v))*dExt
+                   - inner(dg_cross(n, v), hyper_tensor_product(G, curl_u))*dExt \
+                   + sigma*inner(hyper_tensor_product(G, dg_cross(n, u - u_gamma)), dg_cross(n, v))*dExt
         return residual
+
+    def exterior_residual_on_interior(self, u_gamma, dExt):
+        return NotImplementedError
+
+    def neumann_residual(self, g_N, dExt):
+        return NotImplementedError
 
 
 class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
@@ -378,7 +380,8 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
         p, q = self.p, self.q
 
         G = self._make_boundary_G(self.G, u_gamma)
-        u, v, grad_u, grad_v = self.U, self.V, grad(self.U), self.grad_v_vec
+        u, v = self.U, self.V
+        grad_u, grad_v = grad(u), grad(v)
         sigma, n = self.sigma, self.n
         delta = self.delta
 
@@ -409,3 +412,42 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
         if not self.block_form:
             residual = sum(residual)
         return residual
+
+
+class DGClassicalFourthOrderDiscretisation:
+
+    def __init__(self, F_v, u_vec, v_vec, sigma, G, n, delta):
+        super().__init__(F_v, u_vec, v_vec, sigma, G, n)
+        self.delta = delta
+
+    def interior_residual(self, dInt):
+        G = self.G
+        u, v, grad_v = self.U, self.V, self.grad_v_vec
+        grad_u = grad(u)
+        sigma, n = self.sigma, self.n
+        delta = self.delta
+
+        residual = delta * inner(tensor_jump(u, n), avg(hyper_tensor_T_product(G, grad_v))) * dInt \
+                   - inner(ufl_adhere_transpose(avg(self._eval_F_v(u, grad_u))), tensor_jump(v, n)) * dInt
+        if sigma is not None:
+            residual += inner(sigma('+') * hyper_tensor_product(g_avg(G), tensor_jump(u, n)), tensor_jump(v, n)) * dInt
+        return residual
+
+    def _exterior_residual_no_integral(self, u_gamma):
+        G = self._make_boundary_G(self.G, u_gamma)
+        u, v, grad_u, grad_v = self.U, self.V, grad(self.U), self.grad_v_vec
+        sigma, n = self.sigma, self.n
+        delta = self.delta
+
+        residual = delta * inner(dg_outer(u - u_gamma, n), hyper_tensor_T_product(G, grad_v)) \
+                   - inner(self._eval_F_v(u, grad_u), dg_outer(v, n))
+        if sigma is not None:
+            residual += inner(sigma * hyper_tensor_product(G, dg_outer(u - u_gamma, n)), dg_outer(v, n))
+        return residual
+
+    def exterior_residual(self, u_gamma, dExt):
+        return self._exterior_residual_no_integral(u_gamma) * dExt
+
+    def exterior_residual_on_interior(self, u_gamma, dExt):
+        return sum(self._exterior_residual_no_integral(u_gamma)(side) * dExt
+                   for side in ("+", "-"))
