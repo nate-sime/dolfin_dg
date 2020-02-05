@@ -30,21 +30,19 @@ class DGBC:
 
 
 class DGDirichletBC(DGBC):
-
-    def __init__(self, boundary, function):
-        DGBC.__init__(self, boundary, function)
+    pass
 
 
 class DGNeumannBC(DGBC):
+    pass
 
-    def __init__(self, boundary, function):
-        DGBC.__init__(self, boundary, function)
+
+class DGDirichletNormalBC(DGBC):
+    pass
 
 
 class DGAdiabticWallBC(DGBC):
-
-    def __init__(self, boundary, function):
-        DGBC.__init__(self, boundary, function)
+    pass
 
 
 class DGFemFormulation:

@@ -2,10 +2,10 @@ from dolfin import UnitSquareMesh, MixedElement, VectorElement, \
     FiniteElement, FunctionSpace, FacetNormal, SpatialCoordinate, \
     Function, Constant, split, interpolate, assign, TestFunction, Expression, \
     parameters, solve, errornorm, MPI, \
-    dot, inner, div, sym, grad, sqrt, ds, dx, Identity, assemble
+    dot, inner, div, sym, grad, sqrt, ds, dx, Identity, assemble, RectangleMesh, Point
 import numpy as np
 
-from dolfin_dg import StokesNitscheBoundary, tangential_proj
+from dolfin_dg import StokesNitscheBoundary, tangential_proj, normal_proj
 
 parameters['std_out_all_processes'] = False
 parameters['form_compiler']["cpp_optimize"] = True
@@ -29,7 +29,7 @@ elif case == 2:
                    "x[0]*sqrt(x[0]*x[0] + x[1]*x[1])")
 
 for j, ele_n in enumerate(ele_ns):
-    mesh = UnitSquareMesh(ele_n, ele_n)
+    mesh = RectangleMesh(Point(-1, -1), Point(1, 1), ele_n, ele_n)
     We = MixedElement([VectorElement("CG", mesh.ufl_cell(), 2),
                        FiniteElement("CG", mesh.ufl_cell(), 1)])
     W = FunctionSpace(mesh, We)
@@ -62,8 +62,13 @@ for j, ele_n in enumerate(ele_ns):
     F = inner(F_v(u, grad(u)), grad(v)) * dx - dot(f, v) * dx \
         + div(u) * q * dx
 
-    stokes_nitsche = StokesNitscheBoundary(F_v, u, p, v, q, delta=-1)
-    F += stokes_nitsche.slip_nitsche_bc_residual(u_soln, g_tau, ds)
+
+    def F_v_n(u, grad_u, p_local=None):
+        return normal_proj(F_v(u, grad_u, p_local), n)
+    stokes_nitsche = StokesNitscheBoundary(F_v_n, u, p, v, q, delta=-1)
+    # F += stokes_nitsche.slip_nitsche_bc_residual(u_soln, g_tau, ds)
+    F += stokes_nitsche.nitsche_bc_residual(tangential_proj(u, n), ds)
+    F -= dot(g_tau, v)*ds
 
     solve(F == 0, U)
 

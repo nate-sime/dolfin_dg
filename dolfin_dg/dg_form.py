@@ -3,7 +3,7 @@ import abc
 
 import ufl
 from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff, dot, \
-    cross, curl
+    cross, curl, div
 
 __author__ = 'njcs4'
 
@@ -26,17 +26,6 @@ def normal_proj(u, n):
 
 def tangential_proj(u, n):
     return (ufl.Identity(u.ufl_shape[0]) - ufl.outer(n, n)) * u
-
-
-def g_avg(G):
-    if isinstance(G, ufl.core.expr.Expr):
-        return avg(G)
-
-    assert(isinstance(G, dict))
-    result = {}
-    for k in G.keys():
-        result[k] = avg(G[k])
-    return result
 
 
 def hyper_tensor_product(G, tau):
@@ -129,40 +118,14 @@ def dg_outer(*args):
     return ufl_adhere_transpose(outer(*args))
 
 
-def homogeneity_tensor(F_v, u, as_dict=False):
+def homogeneity_tensor(F_v, u, differential_operator=grad):
     if len(inspect.getfullargspec(F_v).args) < 2:
         raise TypeError("Function F_v must have at least 2 arguments, "
                         "(u, grad_u, *args **kwargs)")
 
-    G = {}
-
-    grad_u = variable(grad(u))
-    tau = F_v(u, grad_u)
-
-    if not as_dict:
-        return diff(tau, grad_u)
-
-    shape = grad(u).ufl_shape
-    if not shape:
-        m, d = 1, 1
-    elif len(shape) == 1:
-        m, d = 1, shape[0]
-    elif len(shape) == 2:
-        m, d = shape
-    else:
-        raise TypeError("Tensor rank error, ufl_shape is: %s" % str(shape))
-
-    for k in range(d):
-        fv = tau[k] if m == 1 else tau[:, k]
-        for l in range(d):
-            g = [[0 for _ in range(m)] for _ in range(m)]
-            for r in range(m):
-                for c in range(m):
-                    diff_val = diff(fv, grad_u)[l] if len(fv.ufl_shape) == 0 else diff(fv[r], grad_u)[c,l]
-                    g[r][c] = diff_val
-            G[k,l] = as_matrix(g)
-
-    return G
+    diff_op_u = variable(differential_operator(u))
+    tau = F_v(u, diff_op_u)
+    return diff(tau, diff_op_u)
 
 
 def _get_terminal_operand_coefficient(u):
@@ -281,7 +244,7 @@ class DGClassicalSecondOrderDiscretisation(DGFemTerm):
         residual = delta * inner(tensor_jump(u, n), avg(hyper_tensor_T_product(G, grad_v))) * dInt \
                    - inner(ufl_adhere_transpose(avg(self._eval_F_v(u, grad_u))), tensor_jump(v, n)) * dInt
         if sigma is not None:
-            residual += inner(sigma('+') * hyper_tensor_product(g_avg(G), tensor_jump(u, n)), tensor_jump(v, n)) * dInt
+            residual += inner(sigma('+') * hyper_tensor_product(avg(G), tensor_jump(u, n)), tensor_jump(v, n)) * dInt
         return residual
 
     def _exterior_residual_no_integral(self, u_gamma):
@@ -348,7 +311,7 @@ class DGFemCurlTerm(DGFemTerm):
 
         residual = - inner(tangent_jump(u, n), avg(hyper_tensor_T_product(G, curl_v)))*dInt \
                    - inner(tangent_jump(v, n), avg(self._eval_F_v(u)))*dInt \
-                   + sigma('+')*inner(hyper_tensor_product(g_avg(G), tangent_jump(u, n)), tangent_jump(v, n))*dInt
+                   + sigma('+')*inner(hyper_tensor_product(avg(G), tangent_jump(u, n)), tangent_jump(v, n))*dInt
 
         return residual
 
@@ -450,35 +413,48 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
         return residual
 
 
-class DGClassicalFourthOrderDiscretisation:
+class DGClassicalFourthOrderDiscretisation(DGFemTerm):
 
     def __init__(self, F_v, u_vec, v_vec, sigma, G, n, delta):
         super().__init__(F_v, u_vec, v_vec, sigma, G, n)
         self.delta = delta
 
+    def _eval_F_v(self, U, div_grad_U):
+        if len(inspect.getfullargspec(self.F_v).args) == 1:
+            tau = self.F_v(U)
+        else:
+            tau = self.F_v(U, div_grad_U)
+        tau = ufl_adhere_transpose(tau)
+        return tau
+
     def interior_residual(self, dInt):
         G = self.G
-        u, v, grad_v = self.U, self.V, self.grad_v_vec
+        u, v = self.U, self.V
+        grad_v = grad(v)
+        div_grad_v = div(grad_v)
         grad_u = grad(u)
+        div_grad_u = div(grad_u)
         sigma, n = self.sigma, self.n
         delta = self.delta
 
-        residual = delta * inner(tensor_jump(u, n), avg(hyper_tensor_T_product(G, grad_v))) * dInt \
-                   - inner(ufl_adhere_transpose(avg(self._eval_F_v(u, grad_u))), tensor_jump(v, n)) * dInt
+        residual = delta * inner(jump(grad_u, n), avg(hyper_tensor_T_product(G, div_grad_v))) * dInt \
+                   - inner(ufl_adhere_transpose(avg(self._eval_F_v(u, div_grad_u))), jump(grad_v, n)) * dInt
         if sigma is not None:
-            residual += inner(sigma('+') * hyper_tensor_product(g_avg(G), tensor_jump(u, n)), tensor_jump(v, n)) * dInt
+            residual += inner(sigma('+') * hyper_tensor_product(avg(G), jump(grad_u, n)), jump(grad_v, n)) * dInt
         return residual
 
     def _exterior_residual_no_integral(self, u_gamma):
         G = self._make_boundary_G(self.G, u_gamma)
-        u, v, grad_u, grad_v = self.U, self.V, grad(self.U), self.grad_v_vec
+        u, v = self.U, self.V
+        grad_u, grad_v = grad(u), grad(v)
+        div_grad_u, div_grad_v = div(grad_u), div(grad_v)
         sigma, n = self.sigma, self.n
         delta = self.delta
 
-        residual = delta * inner(dg_outer(u - u_gamma, n), hyper_tensor_T_product(G, grad_v)) \
-                   - inner(self._eval_F_v(u, grad_u), dg_outer(v, n))
+        residual = delta * inner(dot(grad(u - u_gamma), n), hyper_tensor_T_product(G, div_grad_v)) \
+                   - inner(self._eval_F_v(u, div_grad_u), dot(grad_v, n))
         if sigma is not None:
-            residual += inner(sigma * hyper_tensor_product(G, dg_outer(u - u_gamma, n)), dg_outer(v, n))
+            residual += inner(sigma * hyper_tensor_product(G, dot(grad(u - u_gamma), n)), dot(grad_v, n))
         return residual
 
     def exterior_residual(self, u_gamma, dExt):
@@ -487,3 +463,6 @@ class DGClassicalFourthOrderDiscretisation:
     def exterior_residual_on_interior(self, u_gamma, dExt):
         return sum(self._exterior_residual_no_integral(u_gamma)(side) * dExt
                    for side in ("+", "-"))
+
+    def neumann_residual(self, g_N, dExt):
+        raise NotImplementedError

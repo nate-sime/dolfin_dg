@@ -7,7 +7,9 @@ from .dg_form import \
     homogeneity_tensor, \
     dg_cross, dg_outer, \
     tensor_jump, tangent_jump, \
-    normal_proj, tangential_proj
+    normal_proj, tangential_proj, \
+    DGClassicalSecondOrderDiscretisation, DGClassicalFourthOrderDiscretisation, \
+    generate_default_sipg_penalty_term
 
 from .fluxes import \
     LocalLaxFriedrichs, \
@@ -25,7 +27,7 @@ from .operators import \
     MaxwellOperator, \
     SpacetimeBurgersOperator, \
     StokesOperator, \
-    DGNeumannBC, DGDirichletBC, DGAdiabticWallBC, \
+    DGNeumannBC, DGDirichletBC, DGDirichletNormalBC, DGAdiabticWallBC, \
     DGFemTerm, DGFemCurlTerm, DGFemStokesTerm
 
 # DWR highly experimental
