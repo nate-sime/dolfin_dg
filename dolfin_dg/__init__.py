@@ -2,12 +2,14 @@
 __author__ = 'njcs4'
 
 from .dg_form import \
-    DGFemViscousTerm, DGFemSIPG, DGFemNIPG, DGFemBO, \
+    DGFemTerm, DGFemSIPG, DGFemNIPG, DGFemBO, \
     hyper_tensor_product, hyper_tensor_T_product, \
     homogeneity_tensor, \
     dg_cross, dg_outer, \
     tensor_jump, tangent_jump, \
-    normal_proj, tangential_proj
+    normal_proj, tangential_proj, \
+    DGClassicalSecondOrderDiscretisation, DGClassicalFourthOrderDiscretisation, \
+    generate_default_sipg_penalty_term
 
 from .fluxes import \
     LocalLaxFriedrichs, \
@@ -25,8 +27,8 @@ from .operators import \
     MaxwellOperator, \
     SpacetimeBurgersOperator, \
     StokesOperator, \
-    DGNeumannBC, DGDirichletBC, DGAdiabticWallBC, \
-    DGFemViscousTerm, DGFemCurlTerm, DGFemStokesTerm
+    DGNeumannBC, DGDirichletBC, DGDirichletNormalBC, DGAdiabticWallBC, \
+    DGFemTerm, DGFemCurlTerm, DGFemStokesTerm
 
 # DWR highly experimental
 from .dwr import \

@@ -5,7 +5,7 @@ from dolfin import Constant, FacetNormal
 from ufl import CellVolume, FacetArea, grad, inner, \
     curl, dot, as_vector, as_matrix, sqrt, tr, Identity, variable, diff, exp, Measure
 
-from dolfin_dg.dg_form import DGFemViscousTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG, \
+from dolfin_dg.dg_form import DGFemTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG, \
     DGFemStokesTerm
 from dolfin_dg.fluxes import LocalLaxFriedrichs
 from dolfin_dg import aero
@@ -30,21 +30,19 @@ class DGBC:
 
 
 class DGDirichletBC(DGBC):
-
-    def __init__(self, boundary, function):
-        DGBC.__init__(self, boundary, function)
+    pass
 
 
 class DGNeumannBC(DGBC):
+    pass
 
-    def __init__(self, boundary, function):
-        DGBC.__init__(self, boundary, function)
+
+class DGDirichletNormalBC(DGBC):
+    pass
 
 
 class DGAdiabticWallBC(DGBC):
-
-    def __init__(self, boundary, function):
-        DGBC.__init__(self, boundary, function)
+    pass
 
 
 class DGFemFormulation:
@@ -85,7 +83,7 @@ class EllipticOperator(DGFemFormulation):
         if inspect.isclass(vt):
             vt = vt(self.F_v, u, v, sigma, G, n)
 
-        assert(isinstance(vt, DGFemViscousTerm))
+        assert(isinstance(vt, DGFemTerm))
 
         residual = inner(self.F_v(u, grad(u)), grad(v))*dx
         residual += vt.interior_residual(dS)
