@@ -16,10 +16,11 @@ import dolfin_dg as dg
 #       ψ = 0           on ∂Ω
 # ∇ ψ ⋅ n = ∇ ψₛₒₗₙ ⋅ n on ∂Ω
 #
-# Where the manufactured solution
+# Where we approximate the manufactured solution ψₛₒₗₙ from an
+# a priori known (also manufactured) velocity field uₛₒₗₙ
 #
 #  - ∇² ψₛₒₗₙ = ∇ × uₛₒₗₙ in Ω
-#           ψ = 0         on ∂Ω
+#       ψₛₒₗₙ = 0         on ∂Ω
 #
 # We weakly enforce the C1 continuity by applying a DG method to the
 # second integration by parts of the biharmonic operator.
