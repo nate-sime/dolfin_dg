@@ -154,8 +154,8 @@ class HyperbolicOperator(DGFemFormulation):
             dS = Measure('dS', domain=self.mesh)
 
         n = FacetNormal(self.mesh)
-        if len(n.ufl_shape) == 1 and n.ufl_shape[0] == 1:
-            n = n[0]
+        # if len(n.ufl_shape) == 1 and n.ufl_shape[0] == 1:
+        #     n = n[0]
 
         F_c_eval = self.F_c(u)
         if len(F_c_eval.ufl_shape) == 0:

@@ -27,7 +27,7 @@ gamma = 1.4
 rho1, rho5 = 1.0, 0.125
 p1, p5 = 1.0, 0.1
 u1, u5 = 0.0, 0.0
-e1, e5 = aero.energy_density(p1, rho1, u1), aero.energy_density(p5, rho5, u5)
+e1, e5 = aero.energy_density(p1, rho1, u1, gamma), aero.energy_density(p5, rho5, u5, gamma)
 
 # Project the initial conditions onto the left and right of the
 # diaphragm by constructing a new integration measure
@@ -82,7 +82,7 @@ for j in range(400):
 rho, rhou, e = u_vec
 plot(u_vec.sub(0))
 plot(rhou/rho)
-plot(aero.pressure(u_vec))
+plot(aero.pressure(u_vec, gamma))
 plt.legend((r"$\rho$", r"$u$", r"$p$"))
 plt.xlabel(r"$x$")
 plt.ylim((-0.05, 1.2))

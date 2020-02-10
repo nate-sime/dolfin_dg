@@ -46,6 +46,5 @@ def test_linear_homogeneity_tensor_product(element, F1):
     F = apply_derivatives(F)
 
     grad_u = ufl.dot(ufl.Identity(cell_dim), ufl.grad(u))
-    expected = ufl.as_matrix([[grad_u[d] for d in range(cell_dim)]])
 
-    assert F == expected
+    assert F == grad_u

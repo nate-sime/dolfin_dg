@@ -8,18 +8,6 @@ from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, va
 __author__ = 'njcs4'
 
 
-def ufl_adhere_transpose(v):
-    if ufl.rank(v) == 1:
-        return ufl_T(v)
-    return v
-
-
-def ufl_T(v):
-    if ufl.rank(v) == 1:
-        return as_matrix(([v[j] for j in range(v.ufl_shape[0])],))
-    return v.T
-
-
 def normal_proj(u, n):
     return ufl.outer(n, n) * u
 
@@ -29,71 +17,32 @@ def tangential_proj(u, n):
 
 
 def hyper_tensor_product(G, tau):
-    if isinstance(G, ufl.core.expr.Expr):
-        if len(G.ufl_shape) == 0:
-            if not len(tau.ufl_shape) == 0:
-                raise IndexError("G is scalar, tau has shape: %s" + str(tau.ufl_shape))
-            return G*tau
-        elif ufl.rank(tau) > 1 and tau.ufl_shape[0] == 1:
-            return dot(G, tau.T).T
-        elif ufl.rank(tau) == 1:
-            return ufl_adhere_transpose(dot(G, tau))
-        m, d = tau.ufl_shape
-        return as_matrix([[inner(G[i, k, :, :], tau) for k in range(d)] for i in range(m)])
-
-    assert(isinstance(G, dict))
-    shape = tau.ufl_shape
-    if len(shape) == 1:
-        tau = ufl_T(tau)
-        shape = tau.ufl_shape
-    m, d = shape
-    result = [[0 for _ in range(d)] for _ in range(m)]
-    for i in range(m):
-        for k in range(d):
-            prod = 0
-            for j in range(m):
-                for l in range(d):
-                    prod += (G[k,l][i,j]*tau[j,l])
-            result[i][k] = prod
-    result = as_matrix(result)
-    return result
+    if len(G.ufl_shape) == 0:
+        if not len(tau.ufl_shape) == 0:
+            raise IndexError("G is scalar, tau has shape: %s" + str(tau.ufl_shape))
+        return G*tau
+    elif ufl.rank(tau) > 1 and tau.ufl_shape[0] == 1:
+        return dot(G, tau.T).T
+    elif ufl.rank(tau) == 1:
+        return dot(G, tau)
+    m, d = tau.ufl_shape
+    return as_matrix([[inner(G[i, k, :, :], tau) for k in range(d)] for i in range(m)])
 
 
 def hyper_tensor_T_product(G, tau):
-    if isinstance(G, ufl.core.expr.Expr):
-        if len(G.ufl_shape) == 0:
-            if not len(tau.ufl_shape) == 0:
-                raise IndexError("G^T is scalar, tau has shape: %s" + str(tau.ufl_shape))
-            return G*tau
-        elif ufl.rank(tau) > 1 and tau.ufl_shape[0] == 1:
-            return dot(G.T, tau)
-        elif ufl.rank(tau) == 1:
-            return ufl_adhere_transpose(dot(G.T, tau))
-        m, d = tau.ufl_shape
-        return as_matrix([[inner(G[:, :, i, k], tau) for k in range(d)] for i in range(m)])
-
-    assert(isinstance(G, dict))
-    shape = tau.ufl_shape
-    if len(shape) == 1:
-        tau = ufl_T(tau)
-        shape = tau.ufl_shape
-    m, d = shape
-    result = [[0 for _ in range(d)] for _ in range(m)]
-    for j in range(m):
-        for l in range(d):
-            prod = 0
-            for i in range(m):
-                for k in range(d):
-                    prod += (G[k,l][i,j]*tau[i,k])
-            result[j][l] = prod
-    result = as_matrix(result)
-    return result
+    if len(G.ufl_shape) == 0:
+        if not len(tau.ufl_shape) == 0:
+            raise IndexError("G^T is scalar, tau has shape: %s" + str(tau.ufl_shape))
+        return G*tau
+    elif ufl.rank(tau) > 1 and tau.ufl_shape[0] == 1:
+        return dot(G.T, tau)
+    elif ufl.rank(tau) == 1:
+        return dot(G.T, tau)
+    m, d = tau.ufl_shape
+    return as_matrix([[inner(G[:, :, i, k], tau) for k in range(d)] for i in range(m)])
 
 
 def tensor_jump(u, n):
-    if len(u.ufl_shape) == 0:
-        u = as_vector((u,))
-    assert(len(u.ufl_shape) == 1)
     return dg_outer(jump(u), n('+'))
 
 
@@ -103,7 +52,7 @@ def dg_cross(u, v):
     assert(len(u.ufl_shape) == 1 and len(v.ufl_shape) == 1)
     if u.ufl_shape[0] == 2 and v.ufl_shape[0] == 2:
         return u[0]*v[1] - u[1]*v[0]
-    return ufl_adhere_transpose(cross(u, v))
+    return cross(u, v)
 
 
 def tangent_jump(u, n):
@@ -115,7 +64,7 @@ def tangent_jump(u, n):
 
 
 def dg_outer(*args):
-    return ufl_adhere_transpose(outer(*args))
+    return outer(*args)
 
 
 def homogeneity_tensor(F_v, u, differential_operator=grad):
@@ -231,7 +180,6 @@ class DGClassicalSecondOrderDiscretisation(DGFemTerm):
             tau = self.F_v(U)
         else:
             tau = self.F_v(U, grad_U)
-        tau = ufl_adhere_transpose(tau)
         return tau
 
     def interior_residual(self, dInt):
@@ -242,7 +190,7 @@ class DGClassicalSecondOrderDiscretisation(DGFemTerm):
         delta = self.delta
 
         residual = delta * inner(tensor_jump(u, n), avg(hyper_tensor_T_product(G, grad_v))) * dInt \
-                   - inner(ufl_adhere_transpose(avg(self._eval_F_v(u, grad_u))), tensor_jump(v, n)) * dInt
+                   - inner(avg(self._eval_F_v(u, grad_u)), tensor_jump(v, n)) * dInt
         if sigma is not None:
             residual += inner(sigma('+') * hyper_tensor_product(avg(G), tensor_jump(u, n)), tensor_jump(v, n)) * dInt
         return residual
@@ -300,7 +248,6 @@ class DGFemCurlTerm(DGFemTerm):
             tau = self.F_v(U)
         else:
             tau = self.F_v(U, curl(U))
-        tau = ufl_adhere_transpose(tau)
         return tau
 
     def interior_residual(self, dInt):
@@ -424,7 +371,6 @@ class DGClassicalFourthOrderDiscretisation(DGFemTerm):
             tau = self.F_v(U)
         else:
             tau = self.F_v(U, div_grad_U)
-        tau = ufl_adhere_transpose(tau)
         return tau
 
     def interior_residual(self, dInt):
@@ -438,7 +384,7 @@ class DGClassicalFourthOrderDiscretisation(DGFemTerm):
         delta = self.delta
 
         residual = delta * inner(jump(grad_u, n), avg(hyper_tensor_T_product(G, div_grad_v))) * dInt \
-                   - inner(ufl_adhere_transpose(avg(self._eval_F_v(u, div_grad_u))), jump(grad_v, n)) * dInt
+                   - inner(avg(self._eval_F_v(u, div_grad_u)), jump(grad_v, n)) * dInt
         if sigma is not None:
             residual += inner(sigma('+') * hyper_tensor_product(avg(G), jump(grad_u, n)), jump(grad_v, n)) * dInt
         return residual
