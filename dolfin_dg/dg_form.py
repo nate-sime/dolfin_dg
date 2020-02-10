@@ -99,10 +99,6 @@ class DGFemTerm(abc.ABC):
         self.G = G
         self.n = n
 
-    @abc.abstractmethod
-    def _eval_F_v(self, U, grad_U):
-        pass
-
     def _make_boundary_G(self, G, u_gamma):
         U = self.U
         U_soln = _get_terminal_operand_coefficient(U)
@@ -156,13 +152,6 @@ class DGClassicalSecondOrderDiscretisation(DGFemTerm):
         super().__init__(F_v, u_vec, v_vec, sigma, G, n)
         self.delta = delta
 
-    def _eval_F_v(self, U, grad_U):
-        if len(inspect.getfullargspec(self.F_v).args) == 1:
-            tau = self.F_v(U)
-        else:
-            tau = self.F_v(U, grad_U)
-        return tau
-
     def interior_residual(self, dInt):
         G = self.G
         u, v = self.U, self.V
@@ -171,7 +160,7 @@ class DGClassicalSecondOrderDiscretisation(DGFemTerm):
         delta = self.delta
 
         residual = delta * inner(tensor_jump(u, n), avg(hyper_tensor_T_product(G, grad_v))) * dInt \
-                   - inner(avg(self._eval_F_v(u, grad_u)), tensor_jump(v, n)) * dInt
+                   - inner(avg(self.F_v(u, grad_u)), tensor_jump(v, n)) * dInt
         if sigma is not None:
             residual += inner(sigma('+') * hyper_tensor_product(avg(G), tensor_jump(u, n)), tensor_jump(v, n)) * dInt
 
@@ -186,7 +175,7 @@ class DGClassicalSecondOrderDiscretisation(DGFemTerm):
         delta = self.delta
 
         residual = delta * inner(dg_outer(u - u_gamma, n), hyper_tensor_T_product(G, grad_v)) \
-                   - inner(self._eval_F_v(u, grad_u), dg_outer(v, n))
+                   - inner(self.F_v(u, grad_u), dg_outer(v, n))
         if sigma is not None:
             residual += inner(sigma * hyper_tensor_product(G, dg_outer(u - u_gamma, n)), dg_outer(v, n))
         return residual
@@ -226,13 +215,6 @@ class DGFemBO(DGClassicalSecondOrderDiscretisation):
 
 class DGFemCurlTerm(DGFemTerm):
 
-    def _eval_F_v(self, U):
-        if len(inspect.getfullargspec(self.F_v).args) == 1:
-            tau = self.F_v(U)
-        else:
-            tau = self.F_v(U, curl(U))
-        return tau
-
     def interior_residual(self, dInt):
         G = self.G
         F_v, u, v = self.F_v, self.U, self.V
@@ -240,7 +222,7 @@ class DGFemCurlTerm(DGFemTerm):
         sigma, n = self.sigma, self.n
 
         residual = - inner(tangent_jump(u, n), avg(hyper_tensor_T_product(G, curl_v)))*dInt \
-                   - inner(tangent_jump(v, n), avg(self._eval_F_v(u)))*dInt \
+                   - inner(tangent_jump(v, n), avg(self.F_v(u, curl_u)))*dInt \
                    + sigma('+')*inner(hyper_tensor_product(avg(G), tangent_jump(u, n)), tangent_jump(v, n))*dInt
 
         residual = apply_dg_operators(residual)
@@ -318,7 +300,7 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
 
         # Velocity block
         F0 = delta * inner(u - u_gamma, normal_proj(hyper_tensor_T_product(G, grad_v) * n, n)) \
-                   - inner(normal_proj(self._eval_F_v(u, grad_u) * n, n), v)
+                   - inner(normal_proj(self.F_v(u, grad_u) * n, n), v)
         if sigma is not None:
             F0 += inner(sigma * normal_proj(hyper_tensor_product(G, dg_outer(u - u_gamma, n)) * n, n), v)
 
@@ -351,13 +333,6 @@ class DGClassicalFourthOrderDiscretisation(DGFemTerm):
         super().__init__(F_v, u_vec, v_vec, sigma, G, n)
         self.delta = delta
 
-    def _eval_F_v(self, U, div_grad_U):
-        if len(inspect.getfullargspec(self.F_v).args) == 1:
-            tau = self.F_v(U)
-        else:
-            tau = self.F_v(U, div_grad_U)
-        return tau
-
     def interior_residual(self, dInt):
         G = self.G
         u, v = self.U, self.V
@@ -369,7 +344,7 @@ class DGClassicalFourthOrderDiscretisation(DGFemTerm):
         delta = self.delta
 
         residual = delta * inner(jump(grad_u, n), avg(hyper_tensor_T_product(G, div_grad_v))) * dInt \
-                   - inner(avg(self._eval_F_v(u, div_grad_u)), jump(grad_v, n)) * dInt
+                   - inner(avg(self.F_v(u, div_grad_u)), jump(grad_v, n)) * dInt
         if sigma is not None:
             residual += inner(sigma('+') * hyper_tensor_product(avg(G), jump(grad_u, n)), jump(grad_v, n)) * dInt
 
@@ -385,7 +360,7 @@ class DGClassicalFourthOrderDiscretisation(DGFemTerm):
         delta = self.delta
 
         residual = delta * inner(dot(grad(u - u_gamma), n), hyper_tensor_T_product(G, div_grad_v)) \
-                   - inner(self._eval_F_v(u, div_grad_u), dot(grad_v, n))
+                   - inner(self.F_v(u, div_grad_u), dot(grad_v, n))
         if sigma is not None:
             residual += inner(sigma * hyper_tensor_product(G, dot(grad(u - u_gamma), n)), dot(grad_v, n))
         return residual
