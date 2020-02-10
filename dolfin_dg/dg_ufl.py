@@ -10,6 +10,15 @@ from ufl.measure import integral_type_to_measure_name
 from ufl.algorithms.map_integrands import map_integrand_dags
 
 
+def dg_cross(u, v):
+    if len(u.ufl_shape) == 0 or len(v.ufl_shape) == 0:
+        raise TypeError("Input argument must be a vector")
+    assert(len(u.ufl_shape) == 1 and len(v.ufl_shape) == 1)
+    if u.ufl_shape[0] == 2 and v.ufl_shape[0] == 2:
+        return u[0]*v[1] - u[1]*v[0]
+    return ufl.cross(u, v)
+
+
 def avg(u):
     u = ufl.as_ufl(u)
     return Avg(u)
@@ -27,6 +36,14 @@ def tensor_jump(u, n):
     u = ufl.as_ufl(u)
     n = ufl.as_ufl(n)
     return TensorJump(u, n)
+
+
+def tangent_jump(u, n):
+    if len(u.ufl_shape) == 0:
+        raise TypeError("Input argument must be a vector")
+    assert(len(u.ufl_shape) == 1)
+    assert(u.ufl_shape[0] in (2, 3))
+    return TangentJump(u, n)
 
 
 @ufl_type(is_abstract=True,
@@ -62,7 +79,7 @@ class Jump(CompoundTensorOperator):
                                              index_values)
 
     def __str__(self):
-        return "〚" + ", ".join(map(lambda o: parstr(o, self), self.ufl_operands)) + "〛"
+        return "〚" + " ⋅ ".join(map(lambda o: parstr(o, self), self.ufl_operands)) + "〛"
 
     @property
     def ufl_shape(self):
@@ -91,12 +108,39 @@ class TensorJump(Jump):
         self.ufl_index_dimensions = fid
 
     def __str__(self):
-        return "〚%s (X) %s〛" % (parstr(self.ufl_operands[0], self),
+        return "〚%s ⊗ %s〛" % (parstr(self.ufl_operands[0], self),
                                   parstr(self.ufl_operands[1], self))
 
     @property
     def ufl_shape(self):
         return ufl.outer(self.ufl_operands[0], self.ufl_operands[1]).ufl_shape
+
+
+@ufl_type(num_ops=2)
+class TangentJump(Jump):
+    __slots__ = ("ufl_free_indices", "ufl_index_dimensions")
+
+    def __new__(cls, a, b):
+        ash, bsh = a.ufl_shape, b.ufl_shape
+        if isinstance(a, Zero) or isinstance(b, Zero):
+            fi, fid = merge_nonoverlapping_indices(a, b)
+            return Zero(ash + bsh, fi, fid)
+        return CompoundTensorOperator.__new__(cls)
+
+    def __init__(self, f, n):
+        CompoundTensorOperator.__init__(self, (f, n))
+        fi, fid = merge_nonoverlapping_indices(f, n)
+        self.ufl_free_indices = fi
+        self.ufl_index_dimensions = fid
+
+    def __str__(self):
+        return "〚%s × %s〛" % \
+               (parstr(self.ufl_operands[0], self),
+                parstr(self.ufl_operands[1], self))
+
+    @property
+    def ufl_shape(self):
+        return dg_cross(self.ufl_operands[0], self.ufl_operands[1]).ufl_shape
 
 
 class DGOperatorLowering(MultiFunction):
@@ -131,6 +175,11 @@ class DGOperatorLowering(MultiFunction):
         n = o.ufl_operands[1]
         v = apply_jump_lowering(o.ufl_operands[0])
         return ufl.outer(v, n)("+") + ufl.outer(v, n)("-")
+
+    def tangent_jump(self, o):
+        n = o.ufl_operands[1]
+        v = apply_jump_lowering(o.ufl_operands[0])
+        return dg_cross(n("+"), v("+")) + dg_cross(n("-"), v("-"))
 
 
 def apply_dg_operators(expression):

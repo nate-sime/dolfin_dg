@@ -2,10 +2,9 @@ import inspect
 import abc
 
 import ufl
-from ufl import as_matrix, outer, as_vector, inner, replace, grad, variable, diff, dot, \
-    cross, curl, div
+from ufl import as_matrix, outer, inner, replace, grad, variable, diff, dot, curl, div
 
-from dolfin_dg.dg_ufl import apply_dg_operators, avg, tensor_jump, jump
+from dolfin_dg.dg_ufl import apply_dg_operators, avg, tensor_jump, jump, tangent_jump, dg_cross
 
 __author__ = 'njcs4'
 
@@ -44,28 +43,8 @@ def hyper_tensor_T_product(G, tau):
     return as_matrix([[inner(G[:, :, i, k], tau) for k in range(d)] for i in range(m)])
 
 
-def tensor_jump(u, n):
-    return dg_outer(jump(u), n('+'))
-
-
-def dg_cross(u, v):
-    if len(u.ufl_shape) == 0 or len(v.ufl_shape) == 0:
-        raise TypeError("Input argument must be a vector")
-    assert(len(u.ufl_shape) == 1 and len(v.ufl_shape) == 1)
-    if u.ufl_shape[0] == 2 and v.ufl_shape[0] == 2:
-        return u[0]*v[1] - u[1]*v[0]
-    return cross(u, v)
-
-
-def tangent_jump(u, n):
-    if len(u.ufl_shape) == 0:
-        raise TypeError("Input argument must be a vector")
-    assert(len(u.ufl_shape) == 1)
-    assert(u.ufl_shape[0] in (2, 3))
-    return dg_cross(n('+'), jump(u))
-
-
 def dg_outer(*args):
+    # TODO: ufl treats this as (u ⊗ v*). If dolfin_dg goes complex need to fix this
     return outer(*args)
 
 
