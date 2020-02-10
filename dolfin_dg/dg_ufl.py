@@ -10,6 +10,25 @@ from ufl.measure import integral_type_to_measure_name
 from ufl.algorithms.map_integrands import map_integrand_dags
 
 
+def avg(u):
+    u = ufl.as_ufl(u)
+    return Avg(u)
+
+
+def jump(u, n=None):
+    u = ufl.as_ufl(u)
+    if n is None:
+        return Jump(u)
+    n = ufl.as_ufl(n)
+    return Jump(u, n)
+
+
+def tensor_jump(u, n):
+    u = ufl.as_ufl(u)
+    n = ufl.as_ufl(n)
+    return TensorJump(u, n)
+
+
 @ufl_type(is_abstract=True,
           num_ops=1,
           inherit_shape_from_operand=0,
