@@ -79,7 +79,7 @@ class Advection1D(ConvergenceTest):
     def generate_form(self, mesh, V, u, v):
         gD = self.gD(V)
         u.interpolate(gD)
-        b = Constant(1)
+        b = Constant((1,))
 
         # Convective Operator
         def F_c(U):
