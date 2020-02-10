@@ -5,19 +5,21 @@ import ufl
 from ufl import as_matrix, outer, as_vector, jump, avg, inner, replace, grad, variable, diff, dot, \
     cross, curl, div
 
+from dolfin_dg.dg_ufl import apply_dg_operators, Avg, TensorJump
+
 __author__ = 'njcs4'
 
 
 def ufl_adhere_transpose(v):
-    if ufl.rank(v) == 1:
-        return ufl_T(v)
+    # if ufl.rank(v) == 1:
+    #     return ufl_T(v)
     return v
 
 
-def ufl_T(v):
-    if ufl.rank(v) == 1:
-        return as_matrix(([v[j] for j in range(v.ufl_shape[0])],))
-    return v.T
+# def ufl_T(v):
+#     if ufl.rank(v) == 1:
+#         return as_matrix(([v[j] for j in range(v.ufl_shape[0])],))
+#     return v.T
 
 
 def normal_proj(u, n):
@@ -91,9 +93,9 @@ def hyper_tensor_T_product(G, tau):
 
 
 def tensor_jump(u, n):
-    if len(u.ufl_shape) == 0:
-        u = as_vector((u,))
-    assert(len(u.ufl_shape) == 1)
+    # if len(u.ufl_shape) == 0:
+    #     u = as_vector((u,))
+    # assert(len(u.ufl_shape) == 1)
     return dg_outer(jump(u), n('+'))
 
 
