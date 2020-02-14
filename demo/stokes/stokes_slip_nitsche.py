@@ -89,8 +89,8 @@ for j, ele_n in enumerate(ele_ns):
     ph = U.sub(1, deepcopy=True)
 
     # Normalise the pressure
-    mesh_area = assemble(Constant(1.0)*dx(domain=mesh)
-    ph.vector()[:] -= assemble(ph*dx)/mesh_area)
+    mesh_area = assemble(Constant(1.0)*dx(domain=mesh))
+    ph.vector()[:] -= assemble(ph*dx)/mesh_area
 
     # Compute error
     errorl2[j] = errornorm(u_soln, uh, norm_type='l2', degree_rise=3)
