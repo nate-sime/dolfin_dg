@@ -7,6 +7,18 @@ import numpy as np
 
 from dolfin_dg import StokesNitscheBoundary, tangential_proj, normal_proj
 
+"""
+This demo is the converted (old) dolfin implementation of Example 1
+presented in Sime & Wilson (2020) https://arxiv.org/abs/2001.10639
+which was originally written for dolfin-x.
+
+To see close to optimal rates of convergence in case 2, we recommend
+using higher order quadrature and an element degree approximation of
+the true solution > p + 4. These parameters lead to long compilation
+times and are switched off by default so that CI tests are not so
+expensive.
+"""
+
 parameters['std_out_all_processes'] = False
 parameters['form_compiler']["cpp_optimize"] = True
 parameters['form_compiler']["optimize"] = True
@@ -36,21 +48,25 @@ for j, ele_n in enumerate(ele_ns):
     n = FacetNormal(mesh)
     x = SpatialCoordinate(mesh)
 
+    # Define the velocity solution on an appropriately precise element
     u_soln = Expression(u_soln_code, degree=4, domain=mesh)
     p_soln = Constant(0.0)
 
     U = Function(W)
     u, p = split(U)
 
-    uu = interpolate(u_soln, W.sub(0).collapse())
-    assign(U.sub(0), uu)
-
     V = TestFunction(W)
     v, q = split(V)
 
+    # Prevent initial singularity in viscosity
+    uu = interpolate(u_soln, W.sub(0).collapse())
+    assign(U.sub(0), uu)
+
+    # Nonlinear viscosity model
     def eta(u):
         return 1 + sqrt(inner(grad(u), grad(u)))**-1
 
+    # Problem definition in terms of a viscous flux operator F_v(u, grad(u))
     def F_v(u, grad_u, p_local=None):
         if p_local is None:
             p_local = p
@@ -62,20 +78,33 @@ for j, ele_n in enumerate(ele_ns):
     F = inner(F_v(u, grad(u)), grad(v)) * dx - dot(f, v) * dx \
         + div(u) * q * dx
 
+    # The following two methods for formulating the Nitsche BC are equivalent
+    use_bc_utility_method = True
 
-    def F_v_n(u, grad_u, p_local=None):
-        return normal_proj(F_v(u, grad_u, p_local), n)
-    stokes_nitsche = StokesNitscheBoundary(F_v_n, u, p, v, q, delta=-1)
-    # F += stokes_nitsche.slip_nitsche_bc_residual(u_soln, g_tau, ds)
-    F += stokes_nitsche.nitsche_bc_residual(tangential_proj(u, n), ds)
-    F -= dot(g_tau, v)*ds
+    if use_bc_utility_method == 1:
+        # Use the utiltiy method of the StokesNitscheBoundary class
+        def F_v_n(u, grad_u, p_local=None):
+            return F_v(u, grad_u, p_local)
+        stokes_nitsche = StokesNitscheBoundary(F_v_n, u, p, v, q, delta=-1)
+        F += stokes_nitsche.slip_nitsche_bc_residual(u_soln, g_tau, ds)
+    else:
+        # Define the viscous flux in the normal direction
+        def F_v_n(u, grad_u, p_local=None):
+            return normal_proj(F_v(u, grad_u, p_local), n)
+        stokes_nitsche = StokesNitscheBoundary(F_v_n, u, p, v, q, delta=-1)
+        F += stokes_nitsche.nitsche_bc_residual(tangential_proj(u, n), ds) \
+             - dot(g_tau, v)*ds
 
     solve(F == 0, U)
 
     uh = U.sub(0, deepcopy=True)
     ph = U.sub(1, deepcopy=True)
-    ph.vector()[:] -= assemble(p*dx)
 
+    # Normalise the pressure
+    mesh_area = assemble(Constant(1.0)*dx(domain=mesh))
+    ph.vector()[:] -= assemble(ph*dx)/mesh_area
+
+    # Compute error
     errorl2[j] = errornorm(u_soln, uh, norm_type='l2', degree_rise=3)
     errorh1[j] = errornorm(u_soln, uh, norm_type='h1', degree_rise=3)
     errorpl2[j] = errornorm(p_soln, ph, norm_type='l2', degree_rise=3)
@@ -83,6 +112,7 @@ for j, ele_n in enumerate(ele_ns):
     hsizes[j] = mesh.hmax()
 
 
+# Output convergence rates
 if MPI.rank(mesh.mpi_comm()) == 0:
     print("L2 u convergence rates: "
           + str(np.log(errorl2[0:-1] / errorl2[1:])
