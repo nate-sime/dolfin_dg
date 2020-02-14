@@ -7,6 +7,18 @@ import numpy as np
 
 from dolfin_dg import StokesNitscheBoundary, tangential_proj, normal_proj
 
+"""
+This demo is the converted (old) dolfin implementation of Example 1
+presented in Sime & Wilson (2020) https://arxiv.org/abs/2001.10639
+which was originally written for dolfin-x.
+
+To see close to optimal rates of convergence in case 2, we recommend
+using higher order quadrature and an element degree approximation of
+the true solution > p + 4. These parameters lead to long compilation
+times and are switched off by default so that CI tests are not so
+expensive.
+"""
+
 parameters['std_out_all_processes'] = False
 parameters['form_compiler']["cpp_optimize"] = True
 parameters['form_compiler']["optimize"] = True
