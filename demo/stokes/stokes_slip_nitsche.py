@@ -42,6 +42,7 @@ for j, ele_n in enumerate(ele_ns):
     U = Function(W)
     u, p = split(U)
 
+    # Prevent initial singularity in viscosity
     uu = interpolate(u_soln, W.sub(0).collapse())
     assign(U.sub(0), uu)
 
@@ -66,15 +67,15 @@ for j, ele_n in enumerate(ele_ns):
     def F_v_n(u, grad_u, p_local=None):
         return normal_proj(F_v(u, grad_u, p_local), n)
     stokes_nitsche = StokesNitscheBoundary(F_v_n, u, p, v, q, delta=-1)
-    # F += stokes_nitsche.slip_nitsche_bc_residual(u_soln, g_tau, ds)
-    F += stokes_nitsche.nitsche_bc_residual(tangential_proj(u, n), ds)
+    F += stokes_nitsche.slip_nitsche_bc_residual(u_soln, g_tau, ds)
+    # F += stokes_nitsche.nitsche_bc_residual(tangential_proj(u, n), ds)
     F -= dot(g_tau, v)*ds
 
     solve(F == 0, U)
 
     uh = U.sub(0, deepcopy=True)
     ph = U.sub(1, deepcopy=True)
-    ph.vector()[:] -= assemble(p*dx)
+    ph.vector()[:] -= assemble(ph*dx)/assemble(Constant(1.0)*dx(domain=mesh))
 
     errorl2[j] = errornorm(u_soln, uh, norm_type='l2', degree_rise=3)
     errorh1[j] = errornorm(u_soln, uh, norm_type='h1', degree_rise=3)
