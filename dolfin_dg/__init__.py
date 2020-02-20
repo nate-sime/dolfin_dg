@@ -16,8 +16,6 @@ from .fluxes import \
     HLLE, \
     Vijayasundaram
 
-from dolfin_dg.tensors import force_zero_function_derivative
-
 from .operators import \
     EllipticOperator, \
     HyperbolicOperator, \
@@ -30,14 +28,20 @@ from .operators import \
     DGNeumannBC, DGDirichletBC, DGDirichletNormalBC, DGAdiabticWallBC, \
     DGFemTerm, DGFemCurlTerm, DGFemStokesTerm
 
-# DWR highly experimental
-from .dwr import \
-    NonlinearAPosterioriEstimator, \
-    LinearAPosterioriEstimator, \
-    dual
+try:
+    from dolfin_dg.tensors import force_zero_function_derivative
 
-from .mark import \
-    FixedFractionMarker, FixedFractionMarkerParallel
+    # DWR highly experimental
+    from .dwr import \
+        NonlinearAPosterioriEstimator, \
+        LinearAPosterioriEstimator, \
+        dual
+
+    from .mark import \
+        FixedFractionMarker, FixedFractionMarkerParallel
+
+except ImportError:
+    pass
 
 # Compressible flow utility functions
 from .aero import \
