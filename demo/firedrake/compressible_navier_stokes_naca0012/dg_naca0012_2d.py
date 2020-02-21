@@ -76,6 +76,10 @@ no_slip_bc = no_slip(u_vec)
 outflow = subsonic_outflow(p_0, u_vec, gamma)
 
 # Assemble these conditions into DG BCs
+dx = dx(degree=4)
+dS = dS(degree=4)
+ds = ds(degree=4)
+
 bcs = [DGDirichletBC(ds(INLET), inflow),
        DGAdiabticWallBC(ds(WALL), no_slip_bc),
        DGDirichletBC(ds(OUTLET), outflow)]
@@ -83,12 +87,17 @@ bcs = [DGDirichletBC(ds(INLET), inflow),
 # Construct the compressible Navier Stokes DG formulation, and compute the symbolic
 # Jacobian
 ce = CompressibleNavierStokesOperator(mesh, V, bcs, mu=1.0/Re)
-F = ce.generate_fem_formulation(u_vec, v_vec)
+F = ce.generate_fem_formulation(u_vec, v_vec, dx=dx, dS=dS)
 
 sp = {
       "snes_type": "newtonls",
       "snes_monitor": None,
-      "snes_linesearch_type": "l2",
+      "snes_linesearch_type": "basic",
+      "snes_linesearch_maxstep": 1,
+      "snes_linesearch_damping": 2.657e-01,
+      "snes_linesearch_monitor": None,
+      "snes_max_it": 10000,
+      #"snes_divergence_tolerance": -1,
       "ksp_type": "preonly",
       "pc_type": "lu",
       "pc_factor_mat_solver_type": "mumps"
@@ -98,6 +107,11 @@ solve(F == 0, u_vec, solver_parameters=sp)
 # Assemble variables required for the lift and drag computation
 n = FacetNormal(mesh)
 rho, u, E = flow_variables(u_vec)
+Q = FunctionSpace(mesh, "DG", 1)
+W = VectorFunctionSpace(mesh, "DG", 1)
+rho = project(rho, Q)
+u = project(u, W)
+E = project(E, Q)
 rho.rename("Density"); u.rename("Velocity"); E.rename("Energy")
 p = pressure(u_vec, gamma)
 l_ref = Constant(1.0)
