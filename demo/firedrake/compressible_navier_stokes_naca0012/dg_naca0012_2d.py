@@ -37,6 +37,7 @@ def mark_mesh(mesh):
     dm = mesh._plex
     sec = dm.getCoordinateSection()
     coords = dm.getCoordinatesLocal()
+    dm.removeLabel(dmplex.FACE_SETS_LABEL)
     dm.createLabel(dmplex.FACE_SETS_LABEL)
 
     faces = dm.getStratumIS("exterior_facets", 1).indices
@@ -94,10 +95,8 @@ sp = {
       "snes_monitor": None,
       "snes_linesearch_type": "basic",
       "snes_linesearch_maxstep": 1,
-      "snes_linesearch_damping": 2.657e-01,
+      "snes_linesearch_damping": 1,
       "snes_linesearch_monitor": None,
-      "snes_max_it": 10000,
-      #"snes_divergence_tolerance": -1,
       "ksp_type": "preonly",
       "pc_type": "lu",
       "pc_factor_mat_solver_type": "mumps"
