@@ -2,7 +2,8 @@ from ufl import as_vector, dot
 
 
 def conserved_variables(U):
-    rho, rhoE = U[0], U[-1]
+    sz = len(U)
+    rho, rhoE = U[0], U[sz-1]
     dim = U.ufl_shape[0] - 2
     rhou = as_vector([U[j] for j in range(1, dim + 1)])
     return rho, rhou, rhoE
@@ -20,7 +21,8 @@ def pressure(U, gamma):
 
 
 def enthalpy(U, gamma):
-    rho, E = U[0], U[-1]/U[0]
+    sz = len(U)
+    rho, E = U[0], U[sz-1]/U[0]
     p = pressure(U, gamma)
     H = E + p/rho
     return H

@@ -1,7 +1,11 @@
 import inspect
 
 import ufl
-from dolfin import Constant, FacetNormal
+try:
+    from dolfin import Constant, FacetNormal
+except ImportError:
+    from firedrake import Constant, FacetNormal
+
 from ufl import CellVolume, FacetArea, grad, inner, \
     curl, dot, as_vector, as_matrix, sqrt, tr, Identity, variable, diff, exp, Measure
 
@@ -197,7 +201,10 @@ class CompressibleEulerOperator(
 
     def __init__(self, mesh, V, bcs, gamma=1.4):
         gamma = Constant(gamma)
-        dim = mesh.geometry().dim()
+        try:
+            dim = mesh.geometry().dim()
+        except AttributeError:
+            dim = mesh.geometric_dimension()
 
         def F_c(U):
             rho, u, E = aero.flow_variables(U)
@@ -228,7 +235,11 @@ class CompressibleNavierStokesOperator(
         gamma = Constant(gamma)
         mu = Constant(mu)
         Pr = Constant(Pr)
-        dim = mesh.geometry().dim()
+
+        try:
+            dim = mesh.geometry().dim()
+        except AttributeError:
+            dim = mesh.geometric_dimension()
 
         if not hasattr(bcs, '__len__'):
             bcs = [bcs]
@@ -241,7 +252,8 @@ class CompressibleNavierStokesOperator(
             # TODO: check this
             grad_rho = grad_U[0, :]
             grad_rhou = as_matrix([*([*grad_U[j,:]] for j in range(1, dim + 1))])
-            grad_rhoE = grad_U[-1,:]
+            sz = len(U)
+            grad_rhoE = grad_U[sz-1,:]
             # Quotient rule to find grad(u) and grad(E)
             grad_u = as_matrix([*([*(grad_rhou[j,:]*rho - rhou[j]*grad_rho)/rho**2] for j in range(dim))])
             grad_E = (grad_rhoE*rho - rhoE*grad_rho)/rho**2
@@ -261,8 +273,8 @@ class CompressibleNavierStokesOperator(
 
             # TODO: check this
             grad_rho = grad_U[0, :]
-            grad_rhou = as_matrix([[grad_U[j,:] for j in range(1, mesh.geometry().dim() + 1)]])[0]
-            grad_u = as_matrix([[(grad_rhou[j,:]*rho - rhou[j]*grad_rho)/rho**2 for j in range(mesh.geometry().dim())]])[0]
+            grad_rhou = as_matrix([[grad_U[j,:] for j in range(1, dim + 1)]])[0]
+            grad_u = as_matrix([[(grad_rhou[j,:]*rho - rhou[j]*grad_rho)/rho**2 for j in range(dim)]])[0]
 
             tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(dim))
 

@@ -1,6 +1,6 @@
 from dolfin import *
 from dolfin_dg import *
-from dolfin_dg import ringleb
+from dolfin_dg.dolfin import ringleb
 import numpy as np
 
 
@@ -43,7 +43,7 @@ def get_bdry_no(x0, x1):
     qmin   = 0.43
 
     for j in range(2):
-        c = ringleb.cspeed_ringleb(gamma,x[j][0], x[j][1])
+        c = ringleb.cspeed_ringleb(gamma, x[j][0], x[j][1])
 
         jval  = 1.0/c + 1.0/(3.0*c**3) + 1.0/(5.0*c**5) - 0.5*np.log( (1.0+c)/(1.0-c) )
         rho   = c**(2.0/gammam1)

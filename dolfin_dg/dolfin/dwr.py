@@ -1,7 +1,7 @@
 import ufl
 from dolfin import *
 
-from .mark import Marker
+from dolfin_dg.dolfin.mark import Marker
 
 
 def dual(form, w, z=None):
