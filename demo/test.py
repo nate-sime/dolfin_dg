@@ -5,16 +5,16 @@ import sys
 import pytest
 
 demo_dirs = [
-    "burgers",
-    # "compressible_navier_stokes_naca0012",
-    # "heat_equation",
-    # "hyperlasticity_cantilever",
-    # "hyperlasticity_compresson",  # remove fenics-tools requirement
-    "nonlinear_advection",
-    # "paper_examples",
-    # "poisson",
-    # "sod_shock_tube",             # very slow
-    "stokes",
+    "dolfin/burgers",
+    # "dolfin/compressible_navier_stokes_naca0012",
+    # "dolfin/heat_equation",
+    # "dolfin/hyperlasticity_cantilever",
+    # "dolfin/hyperlasticity_compresson",  # remove fenics-tools requirement
+    "dolfin/nonlinear_advection",
+    # "dolfin/paper_examples",
+    # "dolfin/poisson",
+    # "dolfin/sod_shock_tube",             # very slow
+    "dolfin/stokes",
 ]
 
 # Build list of demo programs
