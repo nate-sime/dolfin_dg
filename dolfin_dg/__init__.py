@@ -1,6 +1,7 @@
 
 __author__ = 'njcs4'
 
+
 from .dg_form import \
     DGFemTerm, DGFemSIPG, DGFemNIPG, DGFemBO, \
     hyper_tensor_product, hyper_tensor_T_product, \
@@ -11,10 +12,12 @@ from .dg_form import \
     DGClassicalSecondOrderDiscretisation, DGClassicalFourthOrderDiscretisation, \
     generate_default_sipg_penalty_term
 
+
 from .fluxes import \
     LocalLaxFriedrichs, \
     HLLE, \
     Vijayasundaram
+
 
 from .operators import \
     EllipticOperator, \
@@ -28,20 +31,6 @@ from .operators import \
     DGNeumannBC, DGDirichletBC, DGDirichletNormalBC, DGAdiabticWallBC, \
     DGFemTerm, DGFemCurlTerm, DGFemStokesTerm
 
-try:
-    from dolfin_dg.tensors import force_zero_function_derivative
-
-    # DWR highly experimental
-    from .dwr import \
-        NonlinearAPosterioriEstimator, \
-        LinearAPosterioriEstimator, \
-        dual
-
-    from .mark import \
-        FixedFractionMarker, FixedFractionMarkerParallel
-
-except ImportError:
-    pass
 
 # Compressible flow utility functions
 from .aero import \
@@ -56,5 +45,23 @@ from .aero import \
     subsonic_outflow, \
     no_slip
 
+
 # Utility for generating Nitsche boundary conditions
 from .nitsche import NitscheBoundary, StokesNitscheBoundary
+
+
+# Optional dolfin utility functions
+try:
+    from dolfin_dg.dolfin.tensors import force_zero_function_derivative
+
+    # DWR highly experimental
+    from dolfin_dg.dolfin.dwr import \
+        NonlinearAPosterioriEstimator, \
+        LinearAPosterioriEstimator, \
+        dual
+
+    from dolfin_dg.dolfin.mark import \
+        FixedFractionMarker, FixedFractionMarkerParallel
+
+except ImportError:
+    pass

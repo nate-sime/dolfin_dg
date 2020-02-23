@@ -5,7 +5,7 @@ from dolfin import *
 
 from dolfin_dg import *
 from dolfin_dg import force_zero_function_derivative
-from dolfin_dg.tensors import compressible_ns_G
+from dolfin_dg.dolfin.tensors import compressible_ns_G
 
 poly_o = 1
 parameters['form_compiler']["cpp_optimize"] = True
