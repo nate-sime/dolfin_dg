@@ -1,4 +1,4 @@
-# `dolfin_dg` utility module
+# dolfin_dg
 
 ## What does it do?
 
