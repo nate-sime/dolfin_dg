@@ -127,6 +127,7 @@ Contributors
 
 * Nate J. C. Sime nsime@carnegiescience.edu
 * Paul Houston Paul.Houston@nottingham.ac.uk
+* Patrick E. Farrell patrick.farrell@maths.ox.ac.uk
 
 
 License
