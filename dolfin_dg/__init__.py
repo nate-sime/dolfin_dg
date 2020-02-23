@@ -52,16 +52,6 @@ from .nitsche import NitscheBoundary, StokesNitscheBoundary
 
 # Optional dolfin utility functions
 try:
-    from dolfin_dg.dolfin.tensors import force_zero_function_derivative
-
-    # DWR highly experimental
-    from dolfin_dg.dolfin.dwr import \
-        NonlinearAPosterioriEstimator, \
-        LinearAPosterioriEstimator, \
-        dual
-
-    from dolfin_dg.dolfin.mark import \
-        FixedFractionMarker, FixedFractionMarkerParallel
-
+    from dolfin_dg.dolfin import *
 except ImportError:
     pass
