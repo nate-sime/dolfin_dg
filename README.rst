@@ -56,6 +56,13 @@ SIAM Journal on Scientific Computing, 2018, 40(3), C327–C357, https://doi.org/
 Preprint https://arxiv.org/abs/1804.02338.
 
 
+Nathan Sime and Cian R. Wilson,
+*Automatic weak imposition of free slip boundary conditions via Nitsche's method: application to
+nonlinear problems in geodynamics*.
+
+Preprint https://arxiv.org/abs/2001.10639.
+
+
 Dependencies
 ============
 
