@@ -40,16 +40,16 @@ approximation of nonlinear FEM problems.
 
 ## More details and citing
 
-Paul Houston and Nathan Sime, 
-[*Automatic symbolic computation for discontinuous Galerkin finite element methods*,
-SIAM Journal on Scientific Computing, 2018, 40(3), C327–C357](https://doi.org/10.1137/17M1129751).
-([arXiv](https://arxiv.org/abs/1804.02338)).
+Paul Houston and Nathan Sime,  
+*Automatic symbolic computation for discontinuous Galerkin finite element methods*,  
+[SIAM Journal on Scientific Computing, 2018, 40(3), C327–C357](https://doi.org/10.1137/17M1129751).  
+([arXiv](https://arxiv.org/abs/1804.02338))
 
 
-Nathan Sime and Cian R. Wilson,
+Nathan Sime and Cian R. Wilson,  
 *Automatic weak imposition of free slip boundary conditions via Nitsche's method: application to
-nonlinear problems in geodynamics*.
-[arXiv](https://arxiv.org/abs/2001.10639).
+nonlinear problems in geodynamics*.  
+([arXiv](https://arxiv.org/abs/2001.10639))
 
 
 ## Dependencies
