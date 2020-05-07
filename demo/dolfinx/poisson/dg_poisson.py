@@ -1,6 +1,8 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import ufl
 import dolfinx
+import dolfinx.plotting
 from dolfinx.fem.assemble import assemble_matrix, assemble_vector
 import dolfin_dg
 
@@ -45,7 +47,6 @@ class PoissonProblem(dolfinx.NonlinearProblem):
         return self._J
 
 
-
 mesh = dolfinx.UnitSquareMesh(MPI.COMM_WORLD, 32, 32)
 
 V = dolfinx.FunctionSpace(mesh, ('DG', 1))
@@ -64,9 +65,12 @@ bc = dolfin_dg.DGDirichletBC(ds(1), g)
 pe = dolfin_dg.PoissonOperator(mesh, V, [bc], kappa=(1 + u**2))
 F = pe.generate_fem_formulation(u, v) - f*v*ufl.dx
 
-# du = ufl.TrialFunction(V)
-# J = ufl.derivative(F, u, du)
+du = ufl.TrialFunction(V)
+J = ufl.derivative(F, u, du)
 
-dolfinx.Form(F)
-# problem = PoissonProblem(J, F)
-# solver = dolfinx.NewtonSolver(MPI.COMM_WORLD)
+problem = PoissonProblem(J, F)
+solver = dolfinx.NewtonSolver(MPI.COMM_WORLD)
+r = solver.solve(problem, u.vector)
+
+dolfinx.plotting.plot(u)
+plt.show()
