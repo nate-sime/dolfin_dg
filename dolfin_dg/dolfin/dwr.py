@@ -33,7 +33,7 @@ class NonlinearAPosterioriEstimator:
 
         # Copy and homogenise BCs
         for bc in bcs:
-            if bc.user_subdomain() is None:
+            if bc.user_sub_domain() is None:
                 raise NotImplementedError("BCs defined by mesh functions not yet supported")
 
         self.bcs = []
@@ -41,7 +41,7 @@ class NonlinearAPosterioriEstimator:
             dwr_subspc = self.V_star
             for i in bc.function_space().component():
                 dwr_subspc = dwr_subspc.sub(i)
-            self.bcs += [DirichletBC(dwr_subspc, bc.value(), bc.user_subdomain())]
+            self.bcs += [DirichletBC(dwr_subspc, bc.value(), bc.user_sub_domain())]
 
         for bc in self.bcs:
             bc.homogenize()

@@ -66,8 +66,8 @@ def _get_terminal_operand_coefficient(u):
 
 
 def _get_ufl_element_degree(u):
-    # Assume either a coefficient or ufl indexed operand
-    if isinstance(u, ufl.Coefficient):
+    # Assume either a function space, coefficient or ufl indexed operand
+    if isinstance(u, (ufl.Coefficient, ufl.FunctionSpace)):
         return u.ufl_element().degree()
     if isinstance(u, ufl.tensors.ListTensor):
         return _get_ufl_element_degree(_get_terminal_operand_coefficient(u))
