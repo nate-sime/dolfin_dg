@@ -3,6 +3,7 @@ import math
 
 from dolfin import *
 from dolfin_dg import *
+from dolfin_dg.dolfin import *
 
 # In this example we use dual weighted residual based error estimates
 # to compute the drag coefficient of compressible flow around a NACA0012
@@ -130,10 +131,15 @@ for ref_level in range(n_ref_max):
            DGAdiabticWallBC(ds(WALL), no_slip_bc),
            DGDirichletBC(ds(OUTLET), outflow)]
 
+    # Construct penalisation term and facet measure
+    C_IP = 20.0
+    h = CellVolume(mesh)/FacetArea(mesh)
+    penalty = Constant(C_IP * max(poly_o ** 2, 1)) / h
+
     # Construct the compressible Navier Stokes DG formulation, and compute the symbolic
     # Jacobian
     ce = CompressibleNavierStokesOperator(mesh, V, bcs, mu=1.0/Re)
-    F = ce.generate_fem_formulation(u_vec, v_vec)
+    F = ce.generate_fem_formulation(u_vec, v_vec, penalty=penalty)
     J = derivative(F, u_vec)
 
     # Setup the problem and solve

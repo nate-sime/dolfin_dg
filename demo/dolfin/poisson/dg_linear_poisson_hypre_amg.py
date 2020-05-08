@@ -14,9 +14,6 @@ __author__ = 'njcs4'
 #      u = sin(πx)sin(πy)sin(πz).
 
 parameters['std_out_all_processes'] = False
-parameters['form_compiler']["cpp_optimize"] = True
-parameters['form_compiler']["optimize"] = True
-parameters['form_compiler']['representation'] = 'uflacs'
 parameters["ghost_mode"] = "shared_facet"
 
 run_count = 0

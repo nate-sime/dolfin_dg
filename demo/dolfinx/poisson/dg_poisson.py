@@ -5,6 +5,7 @@ import dolfinx
 import dolfinx.plotting
 from dolfinx.fem.assemble import assemble_matrix, assemble_vector
 import dolfin_dg
+from dolfin_dg.dolfinx import GenericSNESProblem, MatrixType
 
 from petsc4py import PETSc
 from mpi4py import MPI
@@ -14,38 +15,6 @@ __author__ = 'njcs4'
 # This demo is a reproduction of the nonlinear Poisson;
 # however, using DG FEM.
 # http://fenics.readthedocs.io/projects/dolfin/en/stable/demos/nonlinear-poisson/python/demo_nonlinear-poisson.py.html
-
-
-class PoissonProblem(dolfinx.NonlinearProblem):
-    def __init__(self, a, L):
-        super().__init__()
-        self.L = dolfinx.Form(L)
-        self.a = dolfinx.Form(a)
-        self._F = None
-        self._J = None
-
-    def form(self, x):
-        x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-
-    def F(self, x):
-        if self._F is None:
-            self._F = assemble_vector(self.L)
-        else:
-            with self._F.localForm() as f_local:
-                f_local.set(0.0)
-            self._F = assemble_vector(self._F, self.L)
-        self._F.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-        return self._F
-
-    def J(self, x):
-        if self._J is None:
-            self._J = assemble_matrix(self.a)
-        else:
-            self._J.zeroEntries()
-            self._J = assemble_matrix(self._J, self.a)
-        self._J.assemble()
-        return self._J
-
 
 mesh = dolfinx.UnitSquareMesh(MPI.COMM_WORLD, 32, 32)
 
@@ -68,9 +37,26 @@ F = pe.generate_fem_formulation(u, v) - f*v*ufl.dx
 du = ufl.TrialFunction(V)
 J = ufl.derivative(F, u, du)
 
-problem = PoissonProblem(J, F)
-solver = dolfinx.NewtonSolver(MPI.COMM_WORLD)
-r = solver.solve(problem, u.vector)
+problem = GenericSNESProblem(J, F, None, [], u)
+snes = PETSc.SNES().create(MPI.COMM_WORLD)
+
+opts = PETSc.Options()
+opts["snes_monitor"] = None
+snes.setFromOptions()
+
+snes.getKSP().getPC().setType("lu")
+snes.getKSP().getPC().setFactorSolverType("mumps")
+
+b_vec = dolfinx.fem.create_vector(F)
+A_mat = dolfinx.fem.create_matrix(J)
+
+snes.setFunction(problem.F, b_vec)
+snes.setJacobian(problem.J, J=A_mat)
+
+snes.solve(None, u.vector)
+
+print(snes.getConvergedReason())
+print(snes.getKSP().getConvergedReason())
 
 dolfinx.plotting.plot(u)
 plt.show()

@@ -3,8 +3,6 @@ from dolfin_dg import *
 import numpy as np
 
 parameters['std_out_all_processes'] = False
-parameters['form_compiler']["cpp_optimize"] = True
-parameters['form_compiler']["optimize"] = True
 parameters["ghost_mode"] = "shared_facet"
 
 p_order = 2
@@ -12,7 +10,7 @@ l2errors_u = []
 l2errors_p = []
 hs = []
 
-for n in range(2, 7):
+for n in range(2, 6):
     mesh = UnitSquareMesh(2**n, 2**n, "left")
 
     Ve = VectorElement("DG", mesh.ufl_cell(), p_order)

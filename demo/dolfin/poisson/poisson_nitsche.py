@@ -12,9 +12,6 @@ __author__ = 'njcs4'
 # (a priori known) solution
 #      u = sin(πx)sin(πy).
 
-parameters['form_compiler']["cpp_optimize"] = True
-parameters['form_compiler']["optimize"] = True
-parameters['form_compiler']['representation'] = 'uflacs'
 parameters["ghost_mode"] = "shared_facet"
 
 p_order = 1

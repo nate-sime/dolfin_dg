@@ -1,5 +1,6 @@
 from dolfin import *
 from dolfin_dg import *
+from dolfin_dg.dolfin import *
 import matplotlib.pyplot as plt
 
 # This demo aims to reproduce numerical example 7.1 Hartmann and Houston 2002

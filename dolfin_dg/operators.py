@@ -409,6 +409,9 @@ class StokesOperator(DGFemFormulation):
         G = homogeneity_tensor(self.F_v, u)
         delta = -1
 
+        if penalty is None:
+            penalty = generate_default_sipg_penalty_term(u)
+
         vt = DGFemStokesTerm(self.F_v, u, p, v, q, penalty, G, n, delta)
 
         residual = inner(self.F_v(u, grad(u)), grad(v))*dx + q*ufl.div(u)*dx

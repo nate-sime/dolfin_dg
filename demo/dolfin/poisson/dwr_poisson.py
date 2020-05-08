@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 
 from dolfin import *
 from dolfin_dg import *
+from dolfin_dg.dolfin import *
 
 if MPI.size(MPI.comm_world) > 1:
     NotImplementedError("Plotting in this demo will not work in parallel.")

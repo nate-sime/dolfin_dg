@@ -25,8 +25,6 @@ import dolfin_dg as dg
 # We weakly enforce the C1 continuity by applying a DG method to the
 # second integration by parts of the biharmonic operator.
 
-parameters["form_compiler"]["cpp_optimize"] = True
-parameters["form_compiler"]["optimize"] = True
 parameters["ghost_mode"] = "shared_facet"
 
 ele_ns = [4, 8, 16, 32]
