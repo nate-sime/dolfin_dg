@@ -31,6 +31,7 @@ def p_analytical(x):
 for run_no, n in enumerate([8, 16, 32]):
     mesh = dolfinx.UnitSquareMesh(
         MPI.COMM_WORLD, n, n,
+        cell_type=dolfinx.cpp.mesh.CellType.triangle,
         ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
 
     V_high = dolfinx.VectorFunctionSpace(mesh, ("DG", p_order + 1))
@@ -40,14 +41,12 @@ for run_no, n in enumerate([8, 16, 32]):
     Qe = ufl.FiniteElement("DG", mesh.ufl_cell(), p_order-1)
     W = dolfinx.FunctionSpace(mesh, ufl.MixedElement([Ve, Qe]))
 
-    U = dolfinx.Function(W); U.name = "U"
+    U = dolfinx.Function(W)
 
     u, p = ufl.split(U)
     dU = ufl.TrialFunction(W)
     VV = ufl.TestFunction(W)
     v, q = ufl.split(VV)
-
-    x, y = ufl.SpatialCoordinate(mesh)
 
     u_soln = dolfinx.Function(V_high)
     u_soln.interpolate(u_analytical)

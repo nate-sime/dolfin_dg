@@ -10,6 +10,10 @@ class MatrixType(enum.Enum):
 
 
 def derivative_block(F, u, du=None, coefficient_derivatives=None):
+    import ufl
+    if isinstance(F, ufl.Form):
+        return ufl.derivative(F, u, du, coefficient_derivatives)
+
     if not isinstance(F, (list, tuple)):
         raise TypeError("Expecting F to be a list of Forms. Found: %s" % str(F))
 
@@ -21,7 +25,6 @@ def derivative_block(F, u, du=None, coefficient_derivatives=None):
             raise TypeError("Expecting du to be a list of Arguments. Found: %s" % str(u))
 
     import itertools
-    import ufl
     from ufl.algorithms.apply_derivatives import apply_derivatives
     from ufl.algorithms.apply_algebra_lowering import apply_algebra_lowering
 
