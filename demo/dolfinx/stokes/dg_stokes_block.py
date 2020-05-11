@@ -14,14 +14,14 @@ from mpi4py import MPI
 p_order = 2
 dirichlet_id, neumann_id = 1, 2
 
-
+# Matrix structure cases
 matrixtypes = [
     dolfin_dg.dolfinx.MatrixType.monolithic,
     dolfin_dg.dolfinx.MatrixType.block,
     dolfin_dg.dolfinx.MatrixType.nest
     ]
 
-
+# a priori known velocity and pressure solutions
 def u_analytical(x):
     vals = np.zeros((mesh.geometry.dim, x.shape[1]))
     vals[0] = -(x[1] * np.cos(x[1]) + np.sin(x[1])) * np.exp(x[0])
@@ -44,9 +44,17 @@ for matrixtype in matrixtypes:
             cell_type=dolfinx.cpp.mesh.CellType.triangle,
             ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
 
+        # Higher order FE spaces for interpolation of the true solution
         V_high = dolfinx.VectorFunctionSpace(mesh, ("DG", p_order + 1))
         Q_high = dolfinx.FunctionSpace(mesh, ("DG", p_order))
 
+        u_soln = dolfinx.Function(V_high)
+        u_soln.interpolate(u_analytical)
+
+        p_soln = dolfinx.Function(Q_high)
+        p_soln.interpolate(p_analytical)
+
+        # Problem FE spaces and FE functions
         Ve = ufl.VectorElement("DG", mesh.ufl_cell(), p_order)
         Qe = ufl.FiniteElement("DG", mesh.ufl_cell(), p_order-1)
 
@@ -65,12 +73,7 @@ for matrixtype in matrixtypes:
             du, dp = ufl.TrialFunction(V), ufl.TrialFunction(Q)
             v, q = ufl.TestFunction(V), ufl.TestFunction(Q)
 
-        u_soln = dolfinx.Function(V_high)
-        u_soln.interpolate(u_analytical)
-
-        p_soln = dolfinx.Function(Q_high)
-        p_soln.interpolate(p_analytical)
-
+        # Label Dirichlet and Neumann boundary components
         dirichlet_facets = dolfinx.mesh.locate_entities_boundary(
             mesh, mesh.topology.dim - 1,
             lambda x: np.logical_or(np.isclose(x[0], 0.0), np.isclose(x[1], 0.0)))
@@ -86,15 +89,19 @@ for matrixtype in matrixtypes:
         ds = ufl.Measure("ds", subdomain_data=facets)
         dsD, dsN = ds(dirichlet_id), ds(neumann_id)
 
+        # Formulate weak BCs
         facet_n = ufl.FacetNormal(mesh)
         gN = (ufl.grad(u_soln) - p_soln*ufl.Identity(mesh.geometry.dim))*facet_n
         bcs = [dolfin_dg.DGDirichletBC(dsD, u_soln),
                dolfin_dg.DGNeumannBC(dsN, gN)]
 
+        # Stokes system viscous flux and operator
         def F_v(u, grad_u):
             return grad_u - p*ufl.Identity(mesh.geometry.dim)
 
         stokes = dolfin_dg.StokesOperator(mesh, None, bcs, F_v)
+
+        # Residual, Jacobian and preconditioner FE formulations
         F = stokes.generate_fem_formulation(
             u, v, p, q,
             block_form=matrixtype is not dolfin_dg.dolfinx.MatrixType.monolithic)
@@ -118,7 +125,7 @@ for matrixtype in matrixtypes:
             assemble_type=matrixtype,
             use_preconditioner=matrixtype is dolfin_dg.dolfinx.MatrixType.nest)
 
-        # Construct linear system datastructures
+        # Construct linear system data structures
         if matrixtype is dolfin_dg.dolfinx.MatrixType.monolithic:
             snes.setFunction(problem.F, dolfinx.fem.create_vector(F))
             snes.setJacobian(problem.J, J=dolfinx.fem.create_matrix(J),
@@ -156,7 +163,7 @@ for matrixtype in matrixtypes:
             ksp_p.setType("preonly")
             ksp_p.getPC().setType("hypre")
 
-        # Solve and plot
+        # Solve and check convergence
         snes.solve(None, soln_vector)
         snes_converged = snes.getConvergedReason()
         ksp_converged = snes.getKSP().getConvergedReason()
@@ -164,6 +171,7 @@ for matrixtype in matrixtypes:
             print("SNES converged reason:", snes_converged)
             print("KSP converged reason:", ksp_converged)
 
+        # Computer error
         l2error_u = dolfinx.fem.assemble.assemble_scalar((u - u_soln) ** 2 * ufl.dx)**0.5
         l2error_p = dolfinx.fem.assemble.assemble_scalar((p - p_soln) ** 2 * ufl.dx)**0.5
 
@@ -171,6 +179,7 @@ for matrixtype in matrixtypes:
         l2errors_u.append(l2error_u)
         l2errors_p.append(l2error_p)
 
+    # Compute convergence rates
     l2errors_u = np.array(l2errors_u)
     l2errors_p = np.array(l2errors_p)
     hs = np.array(hs)
