@@ -11,6 +11,7 @@ import dolfin_dg.dolfinx
 from petsc4py import PETSc
 from mpi4py import MPI
 
+comm = MPI.COMM_WORLD
 p_order = 2
 dirichlet_id, neumann_id = 1, 2
 
@@ -40,13 +41,13 @@ for matrixtype in matrixtypes:
 
     for run_no, n in enumerate([8, 16, 32]):
         mesh = dolfinx.UnitSquareMesh(
-            MPI.COMM_WORLD, n, n,
+            comm, n, n,
             cell_type=dolfinx.cpp.mesh.CellType.triangle,
             ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
 
         # Higher order FE spaces for interpolation of the true solution
-        V_high = dolfinx.VectorFunctionSpace(mesh, ("DG", p_order + 1))
-        Q_high = dolfinx.FunctionSpace(mesh, ("DG", p_order))
+        V_high = dolfinx.VectorFunctionSpace(mesh, ("DG", p_order + 2))
+        Q_high = dolfinx.FunctionSpace(mesh, ("DG", p_order + 1))
 
         u_soln = dolfinx.Function(V_high)
         u_soln.interpolate(u_analytical)
@@ -89,15 +90,20 @@ for matrixtype in matrixtypes:
         ds = ufl.Measure("ds", subdomain_data=facets)
         dsD, dsN = ds(dirichlet_id), ds(neumann_id)
 
+        # Stokes system nonlinear viscosity model and viscous flux
+        def eta(u):
+            return 1 + 1e-1 * ufl.dot(u, u)
+
+        def F_v(u, grad_u, p_local=None):
+            if p_local is None:
+                p_local = p
+            return 2*eta(u)*ufl.sym(grad_u) - p_local*ufl.Identity(mesh.geometry.dim)
+
         # Formulate weak BCs
         facet_n = ufl.FacetNormal(mesh)
-        gN = (ufl.grad(u_soln) - p_soln*ufl.Identity(mesh.geometry.dim))*facet_n
+        gN = F_v(u_soln, ufl.grad(u_soln), p_soln)*facet_n
         bcs = [dolfin_dg.DGDirichletBC(dsD, u_soln),
                dolfin_dg.DGNeumannBC(dsN, gN)]
-
-        # Stokes system viscous flux and operator
-        def F_v(u, grad_u):
-            return grad_u - p*ufl.Identity(mesh.geometry.dim)
 
         stokes = dolfin_dg.StokesOperator(mesh, None, bcs, F_v)
 
@@ -106,44 +112,55 @@ for matrixtype in matrixtypes:
             u, v, p, q,
             block_form=matrixtype is not dolfin_dg.dolfinx.MatrixType.monolithic)
 
+        f = -ufl.div(F_v(u_soln, ufl.grad(u_soln), p_soln))
+        if matrixtype is dolfin_dg.dolfinx.MatrixType.monolithic:
+            F -= ufl.inner(f, v) * ufl.dx
+        else:
+            F[0] -= ufl.inner(f, v) * ufl.dx
+
         J = dolfin_dg.dolfinx.nls.derivative_block(F, U)
 
         P = None
         if matrixtype is not dolfin_dg.dolfinx.MatrixType.monolithic:
-            P = [[J[0][0], None],
-                 [None, dp * q * ufl.dx]]
+            P = [[J[0][0], J[0][1]],
+                 [J[1][0], (2 * eta(u))**-1 * dp * q * ufl.dx]]
 
         # Setup SNES solver
-        snes = PETSc.SNES().create(MPI.COMM_WORLD)
+        snes = PETSc.SNES().create(comm)
         opts = PETSc.Options()
         opts["snes_monitor"] = None
         snes.setFromOptions()
 
         # Setup nonlinear problem
-        problem = dolfin_dg.dolfinx.GenericSNESProblem(
-            J, F, P, [], U,
-            assemble_type=matrixtype,
-            use_preconditioner=matrixtype is dolfin_dg.dolfinx.MatrixType.nest)
+        problem = dolfin_dg.dolfinx.nls.NonlinearPDE_SNESProblem(
+            F, J, U, [], P=P)
 
         # Construct linear system data structures
         if matrixtype is dolfin_dg.dolfinx.MatrixType.monolithic:
-            snes.setFunction(problem.F, dolfinx.fem.create_vector(F))
-            snes.setJacobian(problem.J, J=dolfinx.fem.create_matrix(J),
+            snes.setFunction(problem.F_mono, dolfinx.fem.create_vector(F))
+            snes.setJacobian(problem.J_mono, J=dolfinx.fem.create_matrix(J),
                              P=None)
             soln_vector = U.vector
         elif matrixtype is dolfin_dg.dolfinx.MatrixType.block:
-            snes.setFunction(problem.F, dolfinx.fem.create_vector_block(F))
-            snes.setJacobian(problem.J, J=dolfinx.fem.create_matrix_block(J),
+            snes.setFunction(problem.F_block, dolfinx.fem.create_vector_block(F))
+            snes.setJacobian(problem.J_block, J=dolfinx.fem.create_matrix_block(J),
                              P=None)
             soln_vector = dolfinx.fem.create_vector_block(F)
+
+            # Copy initial guess into vector
             dolfinx.cpp.la.scatter_local_vectors(
                 soln_vector, [u.vector.array_r, p.vector.array_r],
                 [u.function_space.dofmap.index_map, p.function_space.dofmap.index_map])
         elif matrixtype is dolfin_dg.dolfinx.MatrixType.nest:
-            snes.setFunction(problem.F, dolfinx.fem.create_vector_nest(F))
-            snes.setJacobian(problem.J, J=dolfinx.fem.create_matrix_nest(J),
+            snes.setFunction(problem.F_nest, dolfinx.fem.create_vector_nest(F))
+            snes.setJacobian(problem.J_nest, J=dolfinx.fem.create_matrix_nest(J),
                              P=dolfinx.fem.create_matrix_nest(P))
             soln_vector = dolfinx.fem.create_vector_nest(F)
+
+            # Copy initial guess into vector
+            for soln_vec_sub, var_sub in zip(soln_vector.getNestSubVecs(), U):
+                soln_vec_sub.array[:] = var_sub.vector.array_r[:]
+                soln_vec_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
         # Set solver options
         if matrixtype is not dolfin_dg.dolfinx.MatrixType.nest:
@@ -159,7 +176,7 @@ for matrixtype in matrixtypes:
 
             ksp_u, ksp_p = snes.getKSP().getPC().getFieldSplitSubKSP()
             ksp_u.setType("preonly")
-            ksp_u.getPC().setType("lu")
+            ksp_u.getPC().setType("hypre")
             ksp_p.setType("preonly")
             ksp_p.getPC().setType("hypre")
 
@@ -172,10 +189,14 @@ for matrixtype in matrixtypes:
             print("KSP converged reason:", ksp_converged)
 
         # Computer error
-        l2error_u = dolfinx.fem.assemble.assemble_scalar((u - u_soln) ** 2 * ufl.dx)**0.5
-        l2error_p = dolfinx.fem.assemble.assemble_scalar((p - p_soln) ** 2 * ufl.dx)**0.5
+        l2error_u = comm.allreduce(
+            dolfinx.fem.assemble.assemble_scalar((u - u_soln) ** 2 * ufl.dx)**0.5,
+            op=MPI.SUM)
+        l2error_p = comm.allreduce(
+            dolfinx.fem.assemble.assemble_scalar((p - p_soln) ** 2 * ufl.dx)**0.5,
+            op=MPI.SUM)
 
-        hs.append(mesh.hmin())
+        hs.append(comm.allreduce(mesh.hmin(), op=MPI.MIN))
         l2errors_u.append(l2error_u)
         l2errors_p.append(l2error_p)
 

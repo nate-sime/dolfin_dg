@@ -2,4 +2,4 @@
 __author__ = 'njcs4'
 
 
-from .nls import GenericSNESProblem, MatrixType
+from .nls import MatrixType
