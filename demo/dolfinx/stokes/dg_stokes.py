@@ -100,10 +100,6 @@ for run_no, n in enumerate([8, 16, 32]):
     print("SNES converged:", snes.getConvergedReason())
     print("KSP converged:", snes.getKSP().getConvergedReason())
 
-    with XDMFFile(MPI.COMM_WORLD, "test_%d.xdmf" % run_no, "w") as f:
-        f.write_mesh(mesh)
-        f.write_function(U.sub(0))
-
     l2error_u = dolfinx.fem.assemble.assemble_scalar((u - u_soln) ** 2 * ufl.dx)**0.5
     l2error_p = dolfinx.fem.assemble.assemble_scalar((p - p_soln) ** 2 * ufl.dx)**0.5
 

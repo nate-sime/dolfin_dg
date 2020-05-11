@@ -91,7 +91,6 @@ class GenericSNESProblem():
             P.zeroEntries()
             dolfinx.fem.assemble_matrix(P, self.P, bcs=self.bcs)
             P.assemble()
-        # self._J.view()
 
     def F_block(self, snes, x, F):
         x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
@@ -142,5 +141,5 @@ class GenericSNESProblem():
 
         if self.use_preconditioner:
             P.zeroEntries()
-            fem.assemble_matrix_nest(P, self.P, self.bcs, diagonal)
+            dolfinx.fem.assemble_matrix_nest(P, self.P, self.bcs, diagonal)
             P.assemble()
