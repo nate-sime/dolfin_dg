@@ -58,7 +58,6 @@ class GenericSNESProblem():
         if not hasattr(bcs, "__len__"):
             bcs = [bcs]
         self.bcs = bcs
-        # self.soln_vec = soln_vec
         self.soln_vars = soln_vars
         self.assemble_type = assemble_type
         self.use_preconditioner = use_preconditioner
