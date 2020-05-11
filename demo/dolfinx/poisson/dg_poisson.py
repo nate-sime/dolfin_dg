@@ -1,9 +1,12 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import ufl
+
 import dolfinx
 import dolfinx.plotting
+
 import dolfin_dg
+import dolfin_dg.dolfinx
 
 from petsc4py import PETSc
 from mpi4py import MPI
@@ -14,7 +17,9 @@ __author__ = 'njcs4'
 # however, using DG FEM.
 # http://fenics.readthedocs.io/projects/dolfin/en/stable/demos/nonlinear-poisson/python/demo_nonlinear-poisson.py.html
 
-mesh = dolfinx.UnitSquareMesh(MPI.COMM_WORLD, 32, 32)
+mesh = dolfinx.UnitSquareMesh(
+    MPI.COMM_WORLD, 32, 32,
+    ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
 
 V = dolfinx.FunctionSpace(mesh, ('DG', 1))
 u, v = dolfinx.Function(V), ufl.TestFunction(V)
@@ -22,9 +27,9 @@ u, v = dolfinx.Function(V), ufl.TestFunction(V)
 x = ufl.SpatialCoordinate(mesh)
 f = x[0]*ufl.sin(x[1])
 
-# Construct boundary meshure for BCs
-free_end_facets = dolfinx.mesh.locate_entities_geometrical(
-    mesh, 1, lambda x: np.isclose(x[0], 1.0), boundary_only=True)
+# Construct boundary measure for BCs
+free_end_facets = dolfinx.mesh.locate_entities_boundary(
+    mesh, 1, lambda x: np.isclose(x[0], 1.0))
 facets = dolfinx.mesh.MeshTags(mesh, 1, free_end_facets, 1)
 ds = ufl.Measure("ds", subdomain_data=facets)
 

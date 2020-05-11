@@ -51,12 +51,6 @@ from .nitsche import NitscheBoundary, StokesNitscheBoundary
 
 
 # Optional dolfin utility functions
-try:
-    import dolfin_dg.dolfin
-except ImportError:
-    pass
-
-try:
-    import dolfin_dg.dolfinx
-except ImportError:
-    pass
+# from .dolfin import *
+# from dolfin_dg import dolfinx
+# import dolfin_dg.dolfinx.nls
