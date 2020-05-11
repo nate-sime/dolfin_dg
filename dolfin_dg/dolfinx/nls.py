@@ -9,6 +9,39 @@ class MatrixType(enum.Enum):
     nest = enum.auto()
 
 
+def derivative_block(F, u, du=None, coefficient_derivatives=None):
+    if not isinstance(F, (list, tuple)):
+        raise TypeError("Expecting F to be a list of Forms. Found: %s" % str(F))
+
+    if not isinstance(u, (list, tuple)):
+        raise TypeError("Expecting u to be a list of Coefficients. Found: %s" % str(u))
+
+    if du is not None:
+        if not isinstance(du, (list, tuple)):
+            raise TypeError("Expecting du to be a list of Arguments. Found: %s" % str(u))
+
+    import itertools
+    import ufl
+    from ufl.algorithms.apply_derivatives import apply_derivatives
+    from ufl.algorithms.apply_algebra_lowering import apply_algebra_lowering
+
+    m, n = len(u), len(F)
+
+    if du is None:
+        du = [None] * m
+
+    J = [[None for _ in range(m)] for _ in range(n)]
+
+    for (i, j) in itertools.product(range(n), range(m)):
+        gateaux_derivative = ufl.derivative(F[i], u[j], du[j], coefficient_derivatives)
+        gateaux_derivative = apply_derivatives(apply_algebra_lowering(gateaux_derivative))
+        if gateaux_derivative.empty():
+            gateaux_derivative = None
+        J[i][j] = gateaux_derivative
+
+    return J
+
+
 class GenericSNESProblem():
     def __init__(self, a, L, P, bcs, soln_vars,
                  assemble_type=MatrixType.monolithic,

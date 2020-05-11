@@ -399,7 +399,8 @@ class StokesOperator(DGFemFormulation):
         DGFemFormulation.__init__(self, mesh, fspace, bcs)
         self.F_v = F_v
 
-    def generate_fem_formulation(self, u, v, p, q, dx=None, dS=None, penalty=None):
+    def generate_fem_formulation(self, u, v, p, q, dx=None, dS=None,
+                                 penalty=None, block_form=False):
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
         if dS is None:
@@ -412,15 +413,31 @@ class StokesOperator(DGFemFormulation):
         if penalty is None:
             penalty = generate_default_sipg_penalty_term(u)
 
-        vt = DGFemStokesTerm(self.F_v, u, p, v, q, penalty, G, n, delta)
+        vt = DGFemStokesTerm(self.F_v, u, p, v, q, penalty, G, n, delta,
+                             block_form=block_form)
 
-        residual = inner(self.F_v(u, grad(u)), grad(v))*dx + q*ufl.div(u)*dx
-        residual += vt.interior_residual(dS)
+        residual = [ufl.inner(self.F_v(u, grad(u)), grad(v))*dx,
+                    q*ufl.div(u)*dx]
+        if not block_form:
+            residual = sum(residual)
+
+        def _add_to_residual(residual, r):
+            if block_form:
+                for j in range(len(r)):
+                    residual[j] += r[j]
+            else:
+                residual += r
+            return residual
+
+        residual = _add_to_residual(residual, vt.interior_residual(dS))
 
         for dbc in self.dirichlet_bcs:
-            residual += vt.exterior_residual(dbc.get_function(), dbc.get_boundary())
+            residual = _add_to_residual(residual, vt.exterior_residual(dbc.get_function(), dbc.get_boundary()))
 
         for dbc in self.neumann_bcs:
-            residual += vt.neumann_residual(dbc.get_function(), dbc.get_boundary())
+            elliptic_neumann_term = vt.neumann_residual(dbc.get_function(), dbc.get_boundary())
+            if block_form:
+                elliptic_neumann_term = [elliptic_neumann_term, 0]
+            residual = _add_to_residual(residual, elliptic_neumann_term)
 
         return residual
