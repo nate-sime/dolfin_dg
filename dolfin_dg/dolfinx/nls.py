@@ -1,4 +1,5 @@
 import enum
+import ufl
 import dolfinx
 from petsc4py import PETSc
 
@@ -7,6 +8,59 @@ class MatrixType(enum.Enum):
     monolithic = enum.auto()
     block = enum.auto()
     nest = enum.auto()
+
+
+class SeparateSpaceFormSplitter(ufl.corealg.multifunction.MultiFunction):
+
+    def split(self, form, v, u=None):
+        self.vu = tuple((v, u))
+        return ufl.algorithms.map_integrands.map_integrand_dags(self, form)
+
+    def argument(self, obj):
+        if not obj in self.vu:
+            return ufl.constantvalue.Zero(shape=obj.ufl_shape)
+        return obj
+
+    expr = ufl.corealg.multifunction.MultiFunction.reuse_if_untouched
+
+
+def extract_rows(F, v):
+    vn = len(v)
+    L = [None for _ in range(vn)]
+
+    fs = SeparateSpaceFormSplitter()
+
+    for vi in range(vn):
+        L[vi] = fs.split(F, v[vi])
+        L[vi] = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(L[vi])
+        L[vi] = ufl.algorithms.apply_derivatives.apply_derivatives(L[vi])
+
+    return L
+
+
+def extract_blocks(F, u, v):
+    un, vn = len(u), len(v)
+    a = [[None for _ in range(un)] for _ in range(vn)]
+
+    fs = SeparateSpaceFormSplitter()
+
+    for vi in range(vn):
+        for ui in range(un):
+            a[vi][ui] = fs.split(F, v[vi], u[ui])
+            a[vi][ui] = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(a[vi][ui])
+            a[vi][ui] = ufl.algorithms.apply_derivatives.apply_derivatives(a[vi][ui])
+
+    return a
+
+
+def extract_block_linear_system(F, u, v):
+    F_a = extract_blocks(F, u, v)
+    F_L = extract_rows(F, u, v)
+
+    a = list(list(map(ufl.lhs, row)) for row in F_a)
+    L = list(map(ufl.rhs, F_L))
+
+    return a, L
 
 
 def derivative_block(F, u, du=None, coefficient_derivatives=None):

@@ -15,6 +15,7 @@ def u_soln_f(x):
     return np.sin(np.pi*x[0])*np.sin(np.pi*x[1])
 
 
+poly_o = 2
 n_eles = [8, 16, 32]
 l2errors_u = np.zeros_like(n_eles, dtype=np.double)
 l2errors_p = np.zeros_like(n_eles, dtype=np.double)
@@ -24,9 +25,9 @@ hs = np.zeros_like(n_eles, dtype=np.double)
 for run_no, n_ele in enumerate(n_eles):
 
     mesh = dolfinx.UnitSquareMesh(comm, n_ele, n_ele)
-    Ve_high = ufl.FiniteElement("CG", mesh.ufl_cell(), 4)
-    Ve = ufl.FiniteElement("DG", mesh.ufl_cell(), 1)
-    Vbare = ufl.FiniteElement("DGT", mesh.ufl_cell(), 1)
+    Ve_high = ufl.FiniteElement("CG", mesh.ufl_cell(), poly_o+2)
+    Ve = ufl.FiniteElement("DG", mesh.ufl_cell(), poly_o)
+    Vbare = ufl.FiniteElement("DGT", mesh.ufl_cell(), poly_o)
 
     W = dolfinx.FunctionSpace(mesh, ufl.MixedElement([Ve, Vbare]))
     V = W.sub(0).collapse()
@@ -46,7 +47,7 @@ for run_no, n_ele in enumerate(n_eles):
     gD.interpolate(u_soln_f)
     gDbar.interpolate(u_soln_f)
 
-    alpha = dolfinx.Constant(mesh, 1.0)
+    alpha = dolfinx.Constant(mesh, 10.0 * Ve.degree()**2)
     h = ufl.CellDiameter(mesh)
     b = dolfinx.Constant(mesh, (1, 1))
 
