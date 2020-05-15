@@ -108,9 +108,6 @@ for run_no, n_ele in enumerate(n_eles):
     snes.getKSP().getPC().setFactorSolverType("mumps")
     snes.solve(None, U.vector)
 
-    # print(snes.getConvergedReason())
-    # print(snes.getKSP().getConvergedReason())
-
     l2error_u = comm.allreduce(
         dolfinx.fem.assemble.assemble_scalar((u - u_soln) ** 2 * ufl.dx) ** 0.5,
         op=MPI.SUM)
