@@ -3,6 +3,7 @@ import numpy as np
 import ufl
 import dolfinx
 import dolfin_dg
+import dolfin_dg.hdg_form
 import dolfin_dg.dolfinx
 import numpy
 import numba
@@ -13,10 +14,11 @@ comm = MPI.COMM_WORLD
 
 def u_soln_f(x):
     return np.sin(np.pi*x[0])*np.sin(np.pi*x[1])
+    # return np.exp(x[0] - x[1])
 
 
-poly_o = 2
-n_eles = [8, 16, 32]
+poly_o = 3
+n_eles = [8, 16, 32, 64]
 l2errors_u = np.zeros_like(n_eles, dtype=np.double)
 l2errors_p = np.zeros_like(n_eles, dtype=np.double)
 hs = np.zeros_like(n_eles, dtype=np.double)
@@ -52,27 +54,35 @@ for run_no, n_ele in enumerate(n_eles):
     h = ufl.CellDiameter(mesh)
     b = dolfinx.Constant(mesh, (1, 1))
 
-    f = -ufl.div(ufl.grad(u_soln)) + ufl.div(b*u_soln)
-
     n = ufl.FacetNormal(mesh)
-    zeta = ufl.conditional(ufl.ge(ufl.dot(b, n), 0), 0, 1)
-
-    def facet_integral(integrand):
-        return integrand('-') * ufl.dS + integrand('+') * ufl.dS + integrand * ufl.ds
 
     # Second order terms
-    F = ufl.dot(ufl.grad(u), ufl.grad(v)) * ufl.dx \
-        - f * v * ufl.dx
+    kappa = dolfinx.Constant(mesh, 2.0)
+    def F_v(u, grad_u):
+        return (kappa + u**2) * grad_u
 
-    F += - facet_integral((u - ubar)*ufl.dot(ufl.grad(v), n)) \
-         + facet_integral(ufl.dot(-ufl.grad(u) - alpha/h * n * (ubar - u), n) * v)
+    F = ufl.inner(F_v(u, ufl.grad(u)), ufl.grad(v)) * ufl.dx
 
-    F -= facet_integral(ufl.dot(-ufl.grad(u) - alpha/h * n * (ubar - u), n) * vbar)
+    sigma = alpha / h
+    G = dolfin_dg.homogeneity_tensor(F_v, u)
+    hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(F_v, u, ubar, v, vbar, sigma, G, n)
+
+    F += hdg_term.face_residual(ufl.dS, ufl.ds)
 
     # First order terms
-    F += - ufl.inner(b*u, ufl.grad(v)) * ufl.dx
-    F += facet_integral(ufl.inner((1 - zeta) * ufl.dot(b*u, n) + zeta * ufl.dot(b*ubar, n), v))
-    F -= facet_integral(ufl.inner((1 - zeta) * ufl.dot(b*u, n) + zeta * ufl.dot(b*ubar, n), vbar))
+    def F_c(u):
+        return b * u ** 2
+
+    F += -ufl.inner(F_c(u), ufl.grad(v)) * ufl.dx
+
+    H_flux = dolfin_dg.LocalLaxFriedrichs(flux_jacobian_eigenvalues=lambda u, n: 2 * u * ufl.dot(b, n))
+    hdg_fo_term = dolfin_dg.hdg_form.HDGClassicalFirstOrder(F_c, u, ubar, v, vbar, H_flux, n)
+
+    F += hdg_fo_term.face_residual(ufl.dS, ufl.ds)
+
+    # Volume source
+    f = ufl.div(F_c(u_soln) - F_v(u_soln, ufl.grad(u_soln)))
+    F += - f * v * ufl.dx
 
     J = ufl.derivative(F, U)
 
@@ -97,6 +107,9 @@ for run_no, n_ele in enumerate(n_eles):
     snes.getKSP().getPC().setType("lu")
     snes.getKSP().getPC().setFactorSolverType("mumps")
     snes.solve(None, U.vector)
+
+    # print(snes.getConvergedReason())
+    # print(snes.getKSP().getConvergedReason())
 
     l2error_u = comm.allreduce(
         dolfinx.fem.assemble.assemble_scalar((u - u_soln) ** 2 * ufl.dx) ** 0.5,
