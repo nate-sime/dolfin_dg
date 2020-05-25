@@ -67,7 +67,7 @@ for run_no, n_ele in enumerate(n_eles):
         return 2*(sym(grad_u) - 1.0/3.0*tr(grad_u)*Identity(2)) - p_local*Identity(2)
 
     gN = F_v(rho*u_soln, grad(rho*u_soln), p_soln)*n
-    F = inner(F_v(rhou, grad(rhou), p), grad(v)) * dx - dot(gN, v) * dsN
+    F = inner(F_v(rhou, grad(rhou), p), grad(v)) * dx - dot(gN, vbar) * dsN
 
     sigma = alpha / h
     G = dolfin_dg.homogeneity_tensor(F_v, rhou)
@@ -118,11 +118,6 @@ for run_no, n_ele in enumerate(n_eles):
 
     l2error_p = assemble((p - p_soln)**2*dx)**0.5
     h1error_p = assemble(inner(grad(p - p_soln), grad(p - p_soln))*dx)**0.5
-
-    print("u e", l2error_u, h1error_u, "p e", l2error_p, h1error_p, "div", assemble(div(rhou)**2*dx)**0.5)
-
-    XDMFFile("rhou%d.xdmf" % n_ele).write_checkpoint(U_.sub(0), "rhou")
-    XDMFFile("rhou_soln%d.xdmf" % n_ele).write_checkpoint(project(rho*u_soln, VectorFunctionSpace(mesh, "CG", 2)), "rhou_soln")
 
     hs[run_no] = MPI.min(mesh.mpi_comm(), mesh.hmin())
     l2errors_u_l2[run_no] = l2error_u
