@@ -51,7 +51,7 @@ def dg_outer(*args):
 def homogeneity_tensor(F_v, u, differential_operator=grad):
     if len(inspect.getfullargspec(F_v).args) < 2:
         raise TypeError("Function F_v must have at least 2 arguments, "
-                        "(u, grad_u, *args **kwargs)")
+                        "(u, grad_u, *args, **kwargs)")
 
     diff_op_u = variable(differential_operator(u))
     tau = F_v(u, diff_op_u)
