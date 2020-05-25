@@ -24,7 +24,7 @@ class HDGFemTerm(abc.ABC):
 
     @abc.abstractmethod
     def neumann_residual(self, g_N, dExt):
-        return -inner(g_N, self.V)*dExt
+        pass
 
 
 class HDGClassicalSecondOrder(HDGFemTerm):
@@ -52,7 +52,7 @@ class HDGClassicalSecondOrder(HDGFemTerm):
         return residual
 
     def neumann_residual(self, g_N, dExt):
-        return -ufl.inner(g_N, self.V)*dExt
+        return -ufl.inner(g_N, self.vbar)*dExt
 
 
 class HDGClassicalFirstOrder:
@@ -85,4 +85,4 @@ class HDGClassicalFirstOrder:
         return residual
 
     def neumann_residual(self, g_N, dExt):
-        return -ufl.inner(g_N, self.V)*dExt
+        return -ufl.inner(g_N, self.vbar)*dExt
