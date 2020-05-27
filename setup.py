@@ -23,5 +23,4 @@ setup(name="dolfin_dg",
       package_dir={"dolfin_dg": "dolfin_dg"},
       packages=["dolfin_dg",
                 "dolfin_dg.dolfin",
-                "dolfin_dg.dolfinx"],
-      install_requires=["numpy", "matplotlib"])
+                "dolfin_dg.dolfinx"])
