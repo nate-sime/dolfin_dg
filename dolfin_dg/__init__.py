@@ -50,7 +50,6 @@ from .aero import \
 from .nitsche import NitscheBoundary, StokesNitscheBoundary
 
 
-# Optional dolfin utility functions
-# from .dolfin import *
-# from dolfin_dg import dolfinx
-# import dolfin_dg.dolfinx.nls
+# Block operation utilities
+from .block import extract_rows, extract_blocks, extract_block_linear_system, \
+    derivative_block

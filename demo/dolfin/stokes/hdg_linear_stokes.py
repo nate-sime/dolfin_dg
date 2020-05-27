@@ -85,9 +85,8 @@ for run_no, n_ele in enumerate(n_eles):
     bcs = [DirichletBC(Wbar.sub(0), u_soln, ff, 1)]
 
     # Construct local and global block components
-    import dolfin_dg.dolfinx.nls
-    Fr = dolfin_dg.dolfinx.nls.extract_rows(F, [V_, Vbar_])
-    J = dolfin_dg.dolfinx.nls.derivative_block(Fr, [U_, Ubar_])
+    Fr = dolfin_dg.extract_rows(F, [V_, Vbar_])
+    J = dolfin_dg.derivative_block(Fr, [U_, Ubar_])
 
     Fr[0] = -Fr[0]
     Fr[1] = -Fr[1]

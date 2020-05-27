@@ -118,7 +118,7 @@ for matrixtype in matrixtypes:
         else:
             F[0] -= ufl.inner(f, v) * ufl.dx
 
-        J = dolfin_dg.dolfinx.nls.derivative_block(F, U)
+        J = dolfin_dg.derivative_block(F, U)
 
         P = None
         if matrixtype is not dolfin_dg.dolfinx.MatrixType.monolithic:
