@@ -6,7 +6,7 @@ from dolfin import Function, FunctionSpace, VectorElement, \
 
 
 def test_block_split():
-    mesh = UnitSquareMesh(1, 1)
+    mesh = UnitSquareMesh(4, 4)
 
     Ve = VectorElement("CG", mesh.ufl_cell(), 1)
     Qe = FiniteElement("CG", mesh.ufl_cell(), 1)
