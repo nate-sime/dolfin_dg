@@ -21,5 +21,4 @@ setup(name="dolfin_dg",
       url="",
       license="",
       package_dir={"dolfin_dg": "dolfin_dg"},
-      packages=["dolfin_dg"],
-      install_requires=["numpy", "matplotlib", "ufl"])
+      packages=["dolfin_dg"])
