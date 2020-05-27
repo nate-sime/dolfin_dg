@@ -55,7 +55,7 @@ def extract_blocks(F, u, v):
 
 def extract_block_linear_system(F, u, v):
     F_a = extract_blocks(F, u, v)
-    F_L = extract_rows(F, u, v)
+    F_L = extract_rows(F, v)
 
     a = list(list(map(ufl.lhs, row)) for row in F_a)
     L = list(map(ufl.rhs, F_L))
