@@ -1,4 +1,5 @@
 import pytest
+import dolfin_dg
 from dolfin import Function, FunctionSpace, VectorElement, \
     FiniteElement, Identity, grad, div, inner, dx, \
     as_backend_type, assemble, TrialFunction, FacetNormal, \
@@ -26,8 +27,6 @@ def test_block_split():
     F0 = inner(2 * mu * sym(grad(u)) - p * Identity(2), grad(v)) * dx
     F1 = inner(q, div(u)) * dx
     F = sum((F0, F1))
-
-    import dolfin_dg.dolfinx.nls
 
     # Test rows
     rows = dolfin_dg.extract_rows(F, [v, q])
