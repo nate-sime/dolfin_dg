@@ -8,10 +8,10 @@ except ImportError:
     from distutils.core import setup
 
 if sys.version_info < (3, 6):
-    print("Python 3.6 or higher required, please upgrade.")
+    print("Python 3.6 or higher required.")
     sys.exit(1)
 
-version = '2019.5.8'
+version = '2019.6.11'
 
 setup(name="dolfin_dg",
       description="Utility module for automatic generation of DG FE formulations.",

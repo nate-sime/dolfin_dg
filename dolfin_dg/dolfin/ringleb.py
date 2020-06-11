@@ -47,7 +47,7 @@ def ringleb_anal_soln(x, y):
     jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
     rho = c ** (2.0 / gb)
     q2 = 2.0 * (1.0 - c ** 2) / gb
-    qval = np.sqrt(q2)
+    # qval = np.sqrt(q2)
     kval = np.sqrt(2.0 / (1.0 / q2 - 2.0 * rho * (x - jval / 2.0)))
 
     v = q2 / kval
@@ -190,10 +190,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
         for n in range(1, nq + 1):
             qval = qr[n - 1]
             # qval = min(qval,kval)
-            psi = 1.0 / kmax
-            theta = np.arcsin(psi * qval)
-            u = qval * np.cos(theta)
-            v = qval * np.sin(theta)
+            # psi = 1.0 / kmax
+            # theta = np.arcsin(psi * qval)
+            # u = qval * np.cos(theta)
+            # v = qval * np.sin(theta)
             c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
             rho = c ** (2.0 / gb)
             jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
@@ -226,10 +226,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
     for n in range(2, nq + 1):
         qval = qr[n - 1]
         # qval = min(qval,kval)
-        psi = 1.0 / kmax
-        theta = np.arcsin(psi * qval)
-        u = qval * np.cos(theta)
-        v = qval * np.sin(theta)
+        # psi = 1.0 / kmax
+        # theta = np.arcsin(psi * qval)
+        # u = qval * np.cos(theta)
+        # v = qval * np.sin(theta)
         c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
         rho = c ** (2.0 / gb)
         jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
@@ -250,10 +250,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
             kval = kt[n - 1]
             qval = qmin
             # qval = min(qval,kval)
-            psi = 1.0 / kval
-            theta = np.arcsin(psi * qval)
-            u = qval * np.cos(theta)
-            v = qval * np.sin(theta)
+            # psi = 1.0 / kval
+            # theta = np.arcsin(psi * qval)
+            # u = qval * np.cos(theta)
+            # v = qval * np.sin(theta)
             c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
             rho = c ** (2.0 / gb)
             jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
@@ -289,10 +289,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
         kval = kt[nk - n]
         qval = qmin
         # qval = min(qval,kval)
-        psi = 1.0 / kval
-        theta = np.arcsin(psi * qval)
-        u = qval * np.cos(theta)
-        v = qval * np.sin(theta)
+        # psi = 1.0 / kval
+        # theta = np.arcsin(psi * qval)
+        # u = qval * np.cos(theta)
+        # v = qval * np.sin(theta)
         c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
         rho = c ** (2.0 / gb)
         jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
@@ -312,10 +312,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
         for n in range(1, nq + 1):
             qval = ql[n - 1]
             # qval = min(qval,kval)
-            psi = 1.0 / kval
-            theta = np.arcsin(psi * qval)
-            u = qval * np.cos(theta)
-            v = qval * np.sin(theta)
+            # psi = 1.0 / kval
+            # theta = np.arcsin(psi * qval)
+            # u = qval * np.cos(theta)
+            # v = qval * np.sin(theta)
             c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
             rho = c ** (2.0 / gb)
             jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
@@ -350,10 +350,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
         qval = ql[nq - n]
         kl[nq - n] = kval
         # qval = min(qval,kval)
-        psi = 1.0 / kval
-        theta = np.arcsin(psi * qval)
-        u = qval * np.cos(theta)
-        v = qval * np.sin(theta)
+        # psi = 1.0 / kval
+        # theta = np.arcsin(psi * qval)
+        # u = qval * np.cos(theta)
+        # v = qval * np.sin(theta)
         c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
         rho = c ** (2.0 / gb)
         jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
@@ -376,10 +376,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
             for n in range(1, nq + 1):
                 qval = qq[n - 1]
                 qval = min(qval, kval)
-                psi = 1.0 / kval
-                theta = np.arcsin(psi * qval)
-                u = qval * np.cos(theta)
-                v = qval * np.sin(theta)
+                # psi = 1.0 / kval
+                # theta = np.arcsin(psi * qval)
+                # u = qval * np.cos(theta)
+                # v = qval * np.sin(theta)
                 c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
                 rho = c ** (2.0 / gb)
                 jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
@@ -411,10 +411,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
         for n in range(2, nq):
             qval = qq[n - 1]
             qval = min(qval, kval)
-            psi = 1.0 / kval
-            theta = np.arcsin(psi * qval)
-            u = qval * np.cos(theta)
-            v = qval * np.sin(theta)
+            # psi = 1.0 / kval
+            # theta = np.arcsin(psi * qval)
+            # u = qval * np.cos(theta)
+            # v = qval * np.sin(theta)
             c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
             rho = c ** (2.0 / gb)
             jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))

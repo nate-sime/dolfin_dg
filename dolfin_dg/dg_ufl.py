@@ -108,8 +108,8 @@ class TensorJump(Jump):
         self.ufl_index_dimensions = fid
 
     def __str__(self):
-        return "〚%s ⊗ %s〛" % (parstr(self.ufl_operands[0], self),
-                                  parstr(self.ufl_operands[1], self))
+        o1, o2 = parstr(self.ufl_operands[0], self), parstr(self.ufl_operands[1], self)
+        return "〚%s ⊗ %s〛" % (o1, o2)
 
     @property
     def ufl_shape(self):
@@ -239,4 +239,3 @@ def apply_jump_lowering(expression):
     rules = JumpLowering()
     return map_integrand_dags(rules, expression,
                               only_integral_type=integral_types)
-

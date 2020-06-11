@@ -1,15 +1,20 @@
 import ufl
-from dolfin import *
+from dolfin import (
+    FunctionSpace, Function, TrialFunction, TestFunction, solve,
+    PETScKrylovSolver, PETScMatrix, PETScVector,
+    assemble_system, info, derivative, MeshFunction, cells, DirichletBC,
+    assemble
+)
 
 from dolfin_dg.dolfin.mark import Marker
 
 
 def dual(form, w, z=None):
-    if not z is None:
+    if z is not None:
         v, u = form.arguments()
         return ufl.replace(form, {u: w, v: z})
     u = form.arguments()[0]
-    return replace(form, {u: w})
+    return ufl.replace(form, {u: w})
 
 
 class NonlinearAPosterioriEstimator:

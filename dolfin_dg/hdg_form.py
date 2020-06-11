@@ -37,13 +37,14 @@ class HDGClassicalSecondOrder(HDGFemTerm):
         sigma, n = self.sigma, self.n
 
         # Redefine the facet integral for the provided measures
-        facet_int = lambda integrand: facet_integral(integrand, dInt, dExt)
+        def facet_int(integrand):
+            return facet_integral(integrand, dInt, dExt)
 
         u_flux = ubar
         F_v_flux = self.F_v(u, grad_u) + sigma * hyper_tensor_product(G, ufl.outer(u_flux - u, n))
 
         residual0 = facet_int(ufl.inner(ufl.outer(u_flux - u, n), hyper_tensor_T_product(G, grad_v))) \
-                    - facet_int(ufl.inner(F_v_flux, ufl.outer(v, n))) \
+            - facet_int(ufl.inner(F_v_flux, ufl.outer(v, n))) \
 
         residual1 = facet_int(ufl.inner(F_v_flux, ufl.outer(vbar, n)))
 
@@ -70,7 +71,8 @@ class HDGClassicalFirstOrder:
         n = self.n
 
         # Redefine the facet integral for the provided measures
-        facet_int = lambda integrand: facet_integral(integrand, dInt, dExt)
+        def facet_int(integrand):
+            return facet_integral(integrand, dInt, dExt)
 
         S = abs(self.H_flux.flux_jacobian_eigenvalues(ubar, n))
 

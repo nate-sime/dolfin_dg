@@ -8,7 +8,7 @@ class SeparateSpaceFormSplitter(ufl.corealg.multifunction.MultiFunction):
         return ufl.algorithms.map_integrands.map_integrand_dags(self, form)
 
     def argument(self, obj):
-        if not obj in self.vu:
+        if obj not in self.vu:
             return ufl.constantvalue.Zero(shape=obj.ufl_shape)
         return obj
 

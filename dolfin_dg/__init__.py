@@ -4,6 +4,7 @@ __author__ = 'njcs4'
 
 from .dg_form import \
     DGFemTerm, DGFemSIPG, DGFemNIPG, DGFemBO, \
+    DGFemCurlTerm, DGFemStokesTerm, \
     hyper_tensor_product, hyper_tensor_T_product, \
     homogeneity_tensor, \
     dg_cross, dg_outer, \
@@ -28,8 +29,7 @@ from .operators import \
     MaxwellOperator, \
     SpacetimeBurgersOperator, \
     StokesOperator, \
-    DGNeumannBC, DGDirichletBC, DGDirichletNormalBC, DGAdiabticWallBC, \
-    DGFemTerm, DGFemCurlTerm, DGFemStokesTerm
+    DGNeumannBC, DGDirichletBC, DGDirichletNormalBC, DGAdiabticWallBC
 
 
 # Compressible flow utility functions

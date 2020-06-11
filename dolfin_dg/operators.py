@@ -176,8 +176,7 @@ class HyperbolicOperator(DGFemFormulation):
         return residual
 
 
-class SpacetimeBurgersOperator(
-    HyperbolicOperator):
+class SpacetimeBurgersOperator(HyperbolicOperator):
 
     def __init__(self, mesh, V, bcs, flux=None):
 
@@ -190,8 +189,7 @@ class SpacetimeBurgersOperator(
         HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, flux)
 
 
-class CompressibleEulerOperator(
-    HyperbolicOperator):
+class CompressibleEulerOperator(HyperbolicOperator):
 
     def __init__(self, mesh, V, bcs, gamma=1.4):
         try:
@@ -205,7 +203,7 @@ class CompressibleEulerOperator(
             H = aero.enthalpy(U, gamma=gamma)
 
             res = as_matrix([[*rho*u],
-                             *([*(rho*ufl.outer(u, u) + p*Identity(dim))[d,:]] for d in range(dim)),
+                             *([*(rho*ufl.outer(u, u) + p*Identity(dim))[d, :]] for d in range(dim)),
                              [*rho*H*u]])
 
             return res
@@ -220,9 +218,7 @@ class CompressibleEulerOperator(
         HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
 
 
-class CompressibleNavierStokesOperator(
-    EllipticOperator,
-    CompressibleEulerOperator):
+class CompressibleNavierStokesOperator(EllipticOperator, CompressibleEulerOperator):
 
     def __init__(self, mesh, V, bcs, gamma=1.4, mu=1.0, Pr=0.72):
         try:
@@ -240,18 +236,18 @@ class CompressibleNavierStokesOperator(
 
             # TODO: check this
             grad_rho = grad_U[0, :]
-            grad_rhou = as_matrix([*([*grad_U[j,:]] for j in range(1, dim + 1))])
+            grad_rhou = as_matrix([*([*grad_U[j, :]] for j in range(1, dim + 1))])
             sz = len(U)
-            grad_rhoE = grad_U[sz-1,:]
+            grad_rhoE = grad_U[sz-1, :]
             # Quotient rule to find grad(u) and grad(E)
-            grad_u = as_matrix([*([*(grad_rhou[j,:]*rho - rhou[j]*grad_rho)/rho**2] for j in range(dim))])
+            grad_u = as_matrix([*([*(grad_rhou[j, :]*rho - rhou[j]*grad_rho)/rho**2] for j in range(dim))])
             grad_E = (grad_rhoE*rho - rhoE*grad_rho)/rho**2
 
             tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(dim))
             K_grad_T = mu*gamma/Pr*(grad_E - dot(u, grad_u))
 
             res = as_matrix([[0]*dim,
-                             *([*tau[d,:]] for d in range(dim)),
+                             *([*tau[d, :]] for d in range(dim)),
                              [*(tau * u + K_grad_T)]])
             return res
 
@@ -262,13 +258,13 @@ class CompressibleNavierStokesOperator(
 
             # TODO: check this
             grad_rho = grad_U[0, :]
-            grad_rhou = as_matrix([[grad_U[j,:] for j in range(1, dim + 1)]])[0]
-            grad_u = as_matrix([[(grad_rhou[j,:]*rho - rhou[j]*grad_rho)/rho**2 for j in range(dim)]])[0]
+            grad_rhou = as_matrix([[grad_U[j, :] for j in range(1, dim + 1)]])[0]
+            grad_u = as_matrix([[(grad_rhou[j, :]*rho - rhou[j]*grad_rho)/rho**2 for j in range(dim)]])[0]
 
             tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(dim))
 
             res = as_matrix([[0]*dim,
-                             *([*tau[d,:]] for d in range(dim)),
+                             *([*tau[d, :]] for d in range(dim)),
                              [*(tau * u)]])
             return res
 
@@ -313,8 +309,7 @@ def V_to_U(V, gamma):
     return U
 
 
-class CompressibleEulerOperatorEntropyFormulation(
-    HyperbolicOperator):
+class CompressibleEulerOperatorEntropyFormulation(HyperbolicOperator):
 
     def __init__(self, mesh, V, bcs, gamma=1.4):
 
@@ -343,8 +338,8 @@ class CompressibleEulerOperatorEntropyFormulation(
 
 
 class CompressibleNavierStokesOperatorEntropyFormulation(
-    EllipticOperator,
-    CompressibleEulerOperatorEntropyFormulation):
+        EllipticOperator,
+        CompressibleEulerOperatorEntropyFormulation):
 
     def __init__(self, mesh, V, bcs, gamma=1.4, mu=1.0, Pr=0.72):
 
