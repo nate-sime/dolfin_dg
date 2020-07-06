@@ -1,6 +1,5 @@
 import numpy as np
 from dolfin import *
-import dolfin_dg
 import dolfin_dg.hdg_form
 import leopart
 
@@ -14,19 +13,11 @@ hs = np.zeros_like(n_eles, dtype=np.double)
 
 for run_no, n_ele in enumerate(n_eles):
 
-    mesh = UnitSquareMesh(n_ele, n_ele)
+    mesh = RectangleMesh(Point(-1, -1), Point(1, 1), n_ele, n_ele, "left/right")
     Ve_high = FiniteElement("CG", mesh.ufl_cell(), poly_o+2)
     Ve = FiniteElement("DG", mesh.ufl_cell(), poly_o)
     Vbare = FiniteElement("CG", mesh.ufl_cell(), poly_o)["facet"]
 
-    ff = MeshFunction("size_t", mesh, mesh.topology().dim()-1, 2)
-    CompiledSubDomain("near(x[0], 0.0) or near(x[1], 0.0)").mark(ff, 1)
-    ds = Measure("ds", subdomain_data=ff)
-    dsD = ds(1)
-    dsN = ds(2)
-
-    # u_soln_f = Expression("sin(pi * x[0]) * sin(pi * x[1]) + 1",
-    #                       degree=poly_o+2)
     u_soln_f = Expression("1 + sin(pi*(1 + x[0])*pow(1 + x[1], 2) / 8.0)",
                           degree=poly_o+2)
 
@@ -46,49 +37,26 @@ for run_no, n_ele in enumerate(n_eles):
 
     alpha = Constant(10.0 * Ve.degree()**2)
     h = CellDiameter(mesh)
-    b = Constant((0.6, 0.8))
 
     n = FacetNormal(mesh)
 
-    # Second order terms
-    kappa = Constant(1.0)
+    a = Constant((0.8, 0.6))
+    g = -dot(a, n)*gD
 
-    def F_v(u, grad_u):
-        return kappa * grad_u
-
-    F = inner(F_v(u, grad(u)), grad(v)) * dx
-
-    sigma = alpha / h
-    G = dolfin_dg.homogeneity_tensor(F_v, u)
-    hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(F_v, u, ubar, v, vbar, sigma, G, n)
-
-    F += hdg_term.face_residual(dS, ds)
-
-    # First order terms
     def F_c(u):
-        return b * u
-
-    F += -inner(F_c(u), grad(v)) * dx
-
-    H_flux = dolfin_dg.LocalLaxFriedrichs(
-        flux_jacobian_eigenvalues=lambda u, n: dot(b, n))
-    hdg_fo_term = dolfin_dg.hdg_form.HDGClassicalFirstOrder(
-        F_c, u, ubar, v, vbar, H_flux, n,
-        dg_bcs=[dolfin_dg.DGDirichletBC(dsD, u_soln)])
-
-    F += hdg_fo_term.face_residual(dS, ds)
-
-    # Neumann BC
-    gN = dot(-F_c(u_soln) + F_v(u_soln, grad(u_soln)), n)
-    F -= gN * vbar * dsN
+        return a*u
 
     # Volume source
-    f = div(F_c(u_soln) - F_v(u_soln, grad(u_soln)))
-    F += - f * v * dx
+    f = div(a*gD)
+    F = -inner(F_c(u), grad(v))*dx - f*v*dx
 
-    # bcs = []
-    bcs = [DirichletBC(Vbar, gDbar, ff, 1)]
-    # bcs = [DirichletBC(Vbar, gDbar, "on_boundary")]
+    H_flux = dolfin_dg.LocalLaxFriedrichs(
+        flux_jacobian_eigenvalues=lambda u, n: dot(a, n))
+    hdg_fo_term = dolfin_dg.hdg_form.HDGClassicalFirstOrder(
+        F_c, u, ubar, v, vbar, H_flux, n,
+        dg_bcs=[dolfin_dg.DGDirichletBC(ds, gD)])
+
+    F += hdg_fo_term.face_residual(dS, ds)
 
     Fr = dolfin_dg.extract_rows(F, [v, vbar])
     J = dolfin_dg.derivative_block(Fr, [u, ubar])
@@ -111,9 +79,6 @@ for run_no, n_ele in enumerate(n_eles):
         Fr[0], Fr[1])
 
     ssc.assemble_global_system(True)
-    time = Timer("ZZZ Stokes solve")
-    for bc in bcs:
-        ssc.apply_boundary(bc)
     ssc.solve_problem(ubar.cpp_object(), u.cpp_object(), "mumps", "default")
 
     l2error_u = errornorm(u_soln_f, u, "l2")
@@ -122,9 +87,6 @@ for run_no, n_ele in enumerate(n_eles):
     hs[run_no] = MPI.min(mesh.mpi_comm(), mesh.hmin())
     l2errors_u_l2[run_no] = l2error_u
     l2errors_u_h1[run_no] = h1error_u
-
-from vtkplotter.dolfin import plot
-plot(u)
 
 rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / np.log(hs[:-1] / hs[1:])
 rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / np.log(hs[:-1] / hs[1:])

@@ -1,7 +1,8 @@
 import abc
 import ufl
 
-from dolfin_dg import hyper_tensor_product, hyper_tensor_T_product
+from dolfin_dg import hyper_tensor_product, hyper_tensor_T_product, \
+    DGDirichletBC
 
 
 def facet_integral(integrand, dS, ds):
@@ -29,7 +30,7 @@ class HDGFemTerm(abc.ABC):
 
 class HDGClassicalSecondOrder(HDGFemTerm):
 
-    def face_residual(self, dInt, dExt):
+    def face_residual(self, dInt, dExt, u_flux=None):
         G = self.G
         u, ubar = self.u, self.ubar
         v, vbar = self.v, self.vbar
@@ -40,7 +41,8 @@ class HDGClassicalSecondOrder(HDGFemTerm):
         def facet_int(integrand):
             return facet_integral(integrand, dInt, dExt)
 
-        u_flux = ubar
+        if u_flux is None:
+            u_flux = ubar
         F_v_flux = self.F_v(u, grad_u) + sigma * hyper_tensor_product(G, ufl.outer(u_flux - u, n))
 
         residual0 = facet_int(ufl.inner(ufl.outer(u_flux - u, n), hyper_tensor_T_product(G, grad_v))) \
@@ -58,12 +60,13 @@ class HDGClassicalSecondOrder(HDGFemTerm):
 
 class HDGClassicalFirstOrder:
 
-    def __init__(self, F_c, u, ubar, v, vbar, H_flux, n):
+    def __init__(self, F_c, u, ubar, v, vbar, H_flux, n, dg_bcs=[]):
         self.F_c = F_c
         self.u, self.ubar = u, ubar
         self.v, self.vbar = v, vbar
         self.H_flux = H_flux
         self.n = n
+        self.dg_bcs = dg_bcs
 
     def face_residual(self, dInt, dExt):
         u, ubar = self.u, self.ubar
@@ -74,13 +77,35 @@ class HDGClassicalFirstOrder:
         def facet_int(integrand):
             return facet_integral(integrand, dInt, dExt)
 
-        S = abs(self.H_flux.flux_jacobian_eigenvalues(ubar, n))
+        # S = ufl.Min(self.H_flux.flux_jacobian_eigenvalues(ubar, n), 0)
+        #
+        # F_c_flux = ufl.dot(self.F_c(ubar), n) + S * (u - ubar)
+        #
+        # residual0 = facet_int(ufl.inner(F_c_flux, v))
+        #
+        # residual1 = -facet_int(ufl.inner(F_c_flux, vbar))
+        #
+        # residual = residual0 + residual1
 
-        F_c_flux = ufl.dot(self.F_c(ubar), n) + S * (u - ubar)
+        # Garth
+        S_p = ufl.Max(self.H_flux.flux_jacobian_eigenvalues(u, n), 0)
+        S_m = ufl.Min(self.H_flux.flux_jacobian_eigenvalues(u, n), 0)
 
-        residual0 = facet_int(ufl.inner(F_c_flux, v))
+        # interior
+        F_c_flux = S_p * u + S_m * ubar
+        residual0 = -facet_int(ufl.inner(F_c_flux, vbar - v))
 
-        residual1 = -facet_int(ufl.inner(F_c_flux, vbar))
+        # exterior
+        residual1 = 0
+        for bc in self.dg_bcs:
+            if not isinstance(bc, DGDirichletBC):
+                continue
+            ds_bc = bc.get_boundary()
+            gD = bc.get_function()
+
+            S_m = ufl.Min(self.H_flux.flux_jacobian_eigenvalues(gD, n), 0)
+            F_c_flux = S_p * ubar + S_m * gD
+            residual1 += ufl.inner(F_c_flux, vbar)*ds_bc
 
         residual = residual0 + residual1
 
