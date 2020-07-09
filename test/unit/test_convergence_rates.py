@@ -595,6 +595,7 @@ mixed_elements_for_testing = [
                   FiniteElement("CG", ufl.triangle, 1), ])
 ]
 
+
 @pytest.mark.parametrize("element", mixed_elements_for_testing)
 @pytest.mark.parametrize("conv_test", [NitscheMixedElement])
 def test_square_nitsche_cg_problems(conv_test, SquareMeshes, element):
