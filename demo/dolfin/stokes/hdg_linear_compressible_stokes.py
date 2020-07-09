@@ -5,7 +5,7 @@ import dolfin_dg.hdg_form
 import leopart
 
 
-k = 1
+k = 2
 n_eles = [2, 4, 8, 16, 32, 64]
 l2errors_u_l2 = np.zeros_like(n_eles, dtype=np.double)
 l2errors_u_h1 = np.zeros_like(n_eles, dtype=np.double)
@@ -63,7 +63,7 @@ for run_no, n_ele in enumerate(n_eles):
     def F_v(rhou, grad_rhou, p_local=None):
         if p_local is None:
             p_local = pbar
-        grad_u = as_matrix([[(grad_rhou[j,:]*rho - rhou[j]*grad(rho))/rho**2 for j in range(2)]])[0]
+        grad_u = (grad_rhou*rho - outer(rhou, grad(rho)))/rho**2
         return 2*(sym(grad_u) - 1.0/3.0*tr(grad_u)*Identity(2)) - p_local*Identity(2)
 
     gN = F_v(rho*u_soln, grad(rho*u_soln), p_soln)*n
