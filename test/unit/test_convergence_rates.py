@@ -15,10 +15,12 @@ parameters['form_compiler']['representation'] = 'uflacs'
 parameters['form_compiler']["quadrature_degree"] = 4
 parameters["ghost_mode"] = "shared_facet"
 
+global_degree_rise = 1
+
 
 class ConvergenceTest:
 
-    def __init__(self, meshes, element, norm0="l2", norm1="h1", TOL=5e-2):
+    def __init__(self, meshes, element, norm0="l2", norm1="h1", TOL=0.1):
         self.meshes = meshes
         self.norm0 = norm0
         self.norm1 = norm1
@@ -57,10 +59,12 @@ class ConvergenceTest:
         self.check_norm1_rates(rate1)
 
     def compute_error_norm0(self, gD, u):
-        return errornorm(gD, u, norm_type=self.norm0, degree_rise=3)
+        return errornorm(gD, u, norm_type=self.norm0,
+                         degree_rise=global_degree_rise)
 
     def compute_error_norm1(self, gD, u):
-        return errornorm(gD, u, norm_type=self.norm1, degree_rise=3)
+        return errornorm(gD, u, norm_type=self.norm1,
+                         degree_rise=global_degree_rise)
 
     def check_norm0_rates(self, rate0):
         expected_rate = float(self.element.degree() + 1)
@@ -244,6 +248,14 @@ class NavierStokesEntropy(ConvergenceTest):
         F = bo.generate_fem_formulation(u, v) - inner(f, v)*dx
         return F
 
+    def check_norm0_rates(self, rate0):
+        expected_rate = float(self.element.degree() + 1)
+        assert rate0[0] > expected_rate - self.TOL
+
+    def check_norm1_rates(self, rate1):
+        expected_rate = float(self.element.degree())
+        assert rate1[0] > expected_rate - self.TOL
+
 
 class Poisson(ConvergenceTest):
     def gD(self, V):
@@ -351,10 +363,12 @@ class StokesTest(ConvergenceTest):
         return F
 
     def compute_error_norm0(self, gD, u):
-        return errornorm(gD[0], u.sub(0), norm_type=self.norm0, degree_rise=3)
+        return errornorm(gD[0], u.sub(0), norm_type=self.norm0,
+                         degree_rise=global_degree_rise)
 
     def compute_error_norm1(self, gD, u):
-        return errornorm(gD[0], u.sub(0), norm_type=self.norm1, degree_rise=3)
+        return errornorm(gD[0], u.sub(0), norm_type=self.norm1,
+                         degree_rise=global_degree_rise)
 
 
 class StokesNitscheTest(ConvergenceTest):
@@ -414,10 +428,12 @@ class StokesNitscheTest(ConvergenceTest):
         return F
 
     def compute_error_norm0(self, gD, u):
-        return errornorm(gD[0], u.sub(0), norm_type=self.norm0, degree_rise=3)
+        return errornorm(gD[0], u.sub(0), norm_type=self.norm0,
+                         degree_rise=global_degree_rise)
 
     def compute_error_norm1(self, gD, u):
-        return errornorm(gD[0], u.sub(0), norm_type=self.norm1, degree_rise=3)
+        return errornorm(gD[0], u.sub(0), norm_type=self.norm1,
+                         degree_rise=global_degree_rise)
 
 
 class StokesNitscheDirichletBCTest(StokesNitscheTest):
@@ -430,6 +446,7 @@ class StokesNitscheDirichletBCTest(StokesNitscheTest):
         F += stokes_nitsche.nitsche_bc_residual_on_interior(u_soln, dSint)
         return F
 
+
 class StokesNitscheSlipBCTest(StokesNitscheTest):
 
     def _formulate_nitsche_boundary(self, F_v, u, p, v, q,
@@ -439,6 +456,7 @@ class StokesNitscheSlipBCTest(StokesNitscheTest):
         F = stokes_nitsche.slip_nitsche_bc_residual(u_soln, gN, dsD)
         F += stokes_nitsche.slip_nitsche_bc_residual_on_interior(u_soln, gN, dSint)
         return F
+
 
 class StokesNitscheSlipManualTest(StokesNitscheTest):
 
@@ -497,14 +515,14 @@ def IntervalMeshes():
 
 @pytest.fixture
 def SquareMeshes():
-    return [UnitSquareMesh(16, 16, 'left/right'),
-            UnitSquareMesh(32, 32, 'left/right')]
+    return [UnitSquareMesh(8, 8, 'left/right'),
+            UnitSquareMesh(16, 16, 'left/right')]
 
 
 @pytest.fixture
 def SquareMeshesPi():
-    return [RectangleMesh(Point(0, 0), Point(pi, pi), 32, 32, 'right'),
-            RectangleMesh(Point(0, 0), Point(pi, pi), 64, 64, 'right')]
+    return [RectangleMesh(Point(0, 0), Point(pi, pi), 16, 16, 'right'),
+            RectangleMesh(Point(0, 0), Point(pi, pi), 32, 32, 'right')]
 
 
 # -- 1D conventional DG tests
@@ -543,7 +561,7 @@ def test_square_euler_problems(conv_test):
                                        NavierStokesEntropy])
 def test_square_navier_stokes_problems(conv_test, SquareMeshesPi):
     element = VectorElement("DG", SquareMeshesPi[0].ufl_cell(), 1, dim=4)
-    conv_test(SquareMeshesPi, element, TOL=0.06).run_test()
+    conv_test(SquareMeshesPi, element, TOL=0.25).run_test()
 
 
 @pytest.mark.parametrize("conv_test", [StokesTest])
@@ -576,6 +594,7 @@ mixed_elements_for_testing = [
                   VectorElement("CG", ufl.triangle, 1),
                   FiniteElement("CG", ufl.triangle, 1), ])
 ]
+
 
 @pytest.mark.parametrize("element", mixed_elements_for_testing)
 @pytest.mark.parametrize("conv_test", [NitscheMixedElement])
