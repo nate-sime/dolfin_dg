@@ -250,11 +250,11 @@ class NavierStokesEntropy(ConvergenceTest):
 
     def check_norm0_rates(self, rate0):
         expected_rate = float(self.element.degree() + 1)
-        assert rate0[0] > expected_rate - 0.25
+        assert rate0[0] > expected_rate - self.TOL
 
     def check_norm1_rates(self, rate1):
         expected_rate = float(self.element.degree())
-        assert rate1[0] > expected_rate - 0.25
+        assert rate1[0] > expected_rate - self.TOL
 
 
 class Poisson(ConvergenceTest):
@@ -561,7 +561,7 @@ def test_square_euler_problems(conv_test):
                                        NavierStokesEntropy])
 def test_square_navier_stokes_problems(conv_test, SquareMeshesPi):
     element = VectorElement("DG", SquareMeshesPi[0].ufl_cell(), 1, dim=4)
-    conv_test(SquareMeshesPi, element, TOL=0.06).run_test()
+    conv_test(SquareMeshesPi, element, TOL=0.25).run_test()
 
 
 @pytest.mark.parametrize("conv_test", [StokesTest])

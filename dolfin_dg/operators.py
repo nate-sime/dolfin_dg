@@ -255,7 +255,7 @@ class CompressibleNavierStokesOperator(
             grad_rhoE = grad_U[-1, :]
 
             # Quotient rule to find grad(u) and grad(E)
-            grad_u = (grad_rhou * rho - ufl.outer(rhou, grad_rho))/rho**2
+            grad_u = (grad_rhou*rho - ufl.outer(rhou, grad_rho))/rho**2
             grad_E = (grad_rhoE*rho - rhoE*grad_rho)/rho**2
 
             tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(dim))
@@ -335,25 +335,30 @@ class CompressibleEulerOperatorEntropyFormulation(
     def __init__(self, mesh, V, bcs, gamma=1.4):
         gamma = Constant(gamma)
 
+        try:
+            dim = mesh.geometry().dim()
+        except AttributeError:
+            dim = mesh.geometric_dimension()
+
         def F_c(V):
             V = variable(V)
             U = V_to_U(V, gamma)
-            rho, u1, u2, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0]
-            p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2))
-            H = E + p/rho
-            res = as_matrix([[rho*u1, rho*u2],
-                             [rho*u1**2 + p, rho*u1*u2],
-                             [rho*u1*u2, rho*u2**2 + p],
-                             [rho*H*u1, rho*H*u2]])
+            rho, u, E = aero.flow_variables(U)
+            p = aero.pressure(U, gamma=gamma)
+            H = aero.enthalpy(U, gamma=gamma)
+
+            inertia = rho*ufl.outer(u, u) + p*Identity(dim)
+            res = ufl.as_tensor([rho*u,
+                                 *[inertia[d, :] for d in range(dim)],
+                                 rho*H*u])
             return res
 
         def alpha(V, n):
             U = V_to_U(V, gamma)
-            rho, u1, u2, E = U[0], U[1]/U[0], U[2]/U[0], U[3]/U[0]
-            p = (gamma - 1.0)*rho*(E - 0.5*(u1**2 + u2**2))
-            u = as_vector([u1, u2])
-            c = sqrt(gamma*p/rho)
-            lambdas = [dot(u, n) - c, dot(u, n), dot(u, n), dot(u, n) + c]
+            rho, u, E = aero.flow_variables(U)
+            p = aero.pressure(U, gamma=gamma)
+            c = aero.speed_of_sound(p, rho, gamma=gamma)
+            lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
             return lambdas
 
         HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
@@ -368,35 +373,34 @@ class CompressibleNavierStokesOperatorEntropyFormulation(
         mu = Constant(mu)
         Pr = Constant(Pr)
 
+        try:
+            dim = mesh.geometry().dim()
+        except AttributeError:
+            dim = mesh.geometric_dimension()
+
         def F_v(V, grad_V):
             V = variable(V)
             U = V_to_U(V, gamma)
             dudv = diff(U, V)
             grad_U = dot(dudv, grad_V)
 
-            rho, rhou1, rhou2, rhoE = U
-            u1, u2, E = rhou1/rho, rhou2/rho, rhoE/rho
-            u = as_vector((u1, u2))
+            rho, rhou, rhoE = aero.conserved_variables(U)
+            rho, u, E = aero.flow_variables(U)
 
             grad_rho = grad_U[0, :]
+            grad_rhou = ufl.as_tensor([grad_U[j, :] for j in range(1, dim + 1)])
+            grad_rhoE = grad_U[-1, :]
 
-            grad_xi1 = as_vector([grad_U[1, 0], grad_U[1, 1]])
-            grad_xi2 = as_vector([grad_U[2, 0], grad_U[2, 1]])
-            grad_u1 = (grad_xi1 - u1*grad_rho)/rho
-            grad_u2 = (grad_xi2 - u2*grad_rho)/rho
-            grad_u = as_matrix([[grad_u1[0], grad_u1[1]],
-                                [grad_u2[0], grad_u2[1]]])
+            grad_u = (grad_rhou*rho - ufl.outer(rhou, grad_rho))/rho**2
+            grad_E = (grad_rhoE*rho - rhoE*grad_rho)/rho**2
 
-            grad_eta = grad_U[3, :]
-            grad_E = (grad_eta - E*grad_rho)/rho
-
-            tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(2))
+            tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(dim))
             K_grad_T = mu*gamma/Pr*(grad_E - dot(u, grad_u))
 
-            return as_matrix([[0.0, 0.0],
-                              [tau[0, 0], tau[0, 1]],
-                              [tau[1, 0], tau[1, 1]],
-                              [dot(tau[0, :], u) + K_grad_T[0], (dot(tau[1, :], u)) + K_grad_T[1]]])
+            res = ufl.as_tensor([ufl.zero(dim),
+                                 *(tau[d, :] for d in range(dim)),
+                                 tau * u + K_grad_T])
+            return res
 
         CompressibleEulerOperatorEntropyFormulation.__init__(
             self, mesh, V, bcs, gamma)
@@ -408,8 +412,10 @@ class CompressibleNavierStokesOperatorEntropyFormulation(
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
 
-        residual = EllipticOperator.generate_fem_formulation(self, u, v, dx, dS)
-        residual += CompressibleEulerOperatorEntropyFormulation.generate_fem_formulation(self, u, v, dx, dS)
+        residual = EllipticOperator \
+            .generate_fem_formulation(self, u, v, dx, dS)
+        residual += CompressibleEulerOperatorEntropyFormulation \
+            .generate_fem_formulation(self, u, v, dx, dS)
 
         return residual
 
