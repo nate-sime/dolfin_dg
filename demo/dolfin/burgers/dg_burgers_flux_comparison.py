@@ -7,19 +7,21 @@ from dolfin_dg import *
 __author__ = 'njcs4'
 
 parameters["ghost_mode"] = "shared_facet"
-parameters['form_compiler']['representation'] = 'uflacs'
 
 # a = max distance
 # d = max time
 a, d = 1.0, 0.2
 
+
 class FixedBC(SubDomain):
     def inside(self, x, on):
         return (abs(x[0]) < DOLFIN_EPS or abs(x[1]) < DOLFIN_EPS) and on
 
+
 class FreeBC(SubDomain):
     def inside(self, x, on):
         return (abs(x[0] - a) < DOLFIN_EPS or abs(x[1] - d) < DOLFIN_EPS) and on
+
 
 # Mesh and function space.
 mesh = RectangleMesh(Point(0.0, 0.0), Point(a, d), 64, 64)
@@ -42,9 +44,15 @@ ds = Measure('ds', domain=mesh, subdomain_data=exterior_bdries)
 bcs = [DGDirichletBC(ds(1), gD), DGNeumannBC(ds(2), u)]
 
 # List of fluxes to be used in the comparison
-fluxes = [("Vijayasundaram", Vijayasundaram(lambda u, n: 0.5*u*n[0] + n[1], lambda u, n: 1, lambda u, n: 1)),
-          ("local-Lax Friedrichs", LocalLaxFriedrichs(lambda u, n: u*n[0] + n[1])),
-          ("HLLE", HLLE(lambda u, n: u*n[0] + n[1]))]
+fluxes = [
+    ("Vijayasundaram",
+     Vijayasundaram(lambda u, n: 0.5 * u * n[0] + n[1],
+                    lambda u, n: 1, lambda u, n: 1)),
+    ("local-Lax Friedrichs",
+     LocalLaxFriedrichs(lambda u, n: u * n[0] + n[1])),
+    ("HLLE",
+     HLLE(lambda u, n: u * n[0] + n[1]))
+]
 
 for name, flux in fluxes:
     project(gD, mesh=mesh, function=u)

@@ -4,14 +4,13 @@ import ufl
 
 __author__ = 'njcs4'
 
-# Note that DG0 is essentially the finite volume method.
-# DGp (p > 0) is a true high order DG method, but will be unstable at the shock.
-# This is where hp-adaptivity would be a benefit. Moving to high order DG, be
-# careful how long your domain is in time to ensure a stable solution, as the
-# shock becomes more prominent
+# Note that DG0 is essentially the finite volume method. DGp (p > 0) is a
+# true high order DG method, but will be unstable at the shock. This is where
+# hp-adaptivity would be a benefit. Moving to high order DG, be careful how
+# long your domain is in time to ensure a stable solution, as the shock
+# becomes more prominent
 
 parameters["ghost_mode"] = "shared_facet"
-parameters['form_compiler']['representation'] = 'uflacs'
 
 # a = max distance
 # d = max time
@@ -52,8 +51,9 @@ def F_c(u):
 # Define local-Lax Friedrichs flux
 # alpha is the maximum of the flux Jacobian eigenvalues
 def H(u_p, u_m, n):
-    alpha = ufl.Max(abs(u_p*n[0] + n[1]), abs(-u_m*n[0] - n[1]))  # note that n^+ = -n^-
-    return Constant(0.5)*(dot(F_c(u_p), n) + dot(F_c(u_m), n) + alpha*(u_p - u_m))
+    # note that n^+ = -n^-
+    alpha = ufl.Max(abs(u_p*n[0] + n[1]), abs(-u_m*n[0] - n[1]))
+    return 0.5*(dot(F_c(u_p), n) + dot(F_c(u_m), n) + alpha*(u_p - u_m))
 
 # Volume integration terms
 convective_domain = -inner(F_c(u), grad(v))*dx

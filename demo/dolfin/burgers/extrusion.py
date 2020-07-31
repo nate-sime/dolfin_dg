@@ -7,10 +7,10 @@ from dolfin_dg import *
 __author__ = 'njcs4'
 
 parameters["ghost_mode"] = "shared_facet"
-parameters['form_compiler']['representation'] = 'uflacs'
 
 if MPI.size(MPI.comm_world) > 1:
     raise NotImplementedError("Demo does not currently work in parallel")
+
 
 class EndTimeInterpolation(UserExpression):
 
@@ -20,6 +20,7 @@ class EndTimeInterpolation(UserExpression):
 
     def eval(self, value, x):
         value[0] = self.u(Point(x[0], self.dt))
+
 
 # The size of the spatial domain and the time step
 a = 1.0
