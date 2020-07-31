@@ -49,7 +49,8 @@ class CustomSolver(NewtonSolver):
 
         self.linear_solver().set_from_options()
 
-    def update_solution(self, x, dx, relaxation_parameter, nonlinear_problem, iteration):
+    def update_solution(self, x, dx, relaxation_parameter, nonlinear_problem,
+                        iteration):
         tau = 1.0
         theta = min(sqrt(2.0*tau/norm(dx, norm_type="l2", mesh=V.mesh())), 1.0)
         info("Newton damping parameter: %.3e" % theta)

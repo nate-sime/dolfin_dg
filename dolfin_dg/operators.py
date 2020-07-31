@@ -2,7 +2,8 @@ import inspect
 
 import ufl
 
-from ufl import grad, inner, curl, dot, as_vector, as_matrix, sqrt, tr, Identity, variable, diff, exp, Measure
+from ufl import grad, inner, curl, dot, as_vector, as_matrix, sqrt, tr, \
+    Identity, variable, diff, exp, Measure, CellVolume, FacetArea, FacetNormal
 
 from dolfin_dg.dg_form import DGFemTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG, \
     DGFemStokesTerm
@@ -64,7 +65,8 @@ class EllipticOperator(DGFemFormulation):
         DGFemFormulation.__init__(self, mesh, fspace, bcs)
         self.F_v = F_v
 
-    def generate_fem_formulation(self, u, v, dx=None, dS=None, vt=None, penalty=None):
+    def generate_fem_formulation(self, u, v, dx=None, dS=None, vt=None,
+                                 penalty=None):
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
         if dS is None:
@@ -279,13 +281,12 @@ class CompressibleNavierStokesOperator(EllipticOperator, CompressibleEulerOperat
             dS = Measure('dS', domain=self.mesh)
 
         residual = EllipticOperator.generate_fem_formulation(
-            self, u, v, dx, dS)
+            self, u, v, dx=dx, dS=dS, penalty=penalty)
         residual += CompressibleEulerOperator.generate_fem_formulation(
-            self, u, v, dx, dS)
+            self, u, v, dx=dx, dS=dS)
 
         # Specialised adiabatic wall boundary condition
         for bc in self.adiabatic_wall_bcs:
-            h = CellVolume(self.mesh)/FacetArea(self.mesh)
             n = FacetNormal(self.mesh)
 
             u_gamma = bc.get_function()
@@ -294,11 +295,11 @@ class CompressibleNavierStokesOperator(EllipticOperator, CompressibleEulerOperat
             self.H.setup(self.F_c, u, u_gamma, n)
             residual += inner(self.H.exterior(self.F_c, u, u_gamma, n), v)*dSD
 
-            sigma = self.C_IP*Constant(
-                max(self.fspace.ufl_element().degree()**2, 1))/h
+            if penalty is None:
+                penalty = generate_default_sipg_penalty_term(u)
             G_adiabitic = homogeneity_tensor(self.F_v_adiabatic, u)
             vt_adiabatic = DGFemSIPG(
-                self.F_v_adiabatic, u, v, sigma, G_adiabitic, n)
+                self.F_v_adiabatic, u, v, penalty, G_adiabitic, n)
 
             residual += vt_adiabatic.exterior_residual(u_gamma, dSD)
 
@@ -393,9 +394,9 @@ class CompressibleNavierStokesOperatorEntropyFormulation(
             dS = Measure('dS', domain=self.mesh)
 
         residual = EllipticOperator \
-            .generate_fem_formulation(self, u, v, dx, dS)
+            .generate_fem_formulation(self, u, v, dx=dx, dS=dS, penalty=penalty)
         residual += CompressibleEulerOperatorEntropyFormulation \
-            .generate_fem_formulation(self, u, v, dx, dS)
+            .generate_fem_formulation(self, u, v, dx=dx, dS=dS)
 
         return residual
 
