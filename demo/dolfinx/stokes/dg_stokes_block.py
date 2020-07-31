@@ -3,7 +3,6 @@ import ufl
 
 import dolfinx
 import dolfinx.plotting
-from dolfinx.io import XDMFFile
 
 import dolfin_dg
 import dolfin_dg.dolfinx
@@ -20,7 +19,8 @@ matrixtypes = [
     dolfin_dg.dolfinx.MatrixType.monolithic,
     dolfin_dg.dolfinx.MatrixType.block,
     dolfin_dg.dolfinx.MatrixType.nest
-    ]
+]
+
 
 # a priori known velocity and pressure solutions
 def u_analytical(x):
@@ -142,25 +142,30 @@ for matrixtype in matrixtypes:
                              P=None)
             soln_vector = U.vector
         elif matrixtype is dolfin_dg.dolfinx.MatrixType.block:
-            snes.setFunction(problem.F_block, dolfinx.fem.create_vector_block(F))
-            snes.setJacobian(problem.J_block, J=dolfinx.fem.create_matrix_block(J),
+            snes.setFunction(problem.F_block,
+                             dolfinx.fem.create_vector_block(F))
+            snes.setJacobian(problem.J_block,
+                             J=dolfinx.fem.create_matrix_block(J),
                              P=None)
             soln_vector = dolfinx.fem.create_vector_block(F)
 
             # Copy initial guess into vector
             dolfinx.cpp.la.scatter_local_vectors(
                 soln_vector, [u.vector.array_r, p.vector.array_r],
-                [u.function_space.dofmap.index_map, p.function_space.dofmap.index_map])
+                [u.function_space.dofmap.index_map,
+                 p.function_space.dofmap.index_map])
         elif matrixtype is dolfin_dg.dolfinx.MatrixType.nest:
             snes.setFunction(problem.F_nest, dolfinx.fem.create_vector_nest(F))
-            snes.setJacobian(problem.J_nest, J=dolfinx.fem.create_matrix_nest(J),
+            snes.setJacobian(problem.J_nest,
+                             J=dolfinx.fem.create_matrix_nest(J),
                              P=dolfinx.fem.create_matrix_nest(P))
             soln_vector = dolfinx.fem.create_vector_nest(F)
 
             # Copy initial guess into vector
             for soln_vec_sub, var_sub in zip(soln_vector.getNestSubVecs(), U):
                 soln_vec_sub.array[:] = var_sub.vector.array_r[:]
-                soln_vec_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+                soln_vec_sub.ghostUpdate(addv=PETSc.InsertMode.ADD,
+                                         mode=PETSc.ScatterMode.REVERSE)
 
         # Set solver options
         if matrixtype is not dolfin_dg.dolfinx.MatrixType.nest:
@@ -171,8 +176,10 @@ for matrixtype in matrixtypes:
             snes.getKSP().setType("fgmres")
             snes.getKSP().setTolerances(rtol=1e-12)
             snes.getKSP().getPC().setType("fieldsplit")
-            snes.getKSP().getPC().setFieldSplitIS(["u", nested_IS[0][0]], ["p", nested_IS[1][1]])
-            snes.getKSP().getPC().setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
+            snes.getKSP().getPC().setFieldSplitIS(
+                ["u", nested_IS[0][0]], ["p", nested_IS[1][1]])
+            snes.getKSP().getPC().setFieldSplitType(
+                PETSc.PC.CompositeType.ADDITIVE)
 
             ksp_u, ksp_p = snes.getKSP().getPC().getFieldSplitSubKSP()
             ksp_u.setType("preonly")
@@ -190,10 +197,12 @@ for matrixtype in matrixtypes:
 
         # Computer error
         l2error_u = comm.allreduce(
-            dolfinx.fem.assemble.assemble_scalar((u - u_soln) ** 2 * ufl.dx)**0.5,
+            dolfinx.fem.assemble.assemble_scalar(
+                (u - u_soln) ** 2 * ufl.dx)**0.5,
             op=MPI.SUM)
         l2error_p = comm.allreduce(
-            dolfinx.fem.assemble.assemble_scalar((p - p_soln) ** 2 * ufl.dx)**0.5,
+            dolfinx.fem.assemble.assemble_scalar(
+                (p - p_soln) ** 2 * ufl.dx)**0.5,
             op=MPI.SUM)
 
         hs.append(comm.allreduce(mesh.hmin(), op=MPI.MIN))
@@ -205,7 +214,8 @@ for matrixtype in matrixtypes:
     l2errors_p = np.array(l2errors_p)
     hs = np.array(hs)
 
-    rates_u = np.log(l2errors_u[:-1] / l2errors_u[1:]) / np.log(hs[:-1] / hs[1:])
-    rates_p = np.log(l2errors_p[:-1] / l2errors_p[1:]) / np.log(hs[:-1] / hs[1:])
+    hrates = np.log(hs[:-1] / hs[1:])
+    rates_u = np.log(l2errors_u[:-1] / l2errors_u[1:]) / hrates
+    rates_p = np.log(l2errors_p[:-1] / l2errors_p[1:]) / hrates
     print(matrixtype, "rates u: %s" % str(rates_u))
     print(matrixtype, "rates p: %s" % str(rates_p))

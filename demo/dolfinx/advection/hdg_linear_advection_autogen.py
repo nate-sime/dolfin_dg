@@ -6,7 +6,6 @@ import dolfin_dg
 import dolfin_dg.hdg_form
 import dolfin_dg.dolfinx
 import numpy
-import numba
 from mpi4py import MPI
 
 comm = MPI.COMM_WORLD
@@ -58,6 +57,7 @@ for run_no, n_ele in enumerate(n_eles):
 
     # Second order terms
     kappa = dolfinx.Constant(mesh, 2.0)
+
     def F_v(u, grad_u):
         return (kappa + u**2) * grad_u
 
@@ -86,13 +86,13 @@ for run_no, n_ele in enumerate(n_eles):
 
     J = ufl.derivative(F, U)
 
-    facets = dolfinx.mesh.locate_entities_boundary(mesh, 1,
-                                      lambda x: np.logical_or.reduce((
-                                          np.isclose(x[0], 0.0),
-                                          np.isclose(x[0], 1.0),
-                                          np.isclose(x[1], 0.0),
-                                          np.isclose(x[1], 1.0)
-                                      )))
+    facets = dolfinx.mesh.locate_entities_boundary(
+        mesh, 1, lambda x: np.logical_or.reduce((
+            np.isclose(x[0], 0.0),
+            np.isclose(x[0], 1.0),
+            np.isclose(x[1], 0.0),
+            np.isclose(x[1], 1.0)
+        )))
     facet_dofs = dolfinx.fem.locate_dofs_topological((W.sub(1), Vbar), 1, facets)
     bc = dolfinx.DirichletBC(gDbar, facet_dofs, W.sub(1))
 
