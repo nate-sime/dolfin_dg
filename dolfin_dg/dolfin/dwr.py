@@ -34,19 +34,22 @@ class NonlinearAPosterioriEstimator:
 
         V = F.arguments()[0].function_space()
         e = V.ufl_element()
-        self.V_star = FunctionSpace(V.mesh(), e.reconstruct(degree=e.degree()+p_inc))
+        self.V_star = FunctionSpace(
+            V.mesh(), e.reconstruct(degree=e.degree()+p_inc))
 
         # Copy and homogenise BCs
         for bc in bcs:
             if bc.user_sub_domain() is None:
-                raise NotImplementedError("BCs defined by mesh functions not yet supported")
+                raise NotImplementedError(
+                    "BCs defined by mesh functions not yet supported")
 
         self.bcs = []
         for bc in bcs:
             dwr_subspc = self.V_star
             for i in bc.function_space().component():
                 dwr_subspc = dwr_subspc.sub(i)
-            self.bcs += [DirichletBC(dwr_subspc, bc.value(), bc.user_sub_domain())]
+            self.bcs += [DirichletBC(dwr_subspc, bc.value(),
+                                     bc.user_sub_domain())]
 
         for bc in self.bcs:
             bc.homogenize()
@@ -71,8 +74,8 @@ class NonlinearAPosterioriEstimator:
         return eta_cf
 
     def compute_dual_solution(self):
-        # Replace the components of the bilinear and linear formulations to formulate
-        # the dual problem
+        # Replace the components of the bilinear and linear formulations to
+        # formulate the dual problem
         # u -> w, v -> z
         w = TestFunction(self.V_star)
         z = TrialFunction(self.V_star)
@@ -84,7 +87,8 @@ class NonlinearAPosterioriEstimator:
         z_s = Function(self.V_star)
 
         if self.options_prefix is None:
-            solve(dual_M == dual_j, z_s, self.bcs, solver_parameters={'linear_solver': 'mumps'})
+            solve(dual_M == dual_j, z_s, self.bcs,
+                  solver_parameters={'linear_solver': 'mumps'})
         else:
             dM, dj = PETScMatrix(), PETScVector()
             assemble_system(dual_M, dual_j, self.bcs, A_tensor=dM, b_tensor=dj)
@@ -136,4 +140,5 @@ class LinearAPosterioriEstimator(NonlinearAPosterioriEstimator):
         u = j.arguments()[0]
         j = ufl.replace(j, {u: u_h})
 
-        NonlinearAPosterioriEstimator.__init__(self, J, F, j, u_h, bcs=bcs, p_inc=p_inc)
+        NonlinearAPosterioriEstimator.__init__(
+            self, J, F, j, u_h, bcs=bcs, p_inc=p_inc)

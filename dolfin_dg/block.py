@@ -23,7 +23,8 @@ def extract_rows(F, v):
 
     for vi in range(vn):
         L[vi] = fs.split(F, v[vi])
-        L[vi] = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(L[vi])
+        L[vi] = ufl.algorithms.apply_algebra_lowering.\
+            apply_algebra_lowering(L[vi])
         L[vi] = ufl.algorithms.apply_derivatives.apply_derivatives(L[vi])
 
     return L
@@ -38,8 +39,10 @@ def extract_blocks(F, u, v):
     for vi in range(vn):
         for ui in range(un):
             a[vi][ui] = fs.split(F, v[vi], u[ui])
-            a[vi][ui] = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(a[vi][ui])
-            a[vi][ui] = ufl.algorithms.apply_derivatives.apply_derivatives(a[vi][ui])
+            a[vi][ui] = ufl.algorithms.apply_algebra_lowering.\
+                apply_algebra_lowering(a[vi][ui])
+            a[vi][ui] = ufl.algorithms.apply_derivatives.\
+                apply_derivatives(a[vi][ui])
 
     return a
 
@@ -60,14 +63,17 @@ def derivative_block(F, u, du=None, coefficient_derivatives=None):
         return ufl.derivative(F, u, du, coefficient_derivatives)
 
     if not isinstance(F, (list, tuple)):
-        raise TypeError("Expecting F to be a list of Forms. Found: %s" % str(F))
+        raise TypeError("Expecting F to be a list of Forms. Found: %s"
+                        % str(F))
 
     if not isinstance(u, (list, tuple)):
-        raise TypeError("Expecting u to be a list of Coefficients. Found: %s" % str(u))
+        raise TypeError("Expecting u to be a list of Coefficients. Found: %s"
+                        % str(u))
 
     if du is not None:
         if not isinstance(du, (list, tuple)):
-            raise TypeError("Expecting du to be a list of Arguments. Found: %s" % str(u))
+            raise TypeError("Expecting du to be a list of Arguments. Found: %s"
+                            % str(u))
 
     import itertools
     from ufl.algorithms.apply_derivatives import apply_derivatives
@@ -81,8 +87,10 @@ def derivative_block(F, u, du=None, coefficient_derivatives=None):
     J = [[None for _ in range(m)] for _ in range(n)]
 
     for (i, j) in itertools.product(range(n), range(m)):
-        gateaux_derivative = ufl.derivative(F[i], u[j], du[j], coefficient_derivatives)
-        gateaux_derivative = apply_derivatives(apply_algebra_lowering(gateaux_derivative))
+        gateaux_derivative = ufl.derivative(F[i], u[j], du[j],
+                                            coefficient_derivatives)
+        gateaux_derivative = apply_derivatives(
+            apply_algebra_lowering(gateaux_derivative))
         if gateaux_derivative.empty():
             gateaux_derivative = None
         J[i][j] = gateaux_derivative

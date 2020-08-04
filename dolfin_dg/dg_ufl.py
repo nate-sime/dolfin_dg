@@ -79,7 +79,8 @@ class Jump(CompoundTensorOperator):
                                              index_values)
 
     def __str__(self):
-        return "〚" + " ⋅ ".join(map(lambda o: parstr(o, self), self.ufl_operands)) + "〛"
+        return "〚" + " ⋅ ".join(map(lambda o: parstr(o, self),
+                                    self.ufl_operands)) + "〛"
 
     @property
     def ufl_shape(self):
@@ -108,7 +109,8 @@ class TensorJump(Jump):
         self.ufl_index_dimensions = fid
 
     def __str__(self):
-        o1, o2 = parstr(self.ufl_operands[0], self), parstr(self.ufl_operands[1], self)
+        o1, o2 = parstr(self.ufl_operands[0], self), \
+                 parstr(self.ufl_operands[1], self)
         return "〚%s ⊗ %s〛" % (o1, o2)
 
     @property

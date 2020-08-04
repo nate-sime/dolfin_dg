@@ -2,11 +2,15 @@ import inspect
 
 import ufl
 
-from ufl import grad, inner, curl, dot, as_vector, as_matrix, sqrt, tr, \
-    Identity, variable, diff, exp, Measure, CellVolume, FacetArea, FacetNormal
+from ufl import (
+    grad, inner, curl, dot, as_vector, tr, Identity, variable, diff, exp,
+    Measure, FacetNormal
+)
 
-from dolfin_dg.dg_form import DGFemTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG, \
-    DGFemStokesTerm
+from dolfin_dg.dg_form import (
+    DGFemTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG, DGFemStokesTerm
+)
+
 from dolfin_dg.fluxes import LocalLaxFriedrichs
 from dolfin_dg import aero, generate_default_sipg_penalty_term
 
@@ -90,10 +94,12 @@ class EllipticOperator(DGFemFormulation):
         residual += vt.interior_residual(dS)
 
         for dbc in self.dirichlet_bcs:
-            residual += vt.exterior_residual(dbc.get_function(), dbc.get_boundary())
+            residual += vt.exterior_residual(
+                dbc.get_function(), dbc.get_boundary())
 
         for dbc in self.neumann_bcs:
-            residual += vt.neumann_residual(dbc.get_function(), dbc.get_boundary())
+            residual += vt.neumann_residual(
+                dbc.get_function(), dbc.get_boundary())
 
         return residual
 
@@ -130,10 +136,12 @@ class MaxwellOperator(DGFemFormulation):
         residual += ct.interior_residual(dS)
 
         for dbc in self.dirichlet_bcs:
-            residual += ct.exterior_residual(dbc.get_function(), dbc.get_boundary())
+            residual += ct.exterior_residual(
+                dbc.get_function(), dbc.get_boundary())
 
         for dbc in self.neumann_bcs:
-            residual += ct.neumann_residual(dbc.get_function(), dbc.get_boundary())
+            residual += ct.neumann_residual(
+                dbc.get_function(), dbc.get_boundary())
 
         return residual
 
@@ -161,7 +169,8 @@ class HyperbolicOperator(DGFemFormulation):
         residual = -inner(F_c_eval, grad(v))*dx
 
         self.H.setup(self.F_c, u('+'), u('-'), n('+'))
-        residual += inner(self.H.interior(self.F_c, u('+'), u('-'), n('+')), (v('+') - v('-')))*dS
+        residual += inner(self.H.interior(self.F_c, u('+'), u('-'), n('+')),
+                          (v('+') - v('-')))*dS
 
         for bc in self.dirichlet_bcs:
             gD = bc.get_function()
@@ -217,10 +226,12 @@ class CompressibleEulerOperator(HyperbolicOperator):
             lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
             return lambdas
 
-        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c,
+                                    LocalLaxFriedrichs(alpha))
 
 
-class CompressibleNavierStokesOperator(EllipticOperator, CompressibleEulerOperator):
+class CompressibleNavierStokesOperator(EllipticOperator,
+                                       CompressibleEulerOperator):
 
     def __init__(self, mesh, V, bcs, gamma=1.4, mu=1.0, Pr=0.72):
         try:
@@ -345,7 +356,8 @@ class CompressibleEulerOperatorEntropyFormulation(HyperbolicOperator):
             lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
             return lambdas
 
-        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c,
+                                    LocalLaxFriedrichs(alpha))
 
 
 class CompressibleNavierStokesOperatorEntropyFormulation(
@@ -440,10 +452,13 @@ class StokesOperator(DGFemFormulation):
         residual = _add_to_residual(residual, vt.interior_residual(dS))
 
         for dbc in self.dirichlet_bcs:
-            residual = _add_to_residual(residual, vt.exterior_residual(dbc.get_function(), dbc.get_boundary()))
+            residual = _add_to_residual(
+                residual, vt.exterior_residual(dbc.get_function(),
+                                               dbc.get_boundary()))
 
         for dbc in self.neumann_bcs:
-            elliptic_neumann_term = vt.neumann_residual(dbc.get_function(), dbc.get_boundary())
+            elliptic_neumann_term = vt.neumann_residual(
+                dbc.get_function(), dbc.get_boundary())
             if block_form:
                 elliptic_neumann_term = [elliptic_neumann_term, 0]
             residual = _add_to_residual(residual, elliptic_neumann_term)
