@@ -7,7 +7,8 @@ __author__ = 'njcs4'
 def fun_ringleb(gamma, x, y, c):
     gb = gamma - 1.0
     rho = c ** (2.0 / gb)
-    jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+    jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log(
+        (1.0 + c) / (1.0 - c))
     q2 = 2.0 * (1.0 - c ** 2) / gb
 
     return (x - jval / 2.0) ** 2 + y ** 2 - 1.0 / (4.0 * rho ** 2 * q2 ** 2)
@@ -22,7 +23,8 @@ def cspeed_ringleb(gamma, x, y):
     err = 1.0
     while nit <= 100 and err > tol:
         cnew = (clow + chigh) / 2.0
-        if fun_ringleb(gamma, x, y, cnew) * fun_ringleb(gamma, x, y, chigh) > 0.0:
+        if fun_ringleb(gamma, x, y, cnew) * fun_ringleb(gamma, x, y,
+                                                        chigh) > 0.0:
             chigh = cnew
         else:
             clow = cnew
@@ -32,8 +34,8 @@ def cspeed_ringleb(gamma, x, y):
 
     if err > tol:
         raise Exception('Error: cspeed_ringleb\n'
-                        'Error tolerance was not achieved in bisection iteration'
-                        'err = %.3e' % err)
+                        'Error tolerance was not achieved in bisection '
+                        'iteration err = %.3e' % err)
 
     return cnew
 
@@ -44,7 +46,8 @@ def ringleb_anal_soln(x, y):
 
     gb = gamma - 1.0
 
-    jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+    jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log(
+        (1.0 + c) / (1.0 - c))
     rho = c ** (2.0 / gb)
     q2 = 2.0 * (1.0 - c ** 2) / gb
     # qval = np.sqrt(q2)
@@ -66,13 +69,15 @@ def ringleb_boundary_shape(wght, x0, y0, x1, y1):
     gb = gamma - 1.0
 
     c0 = cspeed_ringleb(gamma, x0, y0)
-    jval0 = 1.0 / c0 + 1.0 / (3.0 * c0 ** 3) + 1.0 / (5.0 * c0 ** 5) - 0.5 * np.log((1.0 + c0) / (1.0 - c0))
+    jval0 = 1.0 / c0 + 1.0 / (3.0 * c0 ** 3) + 1.0 / (
+                5.0 * c0 ** 5) - 0.5 * np.log((1.0 + c0) / (1.0 - c0))
     rho0 = c0 ** (2.0 / gb)
     q0 = np.sqrt(2.0 * (1.0 - c0 ** 2) / gb)
     k0 = np.sqrt(2.0 / (1.0 / (q0 * q0) - 2.0 * rho0 * (x0 - jval0 / 2.0)))
 
     c1 = cspeed_ringleb(gamma, x1, y1)
-    jval1 = 1.0 / c1 + 1.0 / (3.0 * c1 ** 3) + 1.0 / (5.0 * c1 ** 5) - 0.5 * np.log((1.0 + c1) / (1.0 - c1))
+    jval1 = 1.0 / c1 + 1.0 / (3.0 * c1 ** 3) + 1.0 / (
+                5.0 * c1 ** 5) - 0.5 * np.log((1.0 + c1) / (1.0 - c1))
     rho1 = c1 ** (2.0 / gb)
     q1 = np.sqrt(2.0 * (1.0 - c1 ** 2) / gb)
     k1 = np.sqrt(2.0 / (1.0 / (q1 * q1) - 2.0 * rho1 * (x1 - jval1 / 2.0)))
@@ -86,9 +91,11 @@ def ringleb_boundary_shape(wght, x0, y0, x1, y1):
         qi = (1.0 - ratio) * q0 + ratio * q1
         ki = (1.0 - ratio) * k0 + ratio * k1
         ci = np.sqrt(1.0 - 0.5 * gb * qi * qi)
-        jvali = 1.0 / ci + 1.0 / (3.0 * ci ** 3) + 1.0 / (5.0 * ci ** 5) - 0.5 * np.log((1.0 + ci) / (1.0 - ci))
+        jvali = 1.0 / ci + 1.0 / (3.0 * ci ** 3) + 1.0 / (
+                    5.0 * ci ** 5) - 0.5 * np.log((1.0 + ci) / (1.0 - ci))
         rhoi = ci ** (2.0 / gb)
-        xi = jvali / 2.0 + 1.0 / (2.0 * rhoi) * (1.0 / (qi * qi) - 2.0 / (ki * ki))
+        xi = jvali / 2.0 + 1.0 / (2.0 * rhoi) * (
+                    1.0 / (qi * qi) - 2.0 / (ki * ki))
         yi = 1.0 / (ki * qi * rhoi) * np.sqrt(1.0 - (qi / ki) ** 2)
         alen0 = np.sqrt((xi - x0) ** 2 + (yi - y0) ** 2)
         alen1 = np.sqrt((xi - x1) ** 2 + (yi - y1) ** 2)
@@ -134,8 +141,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
     max_nq_nk = max(nq, nk)
 
     xx, yy, ds = np.zeros(max_nq_nk), np.zeros(max_nq_nk), np.zeros(max_nq_nk)
-    qr, ql, qq, dq, kr, kl = np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(nq)
-    kt, kb, dk, qt, qb = np.zeros(nk), np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(nq)
+    qr, ql, qq, dq, kr, kl = np.zeros(nq), np.zeros(nq), np.zeros(nq), np.zeros(
+        nq), np.zeros(nq), np.zeros(nq)
+    kt, kb, dk, qt, qb = np.zeros(nk), np.zeros(nq), np.zeros(nq), np.zeros(
+        nq), np.zeros(nq)
     x, y = np.zeros(num_verts), np.zeros(num_verts)
 
     nrelax = 100
@@ -151,8 +160,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
     qval = kmin * np.sin(theta_inflow)
     c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
     rho = c ** (2.0 / gb)
-    jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
-    xl = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval ** 2) - 2.0 / (kval ** 2))
+    jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log(
+        (1.0 + c) / (1.0 - c))
+    xl = jval / 2.0 + 1.0 / (2.0 * rho) * (
+            1.0 / (qval ** 2) - 2.0 / (kval ** 2))
     yl = np.cos(theta_inflow) / (rho * kval * qval)
     qlb = qval
 
@@ -160,8 +171,10 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
     qval = kmax * np.sin(theta_inflow)
     c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
     rho = c ** (2.0 / gb)
-    jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
-    xr = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval ** 2) - 2.0 / (kval ** 2))
+    jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log(
+        (1.0 + c) / (1.0 - c))
+    xr = jval / 2.0 + 1.0 / (2.0 * rho) * (
+                1.0 / (qval ** 2) - 2.0 / (kval ** 2))
     yr = np.cos(theta_inflow) / (rho * kval * qval)
     qrb = qval
 
@@ -189,21 +202,20 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
 
         for n in range(1, nq + 1):
             qval = qr[n - 1]
-            # qval = min(qval,kval)
-            # psi = 1.0 / kmax
-            # theta = np.arcsin(psi * qval)
-            # u = qval * np.cos(theta)
-            # v = qval * np.sin(theta)
             c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
             rho = c ** (2.0 / gb)
-            jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
-            xx[n - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
-            yy[n - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+            jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (
+                        5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+            xx[n - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (
+                        1.0 / (qval * qval) - 2.0 / (kval * kval))
+            yy[n - 1] = 1.0 / (kval * qval * rho) * np.sqrt(
+                1.0 - (qval / kval) ** 2)
 
         dsave = 0.0
         for n in range(1, nq):
             dq[n - 1] = qr[n] - qr[n - 1]
-            ds[n - 1] = np.sqrt((xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
+            ds[n - 1] = np.sqrt(
+                (xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
             dsave = dsave + ds[n - 1]
 
         dsave /= float(nq - 1)
@@ -225,16 +237,14 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
     kr[0] = kmax
     for n in range(2, nq + 1):
         qval = qr[n - 1]
-        # qval = min(qval,kval)
-        # psi = 1.0 / kmax
-        # theta = np.arcsin(psi * qval)
-        # u = qval * np.cos(theta)
-        # v = qval * np.sin(theta)
         c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
         rho = c ** (2.0 / gb)
-        jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
-        coords[0] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
-        coords[1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+        jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (
+                    5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+        coords[0] = jval / 2.0 + 1.0 / (2.0 * rho) * (
+                    1.0 / (qval * qval) - 2.0 / (kval * kval))
+        coords[1] = 1.0 / (kval * qval * rho) * np.sqrt(
+            1.0 - (qval / kval) ** 2)
         kr[n - 1] = kmax
         x[mapv(nk, n, nk, nq) - 1] = coords[0]
         y[mapv(nk, n, nk, nq) - 1] = coords[1]
@@ -249,21 +259,20 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
         for n in range(1, nk + 1):
             kval = kt[n - 1]
             qval = qmin
-            # qval = min(qval,kval)
-            # psi = 1.0 / kval
-            # theta = np.arcsin(psi * qval)
-            # u = qval * np.cos(theta)
-            # v = qval * np.sin(theta)
             c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
             rho = c ** (2.0 / gb)
-            jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
-            xx[n - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
-            yy[n - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+            jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (
+                        5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+            xx[n - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (
+                        1.0 / (qval * qval) - 2.0 / (kval * kval))
+            yy[n - 1] = 1.0 / (kval * qval * rho) * np.sqrt(
+                1.0 - (qval / kval) ** 2)
 
         dsave = 0.0
         for n in range(1, nk):
             dk[n - 1] = kt[n] - kt[n - 1]
-            ds[n - 1] = np.sqrt((xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
+            ds[n - 1] = np.sqrt(
+                (xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
             dsave = dsave + ds[n - 1]
 
         dsave /= float(nk - 1)
@@ -288,16 +297,14 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
     for n in range(2, nk + 1):
         kval = kt[nk - n]
         qval = qmin
-        # qval = min(qval,kval)
-        # psi = 1.0 / kval
-        # theta = np.arcsin(psi * qval)
-        # u = qval * np.cos(theta)
-        # v = qval * np.sin(theta)
         c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
         rho = c ** (2.0 / gb)
-        jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
-        coords[0] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
-        coords[1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+        jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (
+                    5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+        coords[0] = jval / 2.0 + 1.0 / (2.0 * rho) * (
+                    1.0 / (qval * qval) - 2.0 / (kval * kval))
+        coords[1] = 1.0 / (kval * qval * rho) * np.sqrt(
+            1.0 - (qval / kval) ** 2)
         x[mapv(nk - n + 1, nq, nk, nq) - 1] = coords[0]
         y[mapv(nk - n + 1, nq, nk, nq) - 1] = coords[1]
 
@@ -311,21 +318,20 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
 
         for n in range(1, nq + 1):
             qval = ql[n - 1]
-            # qval = min(qval,kval)
-            # psi = 1.0 / kval
-            # theta = np.arcsin(psi * qval)
-            # u = qval * np.cos(theta)
-            # v = qval * np.sin(theta)
             c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
             rho = c ** (2.0 / gb)
-            jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
-            xx[n - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
-            yy[n - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+            jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (
+                        5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+            xx[n - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (
+                        1.0 / (qval * qval) - 2.0 / (kval * kval))
+            yy[n - 1] = 1.0 / (kval * qval * rho) * np.sqrt(
+                1.0 - (qval / kval) ** 2)
 
         dsave = 0.0
         for n in range(1, nq):
             dq[n - 1] = ql[n] - ql[n - 1]
-            ds[n - 1] = np.sqrt((xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
+            ds[n - 1] = np.sqrt(
+                (xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
             dsave = dsave + ds[n - 1]
 
         dsave /= float(nq - 1)
@@ -349,16 +355,14 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
     for n in range(2, nq):
         qval = ql[nq - n]
         kl[nq - n] = kval
-        # qval = min(qval,kval)
-        # psi = 1.0 / kval
-        # theta = np.arcsin(psi * qval)
-        # u = qval * np.cos(theta)
-        # v = qval * np.sin(theta)
         c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
         rho = c ** (2.0 / gb)
-        jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
-        coords[0] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
-        coords[1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+        jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (
+                    5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+        coords[0] = jval / 2.0 + 1.0 / (2.0 * rho) * (
+                    1.0 / (qval * qval) - 2.0 / (kval * kval))
+        coords[1] = 1.0 / (kval * qval * rho) * np.sqrt(
+            1.0 - (qval / kval) ** 2)
         x[mapv(1, nq - n + 1, nk, nq) - 1] = coords[0]
         y[mapv(1, nq - n + 1, nk, nq) - 1] = coords[1]
 
@@ -369,27 +373,28 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
         kval = kt[m - 1]
 
         for n in range(1, nq + 1):
-            qq[n - 1] = qt[m - 1] + (qb[m - 1] - qt[m - 1]) * float(n - 1) / float(nq - 1)
+            qq[n - 1] = qt[m - 1] + (qb[m - 1] - qt[m - 1]) * float(
+                n - 1) / float(nq - 1)
 
         for nit in range(1, nrelax + 1):
 
             for n in range(1, nq + 1):
                 qval = qq[n - 1]
                 qval = min(qval, kval)
-                # psi = 1.0 / kval
-                # theta = np.arcsin(psi * qval)
-                # u = qval * np.cos(theta)
-                # v = qval * np.sin(theta)
                 c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
                 rho = c ** (2.0 / gb)
-                jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
-                xx[n - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
-                yy[n - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+                jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (
+                            5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+                xx[n - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (
+                            1.0 / (qval * qval) - 2.0 / (kval * kval))
+                yy[n - 1] = 1.0 / (kval * qval * rho) * np.sqrt(
+                    1.0 - (qval / kval) ** 2)
 
             dsave = 0.0
             for n in range(1, nq):
                 dq[n - 1] = qq[n] - qq[n - 1]
-                ds[n - 1] = np.sqrt((xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
+                ds[n - 1] = np.sqrt(
+                    (xx[n] - xx[n - 1]) ** 2 + (yy[n] - yy[n - 1]) ** 2)
                 dsave = dsave + ds[n - 1]
 
             dsave /= float(nq - 1)
@@ -411,24 +416,25 @@ def gen_ringleb_vertices(gamma, gb, nk, nq, num_verts):
         for n in range(2, nq):
             qval = qq[n - 1]
             qval = min(qval, kval)
-            # psi = 1.0 / kval
-            # theta = np.arcsin(psi * qval)
-            # u = qval * np.cos(theta)
-            # v = qval * np.sin(theta)
             c = np.sqrt(1.0 - 0.5 * gb * qval * qval)
             rho = c ** (2.0 / gb)
-            jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
-            x[mapv(m, nq - n + 1, nk, nq) - 1] = jval / 2.0 + 1.0 / (2.0 * rho) * (
-                1.0 / (qval * qval) - 2.0 / (kval * kval))
-            y[mapv(m, nq - n + 1, nk, nq) - 1] = 1.0 / (kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
+            jval = 1.0 / c + 1.0 / (3.0 * c ** 3) + 1.0 / (
+                        5.0 * c ** 5) - 0.5 * np.log((1.0 + c) / (1.0 - c))
+            x[mapv(m, nq - n + 1, nk, nq) - 1] = jval / 2.0 + 1.0 / (
+                        2.0 * rho) * (1.0 / (qval * qval) - 2.0 / (kval * kval))
+            y[mapv(m, nq - n + 1, nk, nq) - 1] = 1.0 / (
+                        kval * qval * rho) * np.sqrt(1.0 - (qval / kval) ** 2)
 
     return x, y
 
 
-def gen_elements_mesh_ringleb_tri(gamma, gb, nk, nq, num_verts, num_cells, num_edges, num_bedges):
-    e_c, e_v = np.zeros((2, num_edges), dtype=np.int), np.zeros((2, num_edges), dtype=np.int)
+def gen_elements_mesh_ringleb_tri(gamma, gb, nk, nq, num_verts, num_cells,
+                                  num_edges, num_bedges):
+    e_c, e_v = np.zeros((2, num_edges), dtype=np.int), np.zeros((2, num_edges),
+                                                                dtype=np.int)
     c_v = np.zeros((3, num_cells), dtype=np.int)
-    be_e, bc = np.zeros(num_bedges, dtype=np.int), np.zeros(num_bedges, dtype=np.int)
+    be_e, bc = np.zeros(num_bedges, dtype=np.int), np.zeros(num_bedges,
+                                                            dtype=np.int)
 
     kount = 0
     kountb = 0
@@ -585,7 +591,8 @@ def ringleb_mesh(n_x, n_y, curved=False):
 
     x, y = gen_ringleb_vertices(1.4, 1.4 - 1.0, n_x, n_x, n_x * n_y)
 
-    c_v = gen_elements_mesh_ringleb_tri(1.4, 1.4 - 1.0, n_x, n_y, no_nodes, no_eles, num_edges, num_bedges)
+    c_v = gen_elements_mesh_ringleb_tri(1.4, 1.4 - 1.0, n_x, n_y, no_nodes,
+                                        no_eles, num_edges, num_bedges)
 
     mesh = fin.Mesh()
     me = fin.MeshEditor()

@@ -1,6 +1,6 @@
 from dolfin import *
 from dolfin_dg import *
-from dolfin_dg.dolfin import ringleb
+import ringleb_mesh as ringleb
 import numpy as np
 
 
