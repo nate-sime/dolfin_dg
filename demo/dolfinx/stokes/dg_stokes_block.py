@@ -14,13 +14,6 @@ comm = MPI.COMM_WORLD
 p_order = 2
 dirichlet_id, neumann_id = 1, 2
 
-# Matrix structure cases
-matrixtypes = [
-    dolfin_dg.dolfinx.MatrixType.monolithic,
-    dolfin_dg.dolfinx.MatrixType.block,
-    dolfin_dg.dolfinx.MatrixType.nest
-]
-
 
 # a priori known velocity and pressure solutions
 def u_analytical(x):
@@ -34,7 +27,7 @@ def p_analytical(x):
     return 2.0 * np.exp(x[0]) * np.sin(x[1]) + 1.5797803888225995912 / 3.0
 
 
-for matrixtype in matrixtypes:
+for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
     l2errors_u = []
     l2errors_p = []
     hs = []
@@ -59,7 +52,7 @@ for matrixtype in matrixtypes:
         Ve = ufl.VectorElement("DG", mesh.ufl_cell(), p_order)
         Qe = ufl.FiniteElement("DG", mesh.ufl_cell(), p_order-1)
 
-        if matrixtype is dolfin_dg.dolfinx.MatrixType.monolithic:
+        if not matrixtype.is_block_type():
             W = dolfinx.FunctionSpace(mesh, ufl.MixedElement([Ve, Qe]))
             U = dolfinx.Function(W)
             u, p = ufl.split(U)
@@ -77,10 +70,12 @@ for matrixtype in matrixtypes:
         # Label Dirichlet and Neumann boundary components
         dirichlet_facets = dolfinx.mesh.locate_entities_boundary(
             mesh, mesh.topology.dim - 1,
-            lambda x: np.logical_or(np.isclose(x[0], 0.0), np.isclose(x[1], 0.0)))
+            lambda x: np.logical_or(np.isclose(x[0], 0.0),
+                                    np.isclose(x[1], 0.0)))
         neumann_facets = dolfinx.mesh.locate_entities_boundary(
             mesh, mesh.topology.dim - 1,
-            lambda x: np.logical_or(np.isclose(x[0], 1.0), np.isclose(x[1], 1.0)))
+            lambda x: np.logical_or(np.isclose(x[0], 1.0),
+                                    np.isclose(x[1], 1.0)))
 
         bc_facet_ids = np.concatenate((dirichlet_facets, neumann_facets))
         bc_idxs = np.concatenate((np.full_like(dirichlet_facets, dirichlet_id),
@@ -97,7 +92,8 @@ for matrixtype in matrixtypes:
         def F_v(u, grad_u, p_local=None):
             if p_local is None:
                 p_local = p
-            return 2*eta(u)*ufl.sym(grad_u) - p_local*ufl.Identity(mesh.geometry.dim)
+            return 2*eta(u)*ufl.sym(grad_u) - p_local*ufl.Identity(
+                mesh.geometry.dim)
 
         # Formulate weak BCs
         facet_n = ufl.FacetNormal(mesh)
@@ -109,11 +105,10 @@ for matrixtype in matrixtypes:
 
         # Residual, Jacobian and preconditioner FE formulations
         F = stokes.generate_fem_formulation(
-            u, v, p, q,
-            block_form=matrixtype is not dolfin_dg.dolfinx.MatrixType.monolithic)
+            u, v, p, q, block_form=matrixtype.is_block_type())
 
         f = -ufl.div(F_v(u_soln, ufl.grad(u_soln), p_soln))
-        if matrixtype is dolfin_dg.dolfinx.MatrixType.monolithic:
+        if not matrixtype.is_block_type():
             F -= ufl.inner(f, v) * ufl.dx
         else:
             F[0] -= ufl.inner(f, v) * ufl.dx
@@ -121,7 +116,7 @@ for matrixtype in matrixtypes:
         J = dolfin_dg.derivative_block(F, U)
 
         P = None
-        if matrixtype is not dolfin_dg.dolfinx.MatrixType.monolithic:
+        if matrixtype.is_block_type():
             P = [[J[0][0], J[0][1]],
                  [J[1][0], (2 * eta(u))**-1 * dp * q * ufl.dx]]
 

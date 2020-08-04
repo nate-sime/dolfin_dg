@@ -53,8 +53,7 @@ snes.getKSP().getPC().setType("lu")
 snes.getKSP().getPC().setFactorSolverType("mumps")
 
 # Setup nonlinear problem
-problem = dolfin_dg.dolfinx.nls.NonlinearPDE_SNESProblem(
-    F, J, u, [])
+problem = dolfin_dg.dolfinx.nls.NonlinearPDE_SNESProblem(F, J, u, [])
 snes.setFunction(problem.F_mono, dolfinx.fem.create_vector(F))
 snes.setJacobian(problem.J_mono, J=dolfinx.fem.create_matrix(J))
 
