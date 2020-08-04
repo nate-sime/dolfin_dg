@@ -10,10 +10,6 @@ __author__ = 'njcs4'
 if MPI.size(MPI.comm_world) > 1:
     NotImplementedError("Plotting in this demo will not work in parallel.")
 
-
-parameters['form_compiler']["cpp_optimize"] = True
-parameters['form_compiler']["optimize"] = True
-parameters['form_compiler']['representation'] = 'uflacs'
 parameters["ghost_mode"] = "shared_facet"
 
 run_count = 0

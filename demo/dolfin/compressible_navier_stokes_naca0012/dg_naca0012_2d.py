@@ -3,6 +3,7 @@ import math
 
 from dolfin import *
 from dolfin_dg import *
+from dolfin_dg.dolfin import *
 
 # In this example we use dual weighted residual based error estimates
 # to compute the drag coefficient of compressible flow around a NACA0012
@@ -48,7 +49,8 @@ class CustomSolver(NewtonSolver):
 
         self.linear_solver().set_from_options()
 
-    def update_solution(self, x, dx, relaxation_parameter, nonlinear_problem, iteration):
+    def update_solution(self, x, dx, relaxation_parameter, nonlinear_problem,
+                        iteration):
         tau = 1.0
         theta = min(sqrt(2.0*tau/norm(dx, norm_type="l2", mesh=V.mesh())), 1.0)
         info("Newton damping parameter: %.3e" % theta)
@@ -130,10 +132,15 @@ for ref_level in range(n_ref_max):
            DGAdiabticWallBC(ds(WALL), no_slip_bc),
            DGDirichletBC(ds(OUTLET), outflow)]
 
+    # Construct penalisation term and facet measure
+    C_IP = 20.0
+    h = CellVolume(mesh)/FacetArea(mesh)
+    penalty = Constant(C_IP * max(poly_o ** 2, 1)) / h
+
     # Construct the compressible Navier Stokes DG formulation, and compute the symbolic
     # Jacobian
     ce = CompressibleNavierStokesOperator(mesh, V, bcs, mu=1.0/Re)
-    F = ce.generate_fem_formulation(u_vec, v_vec)
+    F = ce.generate_fem_formulation(u_vec, v_vec, penalty=penalty)
     J = derivative(F, u_vec)
 
     # Setup the problem and solve

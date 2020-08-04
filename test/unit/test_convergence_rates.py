@@ -245,7 +245,12 @@ class NavierStokesEntropy(ConvergenceTest):
                        element=V.ufl_element())
 
         bo = CompressibleNavierStokesOperatorEntropyFormulation(mesh, V, DGDirichletBC(ds, gD))
-        F = bo.generate_fem_formulation(u, v) - inner(f, v)*dx
+
+        h = ufl.CellVolume(u.ufl_domain())/ufl.FacetArea(u.ufl_domain())
+        ufl_degree = u.ufl_element().degree()
+        C_IP = 20.0
+        penalty = Constant(C_IP * max(ufl_degree ** 2, 1)) / h
+        F = bo.generate_fem_formulation(u, v, penalty=penalty) - inner(f, v)*dx
         return F
 
     def check_norm0_rates(self, rate0):
@@ -358,7 +363,12 @@ class StokesTest(ConvergenceTest):
         bcs = [DGDirichletBC(dsD, u_soln), DGNeumannBC(dsN, gN)]
 
         pe = StokesOperator(mesh, W, bcs, F_v)
-        F = pe.generate_fem_formulation(u, v, p, q)
+
+        h = ufl.CellVolume(u.ufl_domain())/ufl.FacetArea(u.ufl_domain())
+        ufl_degree = W.ufl_element().degree()
+        C_IP = 20.0
+        penalty = Constant(C_IP * max(ufl_degree ** 2, 1)) / h
+        F = pe.generate_fem_formulation(u, v, p, q, penalty=penalty)
 
         return F
 

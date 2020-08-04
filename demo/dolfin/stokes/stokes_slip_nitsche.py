@@ -20,8 +20,6 @@ expensive.
 """
 
 parameters['std_out_all_processes'] = False
-parameters['form_compiler']["cpp_optimize"] = True
-parameters['form_compiler']["optimize"] = True
 parameters["ghost_mode"] = "shared_facet"
 parameters["form_compiler"]["quadrature_degree"] = 5
 

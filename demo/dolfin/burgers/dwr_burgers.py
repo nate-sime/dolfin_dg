@@ -1,5 +1,6 @@
 from dolfin import *
 from dolfin_dg import *
+from dolfin_dg.dolfin import *
 import matplotlib.pyplot as plt
 
 # This demo aims to reproduce numerical example 7.1 Hartmann and Houston 2002
@@ -8,7 +9,8 @@ parameters["ghost_mode"] = "shared_facet"
 parameters["refinement_algorithm"] = "plaza_with_parent_facets"
 
 if MPI.size(MPI.comm_world) > 1:
-    raise NotImplementedError("Dual weighted residual (DWR) functionality not fully supported in parallel.")
+    raise NotImplementedError("Dual weighted residual (DWR) functionality not "
+                              "fully supported in parallel.")
 
 mesh = RectangleMesh(Point(0., 0.), Point(3., 2.), 8, 6)
 
@@ -44,7 +46,8 @@ for it in range(N):
 
     du = TrialFunction(V)
     J = derivative(F, u, du)
-    solve(F == 0, u, J=J, solver_parameters={'newton_solver': {'linear_solver': 'mumps'}})
+    solve(F == 0, u, J=J,
+          solver_parameters={'newton_solver': {'linear_solver': 'mumps'}})
 
     # Compute true error
     errors.append(abs(0.451408206331223 - u(1.95, 1.35)))

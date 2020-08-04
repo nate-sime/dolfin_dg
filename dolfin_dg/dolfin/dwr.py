@@ -1,15 +1,20 @@
 import ufl
-from dolfin import *
+from dolfin import (
+    FunctionSpace, Function, TrialFunction, TestFunction, solve,
+    PETScKrylovSolver, PETScMatrix, PETScVector,
+    assemble_system, info, derivative, MeshFunction, cells, DirichletBC,
+    assemble
+)
 
 from dolfin_dg.dolfin.mark import Marker
 
 
 def dual(form, w, z=None):
-    if not z is None:
+    if z is not None:
         v, u = form.arguments()
         return ufl.replace(form, {u: w, v: z})
     u = form.arguments()[0]
-    return replace(form, {u: w})
+    return ufl.replace(form, {u: w})
 
 
 class NonlinearAPosterioriEstimator:
@@ -33,7 +38,7 @@ class NonlinearAPosterioriEstimator:
 
         # Copy and homogenise BCs
         for bc in bcs:
-            if bc.user_subdomain() is None:
+            if bc.user_sub_domain() is None:
                 raise NotImplementedError("BCs defined by mesh functions not yet supported")
 
         self.bcs = []
@@ -41,7 +46,7 @@ class NonlinearAPosterioriEstimator:
             dwr_subspc = self.V_star
             for i in bc.function_space().component():
                 dwr_subspc = dwr_subspc.sub(i)
-            self.bcs += [DirichletBC(dwr_subspc, bc.value(), bc.user_subdomain())]
+            self.bcs += [DirichletBC(dwr_subspc, bc.value(), bc.user_sub_domain())]
 
         for bc in self.bcs:
             bc.homogenize()

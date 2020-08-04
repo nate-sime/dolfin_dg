@@ -1,18 +1,14 @@
 import inspect
 
 import ufl
-try:
-    from dolfin import Constant, FacetNormal
-except ImportError:
-    from firedrake import Constant, FacetNormal
 
-from ufl import CellVolume, FacetArea, grad, inner, \
-    curl, dot, as_vector, as_matrix, sqrt, tr, Identity, variable, diff, exp, Measure
+from ufl import grad, inner, curl, dot, as_vector, as_matrix, sqrt, tr, \
+    Identity, variable, diff, exp, Measure, CellVolume, FacetArea, FacetNormal
 
 from dolfin_dg.dg_form import DGFemTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG, \
     DGFemStokesTerm
 from dolfin_dg.fluxes import LocalLaxFriedrichs
-from dolfin_dg import aero
+from dolfin_dg import aero, generate_default_sipg_penalty_term
 
 
 class DGBC:
@@ -65,27 +61,28 @@ class DGFemFormulation:
 
 class EllipticOperator(DGFemFormulation):
 
-    def __init__(self, mesh, fspace, bcs, F_v, C_IP=10.0):
+    def __init__(self, mesh, fspace, bcs, F_v):
         DGFemFormulation.__init__(self, mesh, fspace, bcs)
         self.F_v = F_v
-        self.C_IP = C_IP
 
-    def generate_fem_formulation(self, u, v, dx=None, dS=None, vt=None):
+    def generate_fem_formulation(self, u, v, dx=None, dS=None, vt=None,
+                                 penalty=None):
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
 
-        h = CellVolume(self.mesh)/FacetArea(self.mesh)
-        n = FacetNormal(self.mesh)
-        sigma = self.C_IP*Constant(max(self.fspace.ufl_element().degree()**2, 1))/h
+        n = ufl.FacetNormal(self.mesh.ufl_domain())
         G = homogeneity_tensor(self.F_v, u)
 
+        if penalty is None:
+            penalty = generate_default_sipg_penalty_term(u)
+
         if vt is None:
-            vt = DGFemSIPG(self.F_v, u, v, sigma, G, n)
+            vt = DGFemSIPG(self.F_v, u, v, penalty, G, n)
 
         if inspect.isclass(vt):
-            vt = vt(self.F_v, u, v, sigma, G, n)
+            vt = vt(self.F_v, u, v, penalty, G, n)
 
         assert(isinstance(vt, DGFemTerm))
 
@@ -112,23 +109,22 @@ class PoissonOperator(EllipticOperator):
 
 class MaxwellOperator(DGFemFormulation):
 
-    def __init__(self, mesh, fspace, bcs, F_m, C_IP=10.0):
+    def __init__(self, mesh, fspace, bcs, F_m):
         DGFemFormulation.__init__(self, mesh, fspace, bcs)
         self.F_m = F_m
-        self.C_IP = C_IP
 
-    def generate_fem_formulation(self, u, v, dx=None, dS=None):
+    def generate_fem_formulation(self, u, v, dx=None, dS=None, penalty=None):
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
 
-        h = CellVolume(self.mesh)/FacetArea(self.mesh)
-        n = FacetNormal(self.mesh)
-        sigma = self.C_IP*Constant(max(self.fspace.ufl_element().degree()**2, 1))/h
+        n = ufl.FacetNormal(self.mesh.ufl_domain())
         curl_u = variable(curl(u))
         G = diff(self.F_m(u, curl_u), curl_u)
-        ct = DGFemCurlTerm(self.F_m, u, v, sigma, G, n)
+        penalty = generate_default_sipg_penalty_term(u)
+
+        ct = DGFemCurlTerm(self.F_m, u, v, penalty, G, n)
 
         residual = inner(self.F_m(u, curl(u)), curl(v))*dx
         residual += ct.interior_residual(dS)
@@ -157,7 +153,7 @@ class HyperbolicOperator(DGFemFormulation):
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
 
-        n = FacetNormal(self.mesh)
+        n = ufl.FacetNormal(self.mesh.ufl_domain())
 
         F_c_eval = self.F_c(u)
         if len(F_c_eval.ufl_shape) == 0:
@@ -182,8 +178,7 @@ class HyperbolicOperator(DGFemFormulation):
         return residual
 
 
-class SpacetimeBurgersOperator(
-    HyperbolicOperator):
+class SpacetimeBurgersOperator(HyperbolicOperator):
 
     def __init__(self, mesh, V, bcs, flux=None):
 
@@ -196,11 +191,9 @@ class SpacetimeBurgersOperator(
         HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, flux)
 
 
-class CompressibleEulerOperator(
-    HyperbolicOperator):
+class CompressibleEulerOperator(HyperbolicOperator):
 
     def __init__(self, mesh, V, bcs, gamma=1.4):
-        gamma = Constant(gamma)
         try:
             dim = mesh.geometry().dim()
         except AttributeError:
@@ -227,15 +220,9 @@ class CompressibleEulerOperator(
         HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, LocalLaxFriedrichs(alpha))
 
 
-class CompressibleNavierStokesOperator(
-    EllipticOperator,
-    CompressibleEulerOperator):
+class CompressibleNavierStokesOperator(EllipticOperator, CompressibleEulerOperator):
 
     def __init__(self, mesh, V, bcs, gamma=1.4, mu=1.0, Pr=0.72):
-        gamma = Constant(gamma)
-        mu = Constant(mu)
-        Pr = Constant(Pr)
-
         try:
             dim = mesh.geometry().dim()
         except AttributeError:
@@ -287,20 +274,19 @@ class CompressibleNavierStokesOperator(
         CompressibleEulerOperator.__init__(self, mesh, V, bcs, gamma)
         EllipticOperator.__init__(self, mesh, V, bcs, F_v)
 
-    def generate_fem_formulation(self, u, v, dx=None, dS=None):
+    def generate_fem_formulation(self, u, v, dx=None, dS=None, penalty=None):
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
 
         residual = EllipticOperator.generate_fem_formulation(
-            self, u, v, dx, dS)
+            self, u, v, dx=dx, dS=dS, penalty=penalty)
         residual += CompressibleEulerOperator.generate_fem_formulation(
-            self, u, v, dx, dS)
+            self, u, v, dx=dx, dS=dS)
 
         # Specialised adiabatic wall boundary condition
         for bc in self.adiabatic_wall_bcs:
-            h = CellVolume(self.mesh)/FacetArea(self.mesh)
             n = FacetNormal(self.mesh)
 
             u_gamma = bc.get_function()
@@ -309,11 +295,11 @@ class CompressibleNavierStokesOperator(
             self.H.setup(self.F_c, u, u_gamma, n)
             residual += inner(self.H.exterior(self.F_c, u, u_gamma, n), v)*dSD
 
-            sigma = self.C_IP*Constant(
-                max(self.fspace.ufl_element().degree()**2, 1))/h
+            if penalty is None:
+                penalty = generate_default_sipg_penalty_term(u)
             G_adiabitic = homogeneity_tensor(self.F_v_adiabatic, u)
             vt_adiabatic = DGFemSIPG(
-                self.F_v_adiabatic, u, v, sigma, G_adiabitic, n)
+                self.F_v_adiabatic, u, v, penalty, G_adiabitic, n)
 
             residual += vt_adiabatic.exterior_residual(u_gamma, dSD)
 
@@ -329,11 +315,9 @@ def V_to_U(V, gamma):
     return U
 
 
-class CompressibleEulerOperatorEntropyFormulation(
-    HyperbolicOperator):
+class CompressibleEulerOperatorEntropyFormulation(HyperbolicOperator):
 
     def __init__(self, mesh, V, bcs, gamma=1.4):
-        gamma = Constant(gamma)
 
         try:
             dim = mesh.geometry().dim()
@@ -365,13 +349,10 @@ class CompressibleEulerOperatorEntropyFormulation(
 
 
 class CompressibleNavierStokesOperatorEntropyFormulation(
-    EllipticOperator,
-    CompressibleEulerOperatorEntropyFormulation):
+        EllipticOperator,
+        CompressibleEulerOperatorEntropyFormulation):
 
     def __init__(self, mesh, V, bcs, gamma=1.4, mu=1.0, Pr=0.72):
-        gamma = Constant(gamma)
-        mu = Constant(mu)
-        Pr = Constant(Pr)
 
         try:
             dim = mesh.geometry().dim()
@@ -406,48 +387,65 @@ class CompressibleNavierStokesOperatorEntropyFormulation(
             self, mesh, V, bcs, gamma)
         EllipticOperator.__init__(self, mesh, V, bcs, F_v)
 
-    def generate_fem_formulation(self, u, v, dx=None, dS=None):
+    def generate_fem_formulation(self, u, v, dx=None, dS=None, penalty=None):
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
 
         residual = EllipticOperator \
-            .generate_fem_formulation(self, u, v, dx, dS)
+            .generate_fem_formulation(self, u, v, dx=dx, dS=dS, penalty=penalty)
         residual += CompressibleEulerOperatorEntropyFormulation \
-            .generate_fem_formulation(self, u, v, dx, dS)
+            .generate_fem_formulation(self, u, v, dx=dx, dS=dS)
 
         return residual
 
 
 class StokesOperator(DGFemFormulation):
 
-    def __init__(self, mesh, fspace, bcs, F_v, C_IP=10.0):
+    def __init__(self, mesh, fspace, bcs, F_v):
         DGFemFormulation.__init__(self, mesh, fspace, bcs)
         self.F_v = F_v
-        self.C_IP = C_IP
 
-    def generate_fem_formulation(self, u, v, p, q, dx=None, dS=None):
+    def generate_fem_formulation(self, u, v, p, q, dx=None, dS=None,
+                                 penalty=None, block_form=False):
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
 
-        h = CellVolume(self.mesh)/FacetArea(self.mesh)
-        n = FacetNormal(self.mesh)
-        sigma = self.C_IP*Constant(max(self.fspace.ufl_element().degree()**2, 1))/h
+        n = ufl.FacetNormal(self.mesh.ufl_domain())
         G = homogeneity_tensor(self.F_v, u)
         delta = -1
 
-        vt = DGFemStokesTerm(self.F_v, u, p, v, q, sigma, G, n, delta)
+        if penalty is None:
+            penalty = generate_default_sipg_penalty_term(u)
 
-        residual = inner(self.F_v(u, grad(u)), grad(v))*dx + q*ufl.div(u)*dx
-        residual += vt.interior_residual(dS)
+        vt = DGFemStokesTerm(self.F_v, u, p, v, q, penalty, G, n, delta,
+                             block_form=block_form)
+
+        residual = [ufl.inner(self.F_v(u, grad(u)), grad(v))*dx,
+                    q*ufl.div(u)*dx]
+        if not block_form:
+            residual = sum(residual)
+
+        def _add_to_residual(residual, r):
+            if block_form:
+                for j in range(len(r)):
+                    residual[j] += r[j]
+            else:
+                residual += r
+            return residual
+
+        residual = _add_to_residual(residual, vt.interior_residual(dS))
 
         for dbc in self.dirichlet_bcs:
-            residual += vt.exterior_residual(dbc.get_function(), dbc.get_boundary())
+            residual = _add_to_residual(residual, vt.exterior_residual(dbc.get_function(), dbc.get_boundary()))
 
         for dbc in self.neumann_bcs:
-            residual += vt.neumann_residual(dbc.get_function(), dbc.get_boundary())
+            elliptic_neumann_term = vt.neumann_residual(dbc.get_function(), dbc.get_boundary())
+            if block_form:
+                elliptic_neumann_term = [elliptic_neumann_term, 0]
+            residual = _add_to_residual(residual, elliptic_neumann_term)
 
         return residual

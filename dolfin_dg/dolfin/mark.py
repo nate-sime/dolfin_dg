@@ -1,5 +1,4 @@
 import dolfin
-from dolfin import *
 import numpy as np
 
 
@@ -25,9 +24,9 @@ class FixedFractionMarker(Marker):
         idx = idx[0:int(max(self.frac*len(idx), 1))]
 
         # Populate cell markers
-        markers = MeshFunction("bool", ind.mesh(),
-                               ind.mesh().topology().dim(),
-                               False)
+        markers = dolfin.MeshFunction("bool", ind.mesh(),
+                                      ind.mesh().topology().dim(),
+                                      False)
         for i in idx:
             markers[int(i)] = True
 
@@ -83,8 +82,8 @@ class FixedFractionMarkerParallel(Marker):
         idx = comm.scatter(comm_back)
 
         # Populate cell markers
-        markers = MeshFunction("bool", ind.mesh(),
-                               ind.mesh().topology().dim(), False)
+        markers = dolfin.MeshFunction("bool", ind.mesh(),
+                                      ind.mesh().topology().dim(), False)
         for i in idx:
             markers[int(i)] = True
 
