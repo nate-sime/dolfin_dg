@@ -1,7 +1,25 @@
 import pytest
-from dolfin import *
 
-from dolfin_dg.operators import *
+from ufl import (
+    FiniteElement, VectorElement, MixedElement, dot, triangle, as_vector, inner,
+    CellVolume, FacetArea, Coefficient, grad, div, split, Measure, Identity,
+    FacetNormal
+)
+
+from dolfin import (
+    parameters, FunctionSpace, UnitIntervalMesh, UnitSquareMesh, RectangleMesh,
+    Function, solve, TestFunction, Constant, errornorm, ds, dx, Expression,
+    Point, pi, MeshFunction, AutoSubDomain, near
+)
+
+from dolfin_dg import DGDirichletBC, DGNeumannBC
+from dolfin_dg.operators import (
+    PoissonOperator, EllipticOperator, MaxwellOperator,
+    CompressibleEulerOperator, CompressibleNavierStokesOperator,
+    CompressibleNavierStokesOperatorEntropyFormulation,
+    HyperbolicOperator, LocalLaxFriedrichs, SpacetimeBurgersOperator,
+    DGFemSIPG, StokesOperator
+)
 from dolfin_dg.nitsche import NitscheBoundary, StokesNitscheBoundary
 from dolfin_dg.dg_form import DGFemBO, DGFemNIPG
 import dolfin_dg
@@ -138,12 +156,13 @@ class AdvectionDiffusion(ConvergenceTest):
         def F_v(u, grad_u):
             return (u + 1)*grad_u
 
-        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c, LocalLaxFriedrichs(alpha))
+        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c,
+                                LocalLaxFriedrichs(alpha))
         eo = EllipticOperator(mesh, V, DGDirichletBC(ds, gD), F_v)
 
         F = ho.generate_fem_formulation(u, v) \
-          + eo.generate_fem_formulation(u, v) \
-          - f*v*dx
+            + eo.generate_fem_formulation(u, v) \
+            - f*v*dx
 
         return F
 
@@ -155,7 +174,8 @@ class Burgers(ConvergenceTest):
 
     def generate_form(self, mesh, V, u, v):
         gD = self.gD(V)
-        f = Expression('(exp(x[0] - x[1]) - 1)*exp(x[0] - x[1])', element=V.ufl_element())
+        f = Expression('(exp(x[0] - x[1]) - 1)*exp(x[0] - x[1])',
+                       element=V.ufl_element())
         u.interpolate(gD)
 
         bo = SpacetimeBurgersOperator(mesh, V, DGDirichletBC(ds, gD))
@@ -167,20 +187,26 @@ class Euler(ConvergenceTest):
 
     def gD(self, V):
         return Expression(('sin(2*(x[0]+x[1])) + 4',
-                          '0.2*sin(2*(x[0]+x[1])) + 4',
-                          '0.2*sin(2*(x[0]+x[1])) + 4',
-                          'pow((sin(2*(x[0]+x[1])) + 4), 2)'),
-                           element=V.ufl_element())
+                           '0.2*sin(2*(x[0]+x[1])) + 4',
+                           '0.2*sin(2*(x[0]+x[1])) + 4',
+                           'pow((sin(2*(x[0]+x[1])) + 4), 2)'),
+                          element=V.ufl_element())
 
     def generate_form(self, mesh, V, u, v):
         gD = self.gD(V)
         u.interpolate(gD)
-        f = Expression(('(4.0L/5.0L)*cos(2*x[0] + 2*x[1])',
-                        '(8.0L/125.0L)*(25*pow(sin(2*x[0] + 2*x[1]), 3) + 302*pow(sin(2*x[0] + 2*x[1]), 2) + 1216*sin(2*x[0] + 2*x[1]) + 1120)*cos(2*x[0] + 2*x[1])/pow(sin(2*x[0] + 2*x[1]) + 4, 2)',
-                        '(8.0L/125.0L)*(25*pow(sin(2*x[0] + 2*x[1]), 3) + 302*pow(sin(2*x[0] + 2*x[1]), 2) + 1216*sin(2*x[0] + 2*x[1]) + 1120)*cos(2*x[0] + 2*x[1])/pow(sin(2*x[0] + 2*x[1]) + 4, 2)',
-                        '(8.0L/625.0L)*(175*pow(sin(2*x[0] + 2*x[1]), 4) + 4199*pow(sin(2*x[0] + 2*x[1]), 3) + 33588*pow(sin(2*x[0] + 2*x[1]), 2) + 112720*sin(2*x[0] + 2*x[1]) + 145600)*cos(2*x[0] + 2*x[1])/pow(sin(2*x[0] + 2*x[1]) + 4, 3)'),
-                       element=V.ufl_element())
-
+        f0 = '(4.0L/5.0L)*cos(2*x[0] + 2*x[1])'
+        f1 = '''(8.0L/125.0L)*(25*pow(sin(2*x[0] + 2*x[1]), 3)
+            + 302*pow(sin(2*x[0] + 2*x[1]), 2) + 1216*sin(2*x[0] + 2*x[1])
+            + 1120)*cos(2*x[0] + 2*x[1])/pow(sin(2*x[0] + 2*x[1]) + 4, 2)'''
+        f2 = '''(8.0L/125.0L)*(25*pow(sin(2*x[0] + 2*x[1]), 3)
+            + 302*pow(sin(2*x[0] + 2*x[1]), 2) + 1216*sin(2*x[0] + 2*x[1])
+            + 1120)*cos(2*x[0] + 2*x[1])/pow(sin(2*x[0] + 2*x[1]) + 4, 2)'''
+        f3 = '''(8.0L/625.0L)*(175*pow(sin(2*x[0] + 2*x[1]), 4)
+            + 4199*pow(sin(2*x[0] + 2*x[1]), 3) + 33588*pow(sin(2*x[0]
+            + 2*x[1]), 2) + 112720*sin(2*x[0] + 2*x[1]) + 145600)*cos(2*x[0]
+            + 2*x[1])/pow(sin(2*x[0] + 2*x[1]) + 4, 3)'''
+        f = Expression((f0, f1, f2, f3), element=V.ufl_element())
 
         bo = CompressibleEulerOperator(mesh, V, DGDirichletBC(ds, gD))
         F = bo.generate_fem_formulation(u, v) - inner(f, v)*dx
@@ -190,7 +216,8 @@ class Euler(ConvergenceTest):
 
 class Maxwell(ConvergenceTest):
     def gD(self, V):
-        return Expression(("sin(k*x[1])", "sin(k*x[0])"), k=2, element=V.ufl_element())
+        return Expression(("sin(k*x[1])", "sin(k*x[0])"), k=2,
+                          element=V.ufl_element())
 
     def generate_form(self, mesh, V, u, v):
         k = Constant(2.0)
@@ -216,11 +243,38 @@ class NavierStokes(ConvergenceTest):
     def generate_form(self, mesh, V, u, v):
         gD = self.gD(V)
         u.interpolate(gD)
-        f = Expression(('0.8*cos(2.0*x[0] + 2.0*x[1])',
-                        '(1.6*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1]) + 25.728*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1]) + 155.136*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1]) - 34.1333333333333*pow(sin(2.0*x[0] + 2.0*x[1]), 2) - 136.533333333333*sin(2.0*x[0] + 2.0*x[1]) + 191.488*sin(4.0*x[0] + 4.0*x[1]) - 68.2666666666667*pow(cos(2.0*x[0] + 2.0*x[1]), 2) + 286.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1]) + 4.0, 3)',
-                        '(1.6*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1]) + 25.728*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1]) + 155.136*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1]) - 34.1333333333333*pow(sin(2.0*x[0] + 2.0*x[1]), 2) - 136.533333333333*sin(2.0*x[0] + 2.0*x[1]) + 191.488*sin(4.0*x[0] + 4.0*x[1]) - 68.2666666666667*pow(cos(2.0*x[0] + 2.0*x[1]), 2) + 286.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1]) + 4.0, 3)',
-                        '(2.24*pow(sin(2.0*x[0] + 2.0*x[1]), 5)*cos(2.0*x[0] + 2.0*x[1]) + 15.5555555555556*pow(sin(2.0*x[0] + 2.0*x[1]), 5) + 62.7072*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1]) + 248.888888888889*pow(sin(2.0*x[0] + 2.0*x[1]), 4) + 644.9152*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1]) + 1499.59111111111*pow(sin(2.0*x[0] + 2.0*x[1]), 3) + 3162.5216*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1]) + 4132.40888888889*pow(sin(2.0*x[0] + 2.0*x[1]), 2) + 12.5155555555556*sin(2.0*x[0] + 2.0*x[1])*pow(cos(2.0*x[0] + 2.0*x[1]), 2) + 4482.84444444444*sin(2.0*x[0] + 2.0*x[1]) + 3817.472*sin(4.0*x[0] + 4.0*x[1]) + 350.435555555555*pow(cos(2.0*x[0] + 2.0*x[1]), 2) + 7454.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1]) + 4.0, 4)'),
-                       element=V.ufl_element())
+        f0 = '0.8*cos(2.0*x[0] + 2.0*x[1])'
+        f1 = '''(1.6*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1])
+            + 25.728*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1])
+            + 155.136*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1])
+            - 34.1333333333333*pow(sin(2.0*x[0] + 2.0*x[1]), 2)
+            - 136.533333333333*sin(2.0*x[0] + 2.0*x[1]) + 191.488*sin(4.0*x[0]
+            + 4.0*x[1]) - 68.2666666666667*pow(cos(2.0*x[0] + 2.0*x[1]), 2)
+            + 286.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1])
+            + 4.0, 3)'''
+        f2 = '''(1.6*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1])
+            + 25.728*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1])
+            + 155.136*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1])
+            - 34.1333333333333*pow(sin(2.0*x[0] + 2.0*x[1]), 2)
+            - 136.533333333333*sin(2.0*x[0] + 2.0*x[1]) + 191.488*sin(4.0*x[0]
+            + 4.0*x[1]) - 68.2666666666667*pow(cos(2.0*x[0] + 2.0*x[1]), 2)
+            + 286.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1])
+            + 4.0, 3)'''
+        f3 = '''(2.24*pow(sin(2.0*x[0] + 2.0*x[1]), 5)*cos(2.0*x[0] + 2.0*x[1])
+            + 15.5555555555556*pow(sin(2.0*x[0] + 2.0*x[1]), 5)
+            + 62.7072*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1])
+            + 248.888888888889*pow(sin(2.0*x[0] + 2.0*x[1]), 4)
+            + 644.9152*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1])
+            + 1499.59111111111*pow(sin(2.0*x[0] + 2.0*x[1]), 3)
+            + 3162.5216*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0]
+            + 2.0*x[1]) + 4132.40888888889*pow(sin(2.0*x[0] + 2.0*x[1]), 2)
+            + 12.5155555555556*sin(2.0*x[0] + 2.0*x[1])*pow(cos(2.0*x[0]
+            + 2.0*x[1]), 2) + 4482.84444444444*sin(2.0*x[0] + 2.0*x[1])
+            + 3817.472*sin(4.0*x[0] + 4.0*x[1])
+            + 350.435555555555*pow(cos(2.0*x[0] + 2.0*x[1]), 2)
+            + 7454.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0]
+            + 2.0*x[1]) + 4.0, 4)'''
+        f = Expression((f0, f1, f2, f3), element=V.ufl_element())
 
         bo = CompressibleNavierStokesOperator(mesh, V, DGDirichletBC(ds, gD))
         F = bo.generate_fem_formulation(u, v) - inner(f, v)*dx
@@ -229,24 +283,66 @@ class NavierStokes(ConvergenceTest):
 
 class NavierStokesEntropy(ConvergenceTest):
     def gD(self, V):
-        return Expression(('((-std::log((0.4*sin(2*x[0] + 2*x[1]) + 1.6)*pow(sin(2*x[0] + 2*x[1]) + 4, -1.4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4)) + 2.4)*(sin(2*x[0] + 2*x[1]) + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4) - pow(sin(2*x[0] + 2*x[1]) + 4, 2))/((sin(2*x[0] + 2*x[1]) + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))',
-                    '((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4)/((sin(2*x[0] + 2*x[1]) + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))',
-                    '((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4)/((sin(2*x[0] + 2*x[1]) + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))',
-                    '(-sin(2*x[0] + 2*x[1]) - 4)/((sin(2*x[0] + 2*x[1]) + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))'),
-                    element=V.ufl_element())
+        gD0 = '''((-std::log((0.4*sin(2*x[0] + 2*x[1]) + 1.6)*pow(sin(2*x[0] +
+              2*x[1]) + 4, -1.4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4,
+              2)/pow(sin(2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) +
+              4)) + 2.4)*(sin(2*x[0] + 2*x[1]) + 4)*(-pow((1.0L/5.0L)*sin(
+              2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[1]) + 4,
+              2) + sin(2*x[0] + 2*x[1]) + 4) - pow(sin(2*x[0] + 2*x[1]) + 4,
+              2))/((sin(2*x[0] + 2*x[1]) + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] +
+              2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0]
+              + 2*x[1]) + 4))'''
+        gD1 = '''((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4)/((sin(2*x[0] + 2*x[1])
+            + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0]
+            + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))'''
+        gD2 = '''((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4)/((sin(2*x[0] + 2*x[1])
+              + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(
+              2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))'''
+        gD3 = '''(-sin(2*x[0] + 2*x[1]) - 4)/((sin(2*x[0] + 2*x[1]) + 4)*(-pow(
+              (1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[
+              1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))'''
+        return Expression((gD0, gD1, gD2, gD3), element=V.ufl_element())
 
     def generate_form(self, mesh, V, u, v):
         gD = self.gD(V)
         u.interpolate(gD)
-        f = Expression(('0.8*cos(2.0*x[0] + 2.0*x[1])',
-                        '(1.6*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1]) + 25.728*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1]) + 155.136*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1]) - 34.1333333333333*pow(sin(2.0*x[0] + 2.0*x[1]), 2) - 136.533333333333*sin(2.0*x[0] + 2.0*x[1]) + 191.488*sin(4.0*x[0] + 4.0*x[1]) - 68.2666666666667*pow(cos(2.0*x[0] + 2.0*x[1]), 2) + 286.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1]) + 4.0, 3)',
-                        '(1.6*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1]) + 25.728*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1]) + 155.136*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1]) - 34.1333333333333*pow(sin(2.0*x[0] + 2.0*x[1]), 2) - 136.533333333333*sin(2.0*x[0] + 2.0*x[1]) + 191.488*sin(4.0*x[0] + 4.0*x[1]) - 68.2666666666667*pow(cos(2.0*x[0] + 2.0*x[1]), 2) + 286.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1]) + 4.0, 3)',
-                        '(2.24*pow(sin(2.0*x[0] + 2.0*x[1]), 5)*cos(2.0*x[0] + 2.0*x[1]) + 15.5555555555556*pow(sin(2.0*x[0] + 2.0*x[1]), 5) + 62.7072*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1]) + 248.888888888889*pow(sin(2.0*x[0] + 2.0*x[1]), 4) + 644.9152*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1]) + 1499.59111111111*pow(sin(2.0*x[0] + 2.0*x[1]), 3) + 3162.5216*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1]) + 4132.40888888889*pow(sin(2.0*x[0] + 2.0*x[1]), 2) + 12.5155555555556*sin(2.0*x[0] + 2.0*x[1])*pow(cos(2.0*x[0] + 2.0*x[1]), 2) + 4482.84444444444*sin(2.0*x[0] + 2.0*x[1]) + 3817.472*sin(4.0*x[0] + 4.0*x[1]) + 350.435555555555*pow(cos(2.0*x[0] + 2.0*x[1]), 2) + 7454.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1]) + 4.0, 4)'),
-                       element=V.ufl_element())
+        f0 = '0.8*cos(2.0*x[0] + 2.0*x[1])'
+        f1 = '''(1.6*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1])
+            + 25.728*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1])
+            + 155.136*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1])
+            - 34.1333333333333*pow(sin(2.0*x[0] + 2.0*x[1]), 2)
+            - 136.533333333333*sin(2.0*x[0] + 2.0*x[1]) + 191.488*sin(4.0*x[0]
+            + 4.0*x[1]) - 68.2666666666667*pow(cos(2.0*x[0] + 2.0*x[1]), 2)
+            + 286.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1])
+            + 4.0, 3)'''
+        f2 = '''(1.6*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1])
+            + 25.728*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1])
+            + 155.136*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1])
+            - 34.1333333333333*pow(sin(2.0*x[0] + 2.0*x[1]), 2)
+            - 136.533333333333*sin(2.0*x[0] + 2.0*x[1]) + 191.488*sin(4.0*x[0]
+            + 4.0*x[1]) - 68.2666666666667*pow(cos(2.0*x[0] + 2.0*x[1]), 2)
+            + 286.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1])
+            + 4.0, 3)'''
+        f3 = '''(2.24*pow(sin(2.0*x[0] + 2.0*x[1]), 5)*cos(2.0*x[0] + 2.0*x[1])
+            + 15.5555555555556*pow(sin(2.0*x[0] + 2.0*x[1]), 5)
+            + 62.7072*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1])
+            + 248.888888888889*pow(sin(2.0*x[0] + 2.0*x[1]), 4)
+            + 644.9152*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1])
+            + 1499.59111111111*pow(sin(2.0*x[0] + 2.0*x[1]), 3)
+            + 3162.5216*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0]
+            + 2.0*x[1]) + 4132.40888888889*pow(sin(2.0*x[0] + 2.0*x[1]), 2)
+            + 12.5155555555556*sin(2.0*x[0] + 2.0*x[1])*pow(cos(2.0*x[0]
+            + 2.0*x[1]), 2) + 4482.84444444444*sin(2.0*x[0] + 2.0*x[1])
+            + 3817.472*sin(4.0*x[0] + 4.0*x[1])
+            + 350.435555555555*pow(cos(2.0*x[0] + 2.0*x[1]), 2)
+            + 7454.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0]
+            + 2.0*x[1]) + 4.0, 4)'''
+        f = Expression((f0, f1, f2, f3), element=V.ufl_element())
 
-        bo = CompressibleNavierStokesOperatorEntropyFormulation(mesh, V, DGDirichletBC(ds, gD))
+        bo = CompressibleNavierStokesOperatorEntropyFormulation(
+            mesh, V, DGDirichletBC(ds, gD))
 
-        h = ufl.CellVolume(u.ufl_domain())/ufl.FacetArea(u.ufl_domain())
+        h = CellVolume(u.ufl_domain())/FacetArea(u.ufl_domain())
         ufl_degree = u.ufl_element().degree()
         C_IP = 20.0
         penalty = Constant(C_IP * max(ufl_degree ** 2, 1)) / h
@@ -264,15 +360,20 @@ class NavierStokesEntropy(ConvergenceTest):
 
 class Poisson(ConvergenceTest):
     def gD(self, V):
-        return Expression('sin(pi*x[0])*sin(pi*x[1]) + 1.0', element=V.ufl_element())
+        return Expression('sin(pi*x[0])*sin(pi*x[1]) + 1.0',
+                          element=V.ufl_element())
 
     def generate_form(self, mesh, V, u, v, vt=None):
         if vt is None:
             raise RuntimeError("No viscous term provided")
         gD = self.gD(V)
         u.interpolate(gD)
-        f = Expression('2*pow(pi, 2)*(sin(pi*x[0])*sin(pi*x[1]) + 2.0)*sin(pi*x[0])*sin(pi*x[1]) - pow(pi, 2)*pow(sin(pi*x[0]), 2)*pow(cos(pi*x[1]), 2) - pow(pi, 2)*pow(sin(pi*x[1]), 2)*pow(cos(pi*x[0]), 2)',
-                       element=V.ufl_element())
+        f = Expression(
+            '2*pow(pi, 2)*(sin(pi*x[0])*sin(pi*x[1]) + 2.0)'
+            '*sin(pi*x[0])*sin(pi*x[1]) - pow(pi, 2)'
+            '*pow(sin(pi*x[0]), 2)*pow(cos(pi*x[1]), 2)'
+            '-pow(pi, 2)*pow(sin(pi*x[1]), 2)*pow(cos(pi*x[0]), 2)',
+            element=V.ufl_element())
         pe = PoissonOperator(mesh, V, DGDirichletBC(ds, gD), kappa=u + 1)
         F = pe.generate_fem_formulation(u, v, vt=vt) - f*v*dx
 
@@ -305,15 +406,22 @@ class PoissonNIPG(Poisson):
 
 class PoissonNistcheBC(ConvergenceTest):
     def gD(self, V):
-        return Expression('sin(pi*x[0])*sin(pi*x[1]) + 1.0', element=V.ufl_element())
+        return Expression('sin(pi*x[0])*sin(pi*x[1]) + 1.0',
+                          element=V.ufl_element())
 
     def generate_form(self, mesh, V, u, v):
         gD = self.gD(V)
         u.interpolate(gD)
+
         def F_v(u, grad_u):
             return (u+1)*grad_u
-        f = Expression('2*pow(pi, 2)*(sin(pi*x[0])*sin(pi*x[1]) + 2.0)*sin(pi*x[0])*sin(pi*x[1]) - pow(pi, 2)*pow(sin(pi*x[0]), 2)*pow(cos(pi*x[1]), 2) - pow(pi, 2)*pow(sin(pi*x[1]), 2)*pow(cos(pi*x[0]), 2)',
-                       element=V.ufl_element())
+
+        f = Expression(
+            '2*pow(pi, 2)*(sin(pi*x[0])*sin(pi*x[1]) + 2.0)'
+            '*sin(pi*x[0])*sin(pi*x[1])'
+            '-pow(pi, 2)*pow(sin(pi*x[0]), 2)*pow(cos(pi*x[1]), 2)'
+            '-pow(pi, 2)*pow(sin(pi*x[1]), 2)*pow(cos(pi*x[0]), 2)',
+            element=V.ufl_element())
         nbc = NitscheBoundary(F_v, u, v)
         F = dot(F_v(u, grad(u)), grad(v))*dx - f*v*dx
         F += nbc.nitsche_bc_residual(gD, ds)
@@ -335,16 +443,16 @@ class StokesTest(ConvergenceTest):
                              "x[1] * sin(x[1]) * exp(x[0])"),
                             degree=W.sub(0).ufl_element().degree() + 1,
                             domain=W.mesh())
-        p_soln = Expression("2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
-                            degree=W.sub(1).ufl_element().degree() + 1,
-                            domain=W.mesh())
+        p_soln = Expression(
+            "2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
+            degree=W.sub(1).ufl_element().degree() + 1, domain=W.mesh())
         return u_soln, p_soln
 
     def generate_form(self, mesh, W, U, V):
-        u = ufl.as_vector((U[0], U[1]))
+        u = as_vector((U[0], U[1]))
         p = U[2]
 
-        v = ufl.as_vector((V[0], V[1]))
+        v = as_vector((V[0], V[1]))
         q = V[2]
 
         def F_v(u, grad_u):
@@ -353,8 +461,10 @@ class StokesTest(ConvergenceTest):
         u_soln, p_soln = self.gD(W)
 
         ff = MeshFunction("size_t", mesh, mesh.topology().dim() - 1, 0)
-        AutoSubDomain(lambda x, on: near(x[0], 0.0) or near(x[1], 0.0)).mark(ff, 1)
-        AutoSubDomain(lambda x, on: near(x[0], 1.0) or near(x[1], 1.0)).mark(ff, 2)
+        AutoSubDomain(
+            lambda x, on: near(x[0], 0.0) or near(x[1], 0.0)).mark(ff, 1)
+        AutoSubDomain(
+            lambda x, on: near(x[0], 1.0) or near(x[1], 1.0)).mark(ff, 2)
         ds = Measure("ds", subdomain_data=ff)
         dsD, dsN = ds(1), ds(2)
 
@@ -364,7 +474,7 @@ class StokesTest(ConvergenceTest):
 
         pe = StokesOperator(mesh, W, bcs, F_v)
 
-        h = ufl.CellVolume(u.ufl_domain())/ufl.FacetArea(u.ufl_domain())
+        h = CellVolume(u.ufl_domain())/FacetArea(u.ufl_domain())
         ufl_degree = W.ufl_element().degree()
         C_IP = 20.0
         penalty = Constant(C_IP * max(ufl_degree ** 2, 1)) / h
@@ -388,9 +498,9 @@ class StokesNitscheTest(ConvergenceTest):
                              "x[1] * sin(x[1]) * exp(x[0])"),
                             degree=W.sub(0).ufl_element().degree() + 2,
                             domain=W.mesh())
-        p_soln = Expression("2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
-                            degree=W.sub(1).ufl_element().degree() + 1,
-                            domain=W.mesh())
+        p_soln = Expression(
+            "2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
+            degree=W.sub(1).ufl_element().degree() + 1, domain=W.mesh())
         return u_soln, p_soln
 
     def _formulate_nitsche_boundary(self, F_v, u, p, v, q,
@@ -399,22 +509,25 @@ class StokesNitscheTest(ConvergenceTest):
         raise NotImplementedError
 
     def generate_form(self, mesh, W, U, V):
-        u = ufl.as_vector((U[0], U[1]))
+        u = as_vector((U[0], U[1]))
         p = U[2]
 
-        v = ufl.as_vector((V[0], V[1]))
+        v = as_vector((V[0], V[1]))
         q = V[2]
 
         def F_v(u, grad_u, p_local=None):
             if p_local is None:
                 p_local = p
-            return (Constant(10.0) + Constant(1.0) * dot(u, u)) * grad_u - p_local * Identity(2)
+            return (Constant(10.0) + Constant(1.0) * dot(u, u)) * grad_u \
+                - p_local * Identity(2)
 
         u_soln, p_soln = self.gD(W)
 
         ff = MeshFunction("size_t", mesh, mesh.topology().dim() - 1, 0)
-        AutoSubDomain(lambda x, on: near(x[0], 0.0) or near(x[1], 0.0)).mark(ff, 1)
-        AutoSubDomain(lambda x, on: near(x[0], 1.0) or near(x[1], 1.0)).mark(ff, 2)
+        AutoSubDomain(
+            lambda x, on: near(x[0], 0.0) or near(x[1], 0.0)).mark(ff, 1)
+        AutoSubDomain(
+            lambda x, on: near(x[0], 1.0) or near(x[1], 1.0)).mark(ff, 2)
         AutoSubDomain(lambda x, on: near(x[0], 0.25)).mark(ff, 3)
 
         ds = Measure("ds", subdomain_data=ff)
@@ -425,7 +538,8 @@ class StokesNitscheTest(ConvergenceTest):
 
         # Domain
         f = -div(F_v(u_soln, grad(u_soln), p_soln))
-        F = inner(F_v(u, grad(u)), grad(v)) * dx + q * div(u) * dx - dot(f, v)*dx
+        F = inner(F_v(u, grad(u)), grad(v)) * dx \
+            + q * div(u) * dx - dot(f, v)*dx
 
         # Neumann
         facet_n = FacetNormal(mesh)
@@ -464,7 +578,8 @@ class StokesNitscheSlipBCTest(StokesNitscheTest):
                                     gN, dsD, dSint):
         stokes_nitsche = StokesNitscheBoundary(F_v, u, p, v, q)
         F = stokes_nitsche.slip_nitsche_bc_residual(u_soln, gN, dsD)
-        F += stokes_nitsche.slip_nitsche_bc_residual_on_interior(u_soln, gN, dSint)
+        F += stokes_nitsche.slip_nitsche_bc_residual_on_interior(
+            u_soln, gN, dSint)
         return F
 
 
@@ -473,21 +588,25 @@ class StokesNitscheSlipManualTest(StokesNitscheTest):
     def _formulate_nitsche_boundary(self, F_v, u, p, v, q,
                                     u_soln, p_soln,
                                     gN, dsD, dSint):
-        n = FacetNormal(u.ufl_operands[0].ufl_operands[0].function_space().mesh())
+        n = FacetNormal(
+            u.ufl_operands[0].ufl_operands[0].function_space().mesh())
+
         def F_v_normal(u, grad_u):
             return dolfin_dg.normal_proj(F_v(u, grad_u), n)
+
         stokes_nitsche = StokesNitscheBoundary(F_v_normal, u, p, v, q)
         F = stokes_nitsche.nitsche_bc_residual(u_soln, dsD)
         F -= dot(dolfin_dg.tangential_proj(gN, n), v) * dsD
         F += stokes_nitsche.nitsche_bc_residual_on_interior(u_soln, dSint)
-        F -= sum(dot(dolfin_dg.tangential_proj(gN, n), v)(side) for side in ("+", "-")) * dSint
+        F -= sum(dot(dolfin_dg.tangential_proj(gN, n), v)(side)
+                 for side in ("+", "-")) * dSint
         return F
 
 
 class NitscheMixedElement(ConvergenceTest):
 
     def get_num_sub_spaces(self, V):
-        return ufl.Coefficient(V).ufl_shape[0]
+        return Coefficient(V).ufl_shape[0]
 
     def gD(self, V):
         num_sub_spaces = self.get_num_sub_spaces(V)
@@ -505,7 +624,7 @@ class NitscheMixedElement(ConvergenceTest):
         def F_v(u, grad_u):
             return grad_u
 
-        for u_sub, v_sub in zip(ufl.split(u), ufl.split(v)):
+        for u_sub, v_sub in zip(split(u), split(v)):
             nbc = NitscheBoundary(F_v, u_sub, v_sub)
             if u_sub.ufl_shape:
                 u_gamma = Constant([0.0] * u_sub.ufl_shape[0])
@@ -596,19 +715,19 @@ def test_square_nitsche_cg_problems(conv_test, SquareMeshes):
 
 
 mixed_elements_for_testing = [
-    MixedElement([VectorElement("CG", ufl.triangle, 1),
-                  FiniteElement("CG", ufl.triangle, 1)]),
-    MixedElement([FiniteElement("CG", ufl.triangle, 1),
-                  VectorElement("CG", ufl.triangle, 1)]),
-    MixedElement([FiniteElement("CG", ufl.triangle, 1),
-                  VectorElement("CG", ufl.triangle, 1),
-                  FiniteElement("CG", ufl.triangle, 1), ])
+    MixedElement([VectorElement("CG", triangle, 1),
+                  FiniteElement("CG", triangle, 1)]),
+    MixedElement([FiniteElement("CG", triangle, 1),
+                  VectorElement("CG", triangle, 1)]),
+    MixedElement([FiniteElement("CG", triangle, 1),
+                  VectorElement("CG", triangle, 1),
+                  FiniteElement("CG", triangle, 1), ])
 ]
 
 
 @pytest.mark.parametrize("element", mixed_elements_for_testing)
 @pytest.mark.parametrize("conv_test", [NitscheMixedElement])
-def test_square_nitsche_cg_problems(conv_test, SquareMeshes, element):
+def test_square_nitsche_cg_mixed_problems(conv_test, SquareMeshes, element):
     conv_test(SquareMeshes, element).run_test()
 
 
