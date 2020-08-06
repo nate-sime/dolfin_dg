@@ -1,4 +1,5 @@
 import abc
+
 import ufl
 
 from dolfin_dg import hyper_tensor_product, hyper_tensor_T_product, \

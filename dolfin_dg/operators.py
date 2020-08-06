@@ -1,18 +1,16 @@
 import inspect
 
 import ufl
-
 from ufl import (
     grad, inner, curl, dot, as_vector, tr, Identity, variable, diff, exp,
     Measure, FacetNormal
 )
 
+from dolfin_dg import aero, generate_default_sipg_penalty_term
 from dolfin_dg.dg_form import (
     DGFemTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG, DGFemStokesTerm
 )
-
 from dolfin_dg.fluxes import LocalLaxFriedrichs
-from dolfin_dg import aero, generate_default_sipg_penalty_term
 
 
 class DGBC:
