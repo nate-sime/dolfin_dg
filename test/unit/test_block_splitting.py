@@ -1,8 +1,9 @@
+from dolfin import (
+    Function, FunctionSpace, VectorElement, FiniteElement, Identity, grad,
+    div, inner, dx, as_backend_type, assemble, TrialFunction, FacetNormal,
+    Constant, Expression, UnitSquareMesh, TestFunction, sym, jump, dS)
+
 import dolfin_dg
-from dolfin import Function, FunctionSpace, VectorElement, \
-    FiniteElement, Identity, grad, div, inner, dx, \
-    as_backend_type, assemble, TrialFunction, FacetNormal, \
-    Constant, Expression, UnitSquareMesh, TestFunction, sym, jump, dS
 
 
 def test_block_split():

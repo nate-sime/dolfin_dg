@@ -1,31 +1,24 @@
+import numpy as np
 import pytest
-
-from ufl import (
-    FiniteElement, VectorElement, MixedElement, dot, triangle, as_vector, inner,
-    CellVolume, FacetArea, Coefficient, grad, div, split, Measure, Identity,
-    FacetNormal
-)
-
 from dolfin import (
     parameters, FunctionSpace, UnitIntervalMesh, UnitSquareMesh, RectangleMesh,
     Function, solve, TestFunction, Constant, errornorm, ds, dx, Expression,
-    Point, pi, MeshFunction, AutoSubDomain, near
-)
+    Point, pi, MeshFunction, AutoSubDomain, near)
+from ufl import (
+    FiniteElement, VectorElement, MixedElement, dot, triangle, as_vector, inner,
+    CellVolume, FacetArea, Coefficient, grad, div, split, Measure, Identity,
+    FacetNormal)
 
+import dolfin_dg
 from dolfin_dg import DGDirichletBC, DGNeumannBC
+from dolfin_dg.dg_form import DGFemBO, DGFemNIPG
+from dolfin_dg.nitsche import NitscheBoundary, StokesNitscheBoundary
 from dolfin_dg.operators import (
     PoissonOperator, EllipticOperator, MaxwellOperator,
     CompressibleEulerOperator, CompressibleNavierStokesOperator,
     CompressibleNavierStokesOperatorEntropyFormulation,
     HyperbolicOperator, LocalLaxFriedrichs, SpacetimeBurgersOperator,
-    DGFemSIPG, StokesOperator
-)
-from dolfin_dg.nitsche import NitscheBoundary, StokesNitscheBoundary
-from dolfin_dg.dg_form import DGFemBO, DGFemNIPG
-import dolfin_dg
-import numpy as np
-
-__author__ = 'njcs4'
+    DGFemSIPG, StokesOperator)
 
 parameters['form_compiler']["cpp_optimize"] = True
 parameters['form_compiler']["optimize"] = True
