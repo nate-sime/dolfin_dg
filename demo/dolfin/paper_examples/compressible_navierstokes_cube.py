@@ -1,6 +1,7 @@
-from dolfin import *
-from dolfin_dg import *
 import numpy as np
+from dolfin import *
+
+from dolfin_dg import *
 
 # WARNING: This demo is *very* computationally expensive to run.
 

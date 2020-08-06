@@ -1,7 +1,7 @@
-from dolfin import *
-from dolfin_dg import *
 import numpy as np
+from dolfin import *
 
+from dolfin_dg import *
 
 parameters["ghost_mode"] = "shared_facet"
 parameters['form_compiler']['representation'] = 'uflacs'

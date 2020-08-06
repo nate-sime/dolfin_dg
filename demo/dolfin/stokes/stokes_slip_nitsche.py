@@ -1,9 +1,9 @@
+import numpy as np
 from dolfin import (
     MixedElement, VectorElement, FiniteElement, FunctionSpace, FacetNormal,
     SpatialCoordinate, Function, Constant, split, interpolate, assign,
     TestFunction, Expression, parameters, solve, errornorm, MPI, dot, inner,
     div, sym, grad, sqrt, ds, dx, Identity, assemble, RectangleMesh, Point)
-import numpy as np
 
 from dolfin_dg import StokesNitscheBoundary, tangential_proj, normal_proj
 

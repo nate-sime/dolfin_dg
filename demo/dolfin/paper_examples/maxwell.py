@@ -1,7 +1,7 @@
-from dolfin import *
-from dolfin_dg import *
 import numpy as np
+from dolfin import *
 
+from dolfin_dg import *
 
 parameters['form_compiler']["cpp_optimize"] = True
 parameters['form_compiler']["optimize"] = True

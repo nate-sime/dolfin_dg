@@ -1,10 +1,11 @@
+import numpy as np
 from dolfin import (
     parameters, UnitSquareMesh, VectorElement, FiniteElement, MixedElement,
     FunctionSpace, info, Function, split, TrialFunction, TestFunction,
     SpatialCoordinate, Expression, MeshFunction, CompiledSubDomain, Measure,
     FacetNormal, grad, Identity, derivative, solve, assemble, dx)
+
 from dolfin_dg import (DGDirichletBC, DGNeumannBC, StokesOperator)
-import numpy as np
 
 parameters['std_out_all_processes'] = False
 parameters["ghost_mode"] = "shared_facet"

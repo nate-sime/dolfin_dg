@@ -1,10 +1,10 @@
 import numpy as np
-
 from dolfin import (
     RectangleMesh, Point, FunctionSpace, Expression, Function, FacetNormal,
     VectorFunctionSpace, TestFunction, parameters, DirichletBC, Constant,
     div, grad, curl, dot, inner, solve, derivative, project, errornorm, MPI,
     dx, ds, dS)
+
 import dolfin_dg as dg
 
 # C0-IPG formulation of the streamfunction formulation of the Stokes
