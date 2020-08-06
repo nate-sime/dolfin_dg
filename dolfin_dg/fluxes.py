@@ -2,8 +2,6 @@ import ufl
 from ufl import dot, Max, Min
 
 
-
-
 def max_abs_of_sequence(a):
     """
     Utility function to generate the Max Abs of a sequence of N elements

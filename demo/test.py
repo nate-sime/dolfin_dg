@@ -7,7 +7,7 @@ import pytest
 
 fast_demo_dirs = [
     "dolfin/burgers",
-    "dolfin/nonlinear_advection",
+    "dolfin/advection",
     "dolfin/stokes",
     "dolfinx/advection",
     "dolfinx/poisson",

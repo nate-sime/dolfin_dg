@@ -1,5 +1,5 @@
-import inspect
 import abc
+import inspect
 
 import ufl
 from ufl import (
@@ -7,8 +7,6 @@ from ufl import (
 
 from dolfin_dg.dg_ufl import (
     apply_dg_operators, avg, tensor_jump, jump, tangent_jump, dg_cross)
-
-
 
 
 def normal_proj(u, n):
