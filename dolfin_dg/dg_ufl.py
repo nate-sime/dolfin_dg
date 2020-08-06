@@ -1,13 +1,13 @@
 import ufl
+from ufl.algorithms.map_integrands import map_integrand_dags
+from ufl.algorithms.multifunction import MultiFunction
 from ufl.constantvalue import Zero
 from ufl.core.operator import Operator
-from ufl.index_combination_utils import merge_nonoverlapping_indices
-from ufl.precedence import parstr
 from ufl.core.ufl_type import ufl_type
-from ufl.tensoralgebra import CompoundTensorOperator
-from ufl.algorithms.multifunction import MultiFunction
+from ufl.index_combination_utils import merge_nonoverlapping_indices
 from ufl.measure import integral_type_to_measure_name
-from ufl.algorithms.map_integrands import map_integrand_dags
+from ufl.precedence import parstr
+from ufl.tensoralgebra import CompoundTensorOperator
 
 
 def dg_cross(u, v):
@@ -79,7 +79,8 @@ class Jump(CompoundTensorOperator):
                                              index_values)
 
     def __str__(self):
-        return "〚" + " ⋅ ".join(map(lambda o: parstr(o, self), self.ufl_operands)) + "〛"
+        return "〚" + " ⋅ ".join(map(lambda o: parstr(o, self),
+                                    self.ufl_operands)) + "〛"
 
     @property
     def ufl_shape(self):
@@ -108,7 +109,8 @@ class TensorJump(Jump):
         self.ufl_index_dimensions = fid
 
     def __str__(self):
-        o1, o2 = parstr(self.ufl_operands[0], self), parstr(self.ufl_operands[1], self)
+        o1, o2 = parstr(self.ufl_operands[0], self), \
+                 parstr(self.ufl_operands[1], self)
         return "〚%s ⊗ %s〛" % (o1, o2)
 
     @property

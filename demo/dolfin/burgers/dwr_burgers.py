@@ -1,7 +1,13 @@
-from dolfin import *
-from dolfin_dg import *
-from dolfin_dg.dolfin import *
 import matplotlib.pyplot as plt
+from dolfin import (
+    parameters, RectangleMesh, Point, plot,
+    FunctionSpace, TrialFunction, TestFunction, Expression, MeshFunction,
+    Measure, derivative, solve, Function, CompiledSubDomain, interpolate,
+    SpatialCoordinate, Constant, refine, MPI, pi, dx)
+
+from dolfin_dg import (DGDirichletBC, DGNeumannBC, SpacetimeBurgersOperator)
+from dolfin_dg.dolfin import (
+    NonlinearAPosterioriEstimator, FixedFractionMarker)
 
 # This demo aims to reproduce numerical example 7.1 Hartmann and Houston 2002
 

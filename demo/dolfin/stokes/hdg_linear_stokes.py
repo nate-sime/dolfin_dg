@@ -1,12 +1,16 @@
-import numpy as np
-from dolfin import *
-import dolfin_dg
-import dolfin_dg.hdg_form
 import leopart
+import numpy as np
+from dolfin import (
+    UnitSquareMesh, VectorElement, FiniteElement, MixedElement,
+    FunctionSpace, Function, split, TestFunction, Expression, MeshFunction,
+    CompiledSubDomain, Measure, FacetNormal, Identity, assemble, dx,
+    Constant, CellDiameter, sym, inner, dot, dS, div, grad, DirichletBC,
+    Form, MPI)
 
+import dolfin_dg.hdg_form
 
 k = 2
-n_eles = [2, 4, 8, 16, 32, 64]
+n_eles = [8, 16, 32]
 l2errors_u_l2 = np.zeros_like(n_eles, dtype=np.double)
 l2errors_u_h1 = np.zeros_like(n_eles, dtype=np.double)
 hs = np.zeros_like(n_eles, dtype=np.double)
@@ -20,8 +24,9 @@ for run_no, n_ele in enumerate(n_eles):
                          "x[1] * sin(x[1]) * exp(x[0])"),
                         degree=k + 2,
                         domain=mesh)
-    p_soln = Expression("2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
-                        degree=k + 2, domain=mesh)
+    p_soln = Expression(
+        "2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
+        degree=k + 2, domain=mesh)
 
     ff = MeshFunction("size_t", mesh, mesh.topology().dim() - 1, 0)
     CompiledSubDomain("near(x[0], 0.0) or near(x[1], 0.0)").mark(ff, 1)
@@ -70,7 +75,8 @@ for run_no, n_ele in enumerate(n_eles):
 
     penalty = alpha / h
     G = dolfin_dg.homogeneity_tensor(F_v, u)
-    hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(F_v, u, ubar, v, vbar, penalty, G, n)
+    hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(
+        F_v, u, ubar, v, vbar, penalty, G, n)
 
     F += hdg_term.face_residual(dS, ds)
 
@@ -121,7 +127,8 @@ for run_no, n_ele in enumerate(n_eles):
     l2errors_u_l2[run_no] = l2error_u
     l2errors_u_h1[run_no] = h1error_u
 
-rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / np.log(hs[:-1] / hs[1:])
-rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / np.log(hs[:-1] / hs[1:])
+hrates = np.log(hs[:-1] / hs[1:])
+rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / hrates
+rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / hrates
 print("rates u L2: %s" % str(rates_u_l2))
 print("rates u H1: %s" % str(rates_u_h1))

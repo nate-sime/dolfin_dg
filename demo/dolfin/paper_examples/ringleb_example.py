@@ -1,8 +1,8 @@
-from dolfin import *
-from dolfin_dg import *
-from dolfin_dg.dolfin import ringleb
 import numpy as np
+import ringleb_mesh as ringleb
+from dolfin import *
 
+from dolfin_dg import *
 
 if MPI.size(MPI.comm_world) > 1:
     raise NotImplementedError(

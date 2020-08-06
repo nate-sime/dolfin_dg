@@ -1,9 +1,9 @@
-import pytest
+from dolfin import (
+    Function, FunctionSpace, VectorElement, FiniteElement, Identity, grad,
+    div, inner, dx, as_backend_type, assemble, TrialFunction, FacetNormal,
+    Constant, Expression, UnitSquareMesh, TestFunction, sym, jump, dS)
+
 import dolfin_dg
-from dolfin import Function, FunctionSpace, VectorElement, \
-    FiniteElement, Identity, grad, div, inner, dx, \
-    as_backend_type, assemble, TrialFunction, FacetNormal, \
-    Constant, Expression, UnitSquareMesh, TestFunction, sym, jump, dS
 
 
 def test_block_split():
@@ -44,8 +44,10 @@ def test_block_split():
     n = FacetNormal(mesh)
     u, p = TrialFunction(V), TrialFunction(Q)
 
-    a00 = inner(2 * mu * sym(grad(u)), grad(v)) * dx + inner(jump(u), jump(v)) * dS
-    a01 = -inner(p * Identity(2), grad(v)) * dx + inner(jump(p, n), jump(v)) * dS
+    a00 = inner(2 * mu * sym(grad(u)), grad(v)) * dx \
+        + inner(jump(u), jump(v)) * dS
+    a01 = -inner(p * Identity(2), grad(v)) * dx \
+        + inner(jump(p, n), jump(v)) * dS
     a10 = inner(q, div(u)) * dx + inner(u("+"), q("-") * n("-")) * dS
 
     a = sum((a00, a01, a10))

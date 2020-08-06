@@ -1,12 +1,16 @@
-import numpy as np
-from dolfin import *
-import dolfin_dg
-import dolfin_dg.hdg_form
 import leopart
+import numpy as np
+from dolfin import (
+    UnitSquareMesh, VectorElement, FiniteElement, MixedElement,
+    FunctionSpace, Function, split, TestFunction, Expression, MeshFunction,
+    CompiledSubDomain, Measure, FacetNormal, Identity, assemble, dx,
+    Constant, CellDiameter, outer, sym, tr, inner, dot, dS, div, grad,
+    DirichletBC, Form, MPI)
 
+import dolfin_dg.hdg_form
 
 k = 2
-n_eles = [2, 4, 8, 16, 32, 64]
+n_eles = [8, 16, 32]
 l2errors_u_l2 = np.zeros_like(n_eles, dtype=np.double)
 l2errors_u_h1 = np.zeros_like(n_eles, dtype=np.double)
 hs = np.zeros_like(n_eles, dtype=np.double)
@@ -25,8 +29,9 @@ for run_no, n_ele in enumerate(n_eles):
                          "-exp(2*(x[0] + x[1]))"),
                         degree=k + 2,
                         domain=mesh)
-    p_soln = Expression("2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
-                        degree=k + 2, domain=mesh)
+    p_soln = Expression(
+        "2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
+        degree=k + 2, domain=mesh)
 
     ff = MeshFunction("size_t", mesh, mesh.topology().dim() - 1, 0)
     CompiledSubDomain("near(x[0], 0.0) or near(x[1], 0.0)").mark(ff, 1)
@@ -64,14 +69,16 @@ for run_no, n_ele in enumerate(n_eles):
         if p_local is None:
             p_local = pbar
         grad_u = (grad_rhou*rho - outer(rhou, grad(rho)))/rho**2
-        return 2*(sym(grad_u) - 1.0/3.0*tr(grad_u)*Identity(2)) - p_local*Identity(2)
+        return 2*(sym(grad_u) - 1.0/3.0*tr(grad_u)*Identity(2)) \
+            - p_local*Identity(2)
 
     gN = F_v(rho*u_soln, grad(rho*u_soln), p_soln)*n
     F = inner(F_v(rhou, grad(rhou), p), grad(v)) * dx - dot(gN, vbar) * dsN
 
     sigma = alpha / h
     G = dolfin_dg.homogeneity_tensor(F_v, rhou)
-    hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(F_v, rhou, rhoubar, v, vbar, sigma, G, n)
+    hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(
+        F_v, rhou, rhoubar, v, vbar, sigma, G, n)
 
     F += hdg_term.face_residual(dS, ds)
 
@@ -113,7 +120,8 @@ for run_no, n_ele in enumerate(n_eles):
     ssc.solve_problem(Ubar_.cpp_object(), U_.cpp_object(), "mumps", "default")
 
     l2error_u = assemble(dot(rhou - rho*u_soln, rhou - rho*u_soln) * dx) ** 0.5
-    h1error_u = assemble(inner(grad(rhou - rho*u_soln), grad(rhou - rho*u_soln)) * dx) ** 0.5
+    h1error_u = assemble(inner(grad(rhou - rho*u_soln),
+                               grad(rhou - rho*u_soln)) * dx) ** 0.5
 
     l2error_p = assemble((p - p_soln)**2*dx)**0.5
     h1error_p = assemble(inner(grad(p - p_soln), grad(p - p_soln))*dx)**0.5
@@ -122,7 +130,8 @@ for run_no, n_ele in enumerate(n_eles):
     l2errors_u_l2[run_no] = l2error_u
     l2errors_u_h1[run_no] = h1error_u
 
-rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / np.log(hs[:-1] / hs[1:])
-rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / np.log(hs[:-1] / hs[1:])
+hrates = np.log(hs[:-1] / hs[1:])
+rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / hrates
+rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / hrates
 print("rates u L2: %s" % str(rates_u_l2))
 print("rates u H1: %s" % str(rates_u_h1))

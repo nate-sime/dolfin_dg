@@ -1,12 +1,11 @@
-from petsc4py import PETSc
+import dolfinx
 import numpy as np
 import ufl
-import dolfinx
-import dolfin_dg
-import dolfin_dg.hdg_form
-import dolfin_dg.dolfinx
-import numpy
 from mpi4py import MPI
+from petsc4py import PETSc
+
+import dolfin_dg.dolfinx
+import dolfin_dg.hdg_form
 
 comm = MPI.COMM_WORLD
 
@@ -16,8 +15,8 @@ def u_soln_f(x):
     # return np.exp(x[0] - x[1])
 
 
-poly_o = 3
-n_eles = [8, 16, 32, 64]
+poly_o = 2
+n_eles = [8, 16, 32]
 l2errors_u = np.zeros_like(n_eles, dtype=np.double)
 l2errors_p = np.zeros_like(n_eles, dtype=np.double)
 hs = np.zeros_like(n_eles, dtype=np.double)
@@ -25,8 +24,8 @@ hs = np.zeros_like(n_eles, dtype=np.double)
 
 for run_no, n_ele in enumerate(n_eles):
 
-    mesh = dolfinx.UnitSquareMesh(comm, n_ele, n_ele,
-                                  ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
+    mesh = dolfinx.UnitSquareMesh(
+        comm, n_ele, n_ele, ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
     Ve_high = ufl.FiniteElement("CG", mesh.ufl_cell(), poly_o+2)
     Ve = ufl.FiniteElement("DG", mesh.ufl_cell(), poly_o)
     Vbare = ufl.FiniteElement("DGT", mesh.ufl_cell(), poly_o)
@@ -65,7 +64,8 @@ for run_no, n_ele in enumerate(n_eles):
 
     sigma = alpha / h
     G = dolfin_dg.homogeneity_tensor(F_v, u)
-    hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(F_v, u, ubar, v, vbar, sigma, G, n)
+    hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(
+        F_v, u, ubar, v, vbar, sigma, G, n)
 
     F += hdg_term.face_residual(ufl.dS, ufl.ds)
 
@@ -75,8 +75,10 @@ for run_no, n_ele in enumerate(n_eles):
 
     F += -ufl.inner(F_c(u), ufl.grad(v)) * ufl.dx
 
-    H_flux = dolfin_dg.LocalLaxFriedrichs(flux_jacobian_eigenvalues=lambda u, n: 2 * u * ufl.dot(b, n))
-    hdg_fo_term = dolfin_dg.hdg_form.HDGClassicalFirstOrder(F_c, u, ubar, v, vbar, H_flux, n)
+    H_flux = dolfin_dg.LocalLaxFriedrichs(
+        flux_jacobian_eigenvalues=lambda u, n: 2 * u * ufl.dot(b, n))
+    hdg_fo_term = dolfin_dg.hdg_form.HDGClassicalFirstOrder(
+        F_c, u, ubar, v, vbar, H_flux, n)
 
     F += hdg_fo_term.face_residual(ufl.dS, ufl.ds)
 
@@ -93,7 +95,8 @@ for run_no, n_ele in enumerate(n_eles):
             np.isclose(x[1], 0.0),
             np.isclose(x[1], 1.0)
         )))
-    facet_dofs = dolfinx.fem.locate_dofs_topological((W.sub(1), Vbar), 1, facets)
+    facet_dofs = dolfinx.fem.locate_dofs_topological((
+        W.sub(1), Vbar), 1, facets)
     bc = dolfinx.DirichletBC(gDbar, facet_dofs, W.sub(1))
 
     problem = dolfin_dg.dolfinx.nls.NonlinearPDE_SNESProblem(F, J, U, [bc])

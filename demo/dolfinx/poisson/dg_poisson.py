@@ -1,20 +1,14 @@
+import dolfinx.plotting
 import matplotlib.pyplot as plt
 import numpy as np
 import ufl
+from mpi4py import MPI
+from petsc4py import PETSc
 
-import dolfinx
-import dolfinx.plotting
-
-import dolfin_dg
 import dolfin_dg.dolfinx
 
-from petsc4py import PETSc
-from mpi4py import MPI
-
-__author__ = 'njcs4'
-
-# This demo is a reproduction of the nonlinear Poisson;
-# however, using DG FEM.
+# This demo is a reproduction of the nonlinear Poisson demo, however, using DG
+# FEM.
 # http://fenics.readthedocs.io/projects/dolfin/en/stable/demos/nonlinear-poisson/python/demo_nonlinear-poisson.py.html
 
 mesh = dolfinx.UnitSquareMesh(
@@ -53,8 +47,7 @@ snes.getKSP().getPC().setType("lu")
 snes.getKSP().getPC().setFactorSolverType("mumps")
 
 # Setup nonlinear problem
-problem = dolfin_dg.dolfinx.nls.NonlinearPDE_SNESProblem(
-    F, J, u, [])
+problem = dolfin_dg.dolfinx.nls.NonlinearPDE_SNESProblem(F, J, u, [])
 snes.setFunction(problem.F_mono, dolfinx.fem.create_vector(F))
 snes.setJacobian(problem.J_mono, J=dolfinx.fem.create_matrix(J))
 

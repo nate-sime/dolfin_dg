@@ -1,16 +1,19 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+from dolfin import (
+    parameters, RectangleMesh, SubDomain, Point, DOLFIN_EPS, project, plot,
+    FunctionSpace, TrialFunction, TestFunction, Expression, MeshFunction,
+    Measure, derivative, solve)
 
-from dolfin import *
-from dolfin_dg import *
-
-__author__ = 'njcs4'
+from dolfin_dg import (DGDirichletBC, DGNeumannBC, Vijayasundaram, HLLE,
+                       LocalLaxFriedrichs, SpacetimeBurgersOperator)
 
 parameters["ghost_mode"] = "shared_facet"
 
-# a = max distance
-# d = max time
-a, d = 1.0, 0.2
+# max distance
+a = 1.0
+# max time
+d = 0.2
 
 
 class FixedBC(SubDomain):
@@ -48,10 +51,8 @@ fluxes = [
     ("Vijayasundaram",
      Vijayasundaram(lambda u, n: 0.5 * u * n[0] + n[1],
                     lambda u, n: 1, lambda u, n: 1)),
-    ("local-Lax Friedrichs",
-     LocalLaxFriedrichs(lambda u, n: u * n[0] + n[1])),
-    ("HLLE",
-     HLLE(lambda u, n: u * n[0] + n[1]))
+    ("local-Lax Friedrichs", LocalLaxFriedrichs(lambda u, n: u * n[0] + n[1])),
+    ("HLLE", HLLE(lambda u, n: u * n[0] + n[1]))
 ]
 
 for name, flux in fluxes:

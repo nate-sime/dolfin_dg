@@ -1,9 +1,12 @@
-import numpy as np
-from dolfin import *
-import dolfin_dg
-import dolfin_dg.hdg_form
 import leopart
+import numpy as np
+from dolfin import (
+    UnitSquareMesh, FunctionSpace, Function, TestFunction, dS, dx, errornorm,
+    MPI, Expression, Constant, CellDiameter, FacetNormal, inner, grad, dot,
+    div, DirichletBC, FiniteElement, MeshFunction, CompiledSubDomain,
+    Measure, Form)
 
+import dolfin_dg.hdg_form
 
 poly_o = 2
 n_eles = [8, 16, 32, 64]
@@ -60,7 +63,8 @@ for run_no, n_ele in enumerate(n_eles):
 
     sigma = alpha / h
     G = dolfin_dg.homogeneity_tensor(F_v, u)
-    hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(F_v, u, ubar, v, vbar, sigma, G, n)
+    hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(
+        F_v, u, ubar, v, vbar, sigma, G, n)
 
     F += hdg_term.face_residual(dS, ds)
 
@@ -111,7 +115,6 @@ for run_no, n_ele in enumerate(n_eles):
         Fr[0], Fr[1])
 
     ssc.assemble_global_system(True)
-    time = Timer("ZZZ Stokes solve")
     for bc in bcs:
         ssc.apply_boundary(bc)
     ssc.solve_problem(ubar.cpp_object(), u.cpp_object(), "mumps", "default")
@@ -123,11 +126,9 @@ for run_no, n_ele in enumerate(n_eles):
     l2errors_u_l2[run_no] = l2error_u
     l2errors_u_h1[run_no] = h1error_u
 
-from vtkplotter.dolfin import plot
-plot(u)
+hrates = np.log(hs[:-1] / hs[1:])
+rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / hrates
+rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / hrates
 
-rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / np.log(hs[:-1] / hs[1:])
-rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / np.log(hs[:-1] / hs[1:])
-print(l2errors_u_l2)
 print("rates u L2: %s" % str(rates_u_l2))
 print("rates u H1: %s" % str(rates_u_h1))

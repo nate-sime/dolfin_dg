@@ -1,4 +1,5 @@
 import abc
+
 import ufl
 
 from dolfin_dg import hyper_tensor_product, hyper_tensor_T_product, \
@@ -43,9 +44,11 @@ class HDGClassicalSecondOrder(HDGFemTerm):
 
         if u_flux is None:
             u_flux = ubar
-        F_v_flux = self.F_v(u, grad_u) + sigma * hyper_tensor_product(G, ufl.outer(u_flux - u, n))
+        F_v_flux = self.F_v(u, grad_u) \
+            + sigma * hyper_tensor_product(G, ufl.outer(u_flux - u, n))
 
-        residual0 = facet_int(ufl.inner(ufl.outer(u_flux - u, n), hyper_tensor_T_product(G, grad_v))) \
+        residual0 = facet_int(ufl.inner(ufl.outer(u_flux - u, n),
+                                        hyper_tensor_T_product(G, grad_v))) \
             - facet_int(ufl.inner(F_v_flux, ufl.outer(v, n))) \
 
         residual1 = facet_int(ufl.inner(F_v_flux, ufl.outer(vbar, n)))

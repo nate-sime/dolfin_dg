@@ -1,8 +1,6 @@
 import ufl
 from ufl import dot, Max, Min
 
-__author__ = 'njcs4'
-
 
 def max_abs_of_sequence(a):
     """
@@ -101,12 +99,15 @@ class LocalLaxFriedrichs(ConvectiveFlux):
         self.alpha = None
 
     def setup(self, F_c, u_p, u_m, n):
-        eigen_vals_max_p = max_abs_of_sequence(self.flux_jacobian_eigenvalues(u_p, n))
-        eigen_vals_max_m = max_abs_of_sequence(self.flux_jacobian_eigenvalues(u_m, n))
+        eigen_vals_max_p = max_abs_of_sequence(
+            self.flux_jacobian_eigenvalues(u_p, n))
+        eigen_vals_max_m = max_abs_of_sequence(
+            self.flux_jacobian_eigenvalues(u_m, n))
         self.alpha = Max(eigen_vals_max_p, eigen_vals_max_m)
 
     def interior(self, F_c, u_p, u_m, n):
-        return 0.5*(dot(F_c(u_p), n) + dot(F_c(u_m), n) + self.alpha*(u_p - u_m))
+        return 0.5*(dot(F_c(u_p), n) + dot(F_c(u_m), n)
+                    + self.alpha*(u_p - u_m))
 
     exterior = interior
 
@@ -121,15 +122,20 @@ class HLLE(ConvectiveFlux):
     def setup(self, F_c, u_p, u_m, n):
         u_avg = (u_p + u_m)/2
 
-        eigen_vals_max_p = max_of_sequence(self.flux_jacobian_eigenvalues(u_avg, n))
-        eigen_vals_min_m = min_of_sequence(self.flux_jacobian_eigenvalues(u_avg, n))
+        eigen_vals_max_p = max_of_sequence(
+            self.flux_jacobian_eigenvalues(u_avg, n))
+        eigen_vals_min_m = min_of_sequence(
+            self.flux_jacobian_eigenvalues(u_avg, n))
         self.lam_p = Max(eigen_vals_max_p, 0)
         self.lam_m = Min(eigen_vals_min_m, 0)
 
     def interior(self, F_c, u_p, u_m, n):
         lam_p, lam_m = self.lam_p, self.lam_m
-        guard = ufl.conditional(abs(lam_p - lam_m) < HLLE.TOL, 0, 1/(lam_p - lam_m))
-        return guard*(lam_p*dot(F_c(u_p), n) - lam_m*dot(F_c(u_m), n) - lam_p*lam_m*(u_p - u_m))
+        guard = ufl.conditional(
+            abs(lam_p - lam_m) < HLLE.TOL, 0, 1/(lam_p - lam_m))
+        return guard*(lam_p*dot(F_c(u_p), n)
+                      - lam_m*dot(F_c(u_m), n)
+                      - lam_p*lam_m*(u_p - u_m))
 
     exterior = interior
 
@@ -150,8 +156,12 @@ class Vijayasundaram(ConvectiveFlux):
 
         if isinstance(avg_eigs, (list, tuple)):
             m = len(avg_eigs)
-            max_ev = ufl.as_matrix([[Max(avg_eigs[i], 0) if i == j else 0 for i in range(m)] for j in range(m)])
-            min_ev = ufl.as_matrix([[Min(avg_eigs[j], 0) if i == j else 0 for i in range(m)] for j in range(m)])
+            max_ev = ufl.as_matrix(
+                [[Max(avg_eigs[i], 0) if i == j else 0 for i in range(m)]
+                 for j in range(m)])
+            min_ev = ufl.as_matrix(
+                [[Min(avg_eigs[j], 0) if i == j else 0 for i in range(m)]
+                 for j in range(m)])
         else:
             max_ev = Max(avg_eigs, 0)
             min_ev = Min(avg_eigs, 0)

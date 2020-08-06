@@ -1,8 +1,11 @@
-import numpy as np
-from dolfin import *
-import dolfin_dg.hdg_form
 import leopart
+import numpy as np
+from dolfin import (
+    Point, FunctionSpace, TestFunction, Expression, Constant, inner, grad, dot,
+    FacetNormal, MPI, Function, dS, dx, ds, errornorm, RectangleMesh,
+    FiniteElement, CellDiameter, div, Form)
 
+import dolfin_dg.hdg_form
 
 poly_o = 2
 n_eles = [8, 16, 32, 64]
@@ -88,8 +91,9 @@ for run_no, n_ele in enumerate(n_eles):
     l2errors_u_l2[run_no] = l2error_u
     l2errors_u_h1[run_no] = h1error_u
 
-rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / np.log(hs[:-1] / hs[1:])
-rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / np.log(hs[:-1] / hs[1:])
+hrates = np.log(hs[:-1] / hs[1:])
+rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / hrates
+rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / hrates
 print(l2errors_u_l2)
 print("rates u L2: %s" % str(rates_u_l2))
 print("rates u H1: %s" % str(rates_u_h1))

@@ -1,9 +1,9 @@
-from dolfin import UnitSquareMesh, MixedElement, VectorElement, \
-    FiniteElement, FunctionSpace, FacetNormal, SpatialCoordinate, \
-    Function, Constant, split, interpolate, assign, TestFunction, Expression, \
-    parameters, solve, errornorm, MPI, \
-    dot, inner, div, sym, grad, sqrt, ds, dx, Identity, assemble, RectangleMesh, Point
 import numpy as np
+from dolfin import (
+    MixedElement, VectorElement, FiniteElement, FunctionSpace, FacetNormal,
+    SpatialCoordinate, Function, Constant, split, interpolate, assign,
+    TestFunction, Expression, parameters, solve, errornorm, MPI, dot, inner,
+    div, sym, grad, sqrt, ds, dx, Identity, assemble, RectangleMesh, Point)
 
 from dolfin_dg import StokesNitscheBoundary, tangential_proj, normal_proj
 
@@ -23,7 +23,7 @@ parameters['std_out_all_processes'] = False
 parameters["ghost_mode"] = "shared_facet"
 parameters["form_compiler"]["quadrature_degree"] = 5
 
-ele_ns = [4, 8, 16, 32]
+ele_ns = [8, 16, 32]
 errorl2 = np.zeros(len(ele_ns))
 errorh1 = np.zeros(len(ele_ns))
 errorpl2 = np.zeros(len(ele_ns))
@@ -79,8 +79,8 @@ for j, ele_n in enumerate(ele_ns):
     # The following two methods for formulating the Nitsche BC are equivalent
     use_bc_utility_method = True
 
-    if use_bc_utility_method == 1:
-        # Use the utiltiy method of the StokesNitscheBoundary class
+    if use_bc_utility_method is True:
+        # Use the utility method of the StokesNitscheBoundary class
         def F_v_n(u, grad_u, p_local=None):
             return F_v(u, grad_u, p_local)
         stokes_nitsche = StokesNitscheBoundary(F_v_n, u, p, v, q, delta=-1)
@@ -91,7 +91,7 @@ for j, ele_n in enumerate(ele_ns):
             return normal_proj(F_v(u, grad_u, p_local), n)
         stokes_nitsche = StokesNitscheBoundary(F_v_n, u, p, v, q, delta=-1)
         F += stokes_nitsche.nitsche_bc_residual(tangential_proj(u, n), ds) \
-             - dot(g_tau, v)*ds
+            - dot(g_tau, v)*ds
 
     solve(F == 0, U)
 
@@ -112,15 +112,12 @@ for j, ele_n in enumerate(ele_ns):
 
 # Output convergence rates
 if MPI.rank(mesh.mpi_comm()) == 0:
+    hrates = np.log(hsizes[0:-1] / hsizes[1:])
     print("L2 u convergence rates: "
-          + str(np.log(errorl2[0:-1] / errorl2[1:])
-                / np.log(hsizes[0:-1] / hsizes[1:])))
+          + str(np.log(errorl2[0:-1] / errorl2[1:]) / hrates))
     print("H1 u convergence rates: "
-          + str(np.log(errorh1[0:-1] / errorh1[1:])
-                / np.log(hsizes[0:-1] / hsizes[1:])))
+          + str(np.log(errorh1[0:-1] / errorh1[1:]) / hrates))
     print("L2 p convergence rates: "
-          + str(np.log(errorpl2[0:-1] / errorpl2[1:])
-                / np.log(hsizes[0:-1] / hsizes[1:])))
+          + str(np.log(errorpl2[0:-1] / errorpl2[1:]) / hrates))
     print("H1 p convergence rates: "
-          + str(np.log(errorph1[0:-1] / errorph1[1:])
-                / np.log(hsizes[0:-1] / hsizes[1:])))
+          + str(np.log(errorph1[0:-1] / errorph1[1:]) / hrates))

@@ -18,6 +18,7 @@ vector_eles = [ufl.VectorElement(family, cell, p, dim=4)
                for cell in cells
                for p in poly_os]
 
+
 @pytest.fixture
 def F1():
     def F_v(u, grad_u):

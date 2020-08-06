@@ -1,9 +1,19 @@
-import ufl
 import math
 
-from dolfin import *
-from dolfin_dg import *
-from dolfin_dg.dolfin import *
+import ufl
+from dolfin import (
+    parameters, Point, project, TestFunction, MeshFunction,
+    Measure, derivative, NonlinearProblem, assemble,
+    PETScKrylovSolver, PETScFactory, PETScOptions, sqrt, norm, Mesh,
+    XDMFFile, NewtonSolver, sin, cos, Constant, info, CompiledSubDomain,
+    as_vector, VectorFunctionSpace, CellVolume, FacetArea, inner, refine,
+    grad, facets, dot, FacetNormal, tr, Identity, MPI, outer)
+
+from dolfin_dg import (
+    CompressibleNavierStokesOperator, aero, DGDirichletBC, DGAdiabticWallBC,
+    homogeneity_tensor, hyper_tensor_product)
+from dolfin_dg.dolfin import (
+    NonlinearAPosterioriEstimator, FixedFractionMarkerParallel)
 
 # In this example we use dual weighted residual based error estimates
 # to compute the drag coefficient of compressible flow around a NACA0012
@@ -80,11 +90,11 @@ rho_in = Constant(rho_0)
 u_in = u_ref*as_vector((Constant(cos(attack)), Constant(sin(attack))))
 
 # The initial guess used in the Newton solver. Here we use the inlet flow.
-rhoE_in_guess = energy_density(p_0, rho_in, u_in, gamma)
+rhoE_in_guess = aero.energy_density(p_0, rho_in, u_in, gamma)
 gD_guess = as_vector((rho_in, rho_in*u_in[0], rho_in*u_in[1], rhoE_in_guess))
 
-# Assign variable names to the inlet, outlet and adiabatic wall BCs. These indices
-# will be used to define subsets of the boundary.
+# Assign variable names to the inlet, outlet and adiabatic wall BCs. These
+# indices will be used to define subsets of the boundary.
 INLET = 1
 OUTLET = 2
 WALL = 3
@@ -100,9 +110,9 @@ n_ref_max = 3
 for ref_level in range(n_ref_max):
     info("Refinement level %d" % ref_level)
 
-    # Label the boundary components of the mesh. Initially label all exterior facets
-    # as the adiabatic wall, then label the exterior facets far from the airfoil
-    # as the inlet and outlet based on the angle of attack.
+    # Label the boundary components of the mesh. Initially label all exterior
+    # facets as the adiabatic wall, then label the exterior facets far from
+    # the airfoil as the inlet and outlet based on the angle of attack.
     bdry_ff = MeshFunction('size_t', mesh, 1, 0)
     CompiledSubDomain("on_boundary").mark(bdry_ff, WALL)
     for f in facets(mesh):
@@ -119,13 +129,14 @@ for ref_level in range(n_ref_max):
     info("Problem size: %d degrees of freedom" % V.dim())
 
     # Use the initial guess.
-    u_vec = project(gD_guess, V); u_vec.rename("u", "u")
+    u_vec = project(gD_guess, V)
+    u_vec.rename("u", "u")
     v_vec = TestFunction(V)
 
     # The subsonic inlet, adiabatic wall and subsonic outlet conditions
-    inflow = subsonic_inflow(rho_in, u_in, u_vec, gamma)
-    no_slip_bc = no_slip(u_vec)
-    outflow = subsonic_outflow(p_0, u_vec, gamma)
+    inflow = aero.subsonic_inflow(rho_in, u_in, u_vec, gamma)
+    no_slip_bc = aero.no_slip(u_vec)
+    outflow = aero.subsonic_outflow(p_0, u_vec, gamma)
 
     # Assemble these conditions into DG BCs
     bcs = [DGDirichletBC(ds(INLET), inflow),
@@ -137,8 +148,8 @@ for ref_level in range(n_ref_max):
     h = CellVolume(mesh)/FacetArea(mesh)
     penalty = Constant(C_IP * max(poly_o ** 2, 1)) / h
 
-    # Construct the compressible Navier Stokes DG formulation, and compute the symbolic
-    # Jacobian
+    # Construct the compressible Navier Stokes DG formulation, and compute
+    # the symbolic Jacobian
     ce = CompressibleNavierStokesOperator(mesh, V, bcs, mu=1.0/Re)
     F = ce.generate_fem_formulation(u_vec, v_vec, penalty=penalty)
     J = derivative(F, u_vec)
@@ -150,8 +161,8 @@ for ref_level in range(n_ref_max):
 
     # Assemble variables required for the lift and drag computation
     n = FacetNormal(mesh)
-    rho, u, E = flow_variables(u_vec)
-    p = pressure(u_vec, gamma)
+    rho, u, E = aero.flow_variables(u_vec)
+    p = aero.pressure(u_vec, gamma)
     l_ref = Constant(1.0)
     tau = 1.0/Re*(grad(u) + grad(u).T - 2.0/3.0*(tr(grad(u)))*Identity(2))
     C_infty = 0.5*rho_in*u_ref**2*l_ref
@@ -169,7 +180,9 @@ for ref_level in range(n_ref_max):
 
     # The adjoint consistent drag coefficient
     z_drag = 1.0/C_infty*as_vector((0, psi_drag[0], psi_drag[1], 0))
-    drag += inner(sigma*hyper_tensor_product(G_adiabitic, dg_outer(u_vec - no_slip_bc, n)), dg_outer(z_drag, n))*ds(WALL)
+    drag += inner(
+        sigma*hyper_tensor_product(G_adiabitic, outer(u_vec - no_slip_bc, n)),
+        outer(z_drag, n))*ds(WALL)
 
     # The lift coefficient
     psi_lift = as_vector((-sin(attack), cos(attack)))
@@ -179,12 +192,14 @@ for ref_level in range(n_ref_max):
     info("DoFs: %d, Drag: %.5e, Lift: %.5e" % result)
     results += [result]
 
-    # If we're not on the last refinement level, apply dual-weighted-residual error
+    # If we're not on the last refinement level, apply dual-weighted-residual
+    # error
     # estimation refinement.
     if ref_level < n_ref_max - 1:
         info("Computing a posteriori error estimates")
         est = NonlinearAPosterioriEstimator(J, F, drag, u_vec)
-        markers = est.compute_cell_markers(FixedFractionMarkerParallel(frac=0.2))
+        markers = est.compute_cell_markers(
+            FixedFractionMarkerParallel(frac=0.2))
         info("Refining mesh")
         mesh = refine(mesh, markers)
 
@@ -192,4 +207,5 @@ for ref_level in range(n_ref_max):
     xdmf.write(u_vec.sub(0), float(ref_level))
 
 if MPI.rank(mesh.mpi_comm()) == 0:
-    print("\n".join(map(lambda result: "DoFs: %d, Drag: %.5e, Lift: %.5e" % result, results)))
+    print("\n".join(map(lambda result: "DoFs: %d, Drag: %.5e, Lift: %.5e"
+                                       % result, results)))

@@ -43,7 +43,9 @@ def energy_density(p, rho, u, gamma):
 def subsonic_inflow(rho_in, u_in, u_vec, gamma):
     p = pressure(u_vec, gamma)
     rhoE_in = energy_density(p, rho_in, u_in, gamma)
-    return as_vector([rho_in] + [rho_in*u_in[j] for j in range(u_in.ufl_shape[0])] + [rhoE_in])
+    return as_vector([rho_in] +
+                     [rho_in*u_in[j] for j in range(u_in.ufl_shape[0])] +
+                     [rhoE_in])
 
 
 def subsonic_outflow(p_out, u_vec, gamma):
