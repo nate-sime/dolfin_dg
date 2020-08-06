@@ -1,18 +1,18 @@
-import ufl
 import matplotlib.pyplot as plt
+import ufl
+from dolfin import (
+    parameters, plot, TrialFunction, TestFunction, MeshFunction, Measure,
+    derivative, solve, NonlinearProblem, assemble, XDMFFile, Constant,
+    CompiledSubDomain, as_vector, VectorFunctionSpace, dot, FacetNormal,
+    Function, dx, ds, UnitIntervalMesh, PETScSNESSolver)
 
-from dolfin import *
-from dolfin_dg import *
+from dolfin_dg import aero, CompressibleEulerOperator, DGNeumannBC
 
-__author__ = 'njcs4'
-
-# Reproduction of the renowned numerical experiment showcased in:
-# Sod, G.A., A Survey of Several Finite Difference Methods for Systems
-# of Nonlinear Hyperbolic Conservation Laws. Journal of Computational
-# Physics, 1978, 27 (1).
+# Reproduction of the renowned numerical experiment showcased in: Sod, G.A.,
+# A Survey of Several Finite Difference Methods for Systems of Nonlinear
+# Hyperbolic Conservation Laws. Journal of Computational Physics, 1978, 27 (1).
 
 parameters["ghost_mode"] = "shared_facet"
-parameters['form_compiler']['representation'] = 'uflacs'
 
 # Mesh and function space.
 mesh = UnitIntervalMesh(1024)
@@ -27,7 +27,8 @@ gamma = 1.4
 rho1, rho5 = 1.0, 0.125
 p1, p5 = 1.0, 0.1
 u1, u5 = 0.0, 0.0
-e1, e5 = aero.energy_density(p1, rho1, u1, gamma), aero.energy_density(p5, rho5, u5, gamma)
+e1, e5 = aero.energy_density(p1, rho1, u1, gamma),\
+         aero.energy_density(p5, rho5, u5, gamma)
 
 # Project the initial conditions onto the left and right of the
 # diaphragm by constructing a new integration measure
@@ -57,6 +58,7 @@ J = derivative(residual, u_vec, du)
 class ShockTubeProblem(NonlinearProblem):
     def F(self, b, x):
         assemble(residual, tensor=b)
+
     def J(self, A, x):
         assemble(J, tensor=A)
 

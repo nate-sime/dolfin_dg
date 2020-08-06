@@ -1,10 +1,12 @@
-import ufl
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import ufl
+from dolfin import (
+    project, FunctionSpace, TrialFunction, TestFunction, Expression, derivative,
+    solve, Constant, info, Function, dx, ds, errornorm, UnitIntervalMesh)
 
-from dolfin import *
-from dolfin_dg import *
+from dolfin_dg import PoissonOperator, DGDirichletBC
 
 # Here we solve the problem: find u in the unit interval which satisfies
 #   u_t = u_xx, u(0, t) = u(1, t) = 0, u(x, 0) = sin(pi*x),
@@ -22,21 +24,21 @@ dt = Constant(1e-2)
 theta = Constant(0.5)
 uth = theta*u + (1 - theta)*un
 
-# Construct the DG discretisation of the spatial derivative of the
-# heat equation using the Poisson operator. We then replace u with the
-# theta scheme variable uth.
+# Construct the DG discretisation of the spatial derivative of the heat
+# equation using the Poisson operator. We then replace u with the theta
+# scheme variable uth.
 pe = PoissonOperator(mesh, V, DGDirichletBC(ds, Constant(0.0)))
 a_term = ufl.replace(pe.generate_fem_formulation(u, v), {u: uth})
 
-# Newton's method applied to the semilinear residual is equivalent
-# to solving the linear problem a(u, v) = l(v)
+# Newton's method applied to the semilinear residual is equivalent to solving
+# the linear problem a(u, v) = l(v)
 F = (u - un)*v*dx + dt*(a_term - Constant(0.0)*v*dx)
 a = derivative(F, u, du)
 L = -F
 
-# Project the ininital condition onto the FE solution space.
-# This is the best approximation in the FE space, (cf. Cea's Lemma).
-# Compare this, for example, with interpolating the initial condition.
+# Project the initial condition onto the FE solution space. This is the best
+# approximation in the FE space, (cf. Cea's Lemma). Compare this,
+# for example, with interpolating the initial condition.
 u0 = Expression("sin(pi*x[0])", degree=4)
 project(u0, V, function=un)
 # un.interpolate(u0)

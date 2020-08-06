@@ -1,11 +1,11 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+from dolfin import (
+    UnitSquareMesh, FunctionSpace, Function, TestFunction, Expression,
+    ds, dx, solve, parameters, errornorm, MPI)
 
-from dolfin import *
-from dolfin_dg import *
-
-__author__ = 'njcs4'
-
+from dolfin_dg import (DGFemSIPG, DGFemNIPG, DGFemBO, DGDirichletBC,
+                       PoissonOperator)
 
 if MPI.size(MPI.comm_world) > 1:
     NotImplementedError("Plotting in this demo will not work in parallel.")
@@ -24,6 +24,7 @@ fluxes = [("SIPG", DGFemSIPG),
           ("NIPG", DGFemNIPG),
           ("Baumann-Oden", DGFemBO)]
 
+
 # Solve the linear Poisson problem and return the L2 and H1 errors, in addition
 # to the mesh size.
 def compute_error(ele_n, flux):
@@ -33,7 +34,7 @@ def compute_error(ele_n, flux):
     u, v = Function(V), TestFunction(V)
 
     gD = Expression('sin(pi*x[0])*sin(pi*x[1])',
-                   element=V.ufl_element())
+                    element=V.ufl_element())
     f = Expression('2*pi*pi*sin(pi*x[0])*sin(pi*x[1])',
                    element=V.ufl_element())
 

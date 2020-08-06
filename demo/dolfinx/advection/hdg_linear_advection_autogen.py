@@ -1,12 +1,11 @@
-from petsc4py import PETSc
+import dolfinx
 import numpy as np
 import ufl
-import dolfinx
-import dolfin_dg
-import dolfin_dg.hdg_form
-import dolfin_dg.dolfinx
-import numpy
 from mpi4py import MPI
+from petsc4py import PETSc
+
+import dolfin_dg.dolfinx
+import dolfin_dg.hdg_form
 
 comm = MPI.COMM_WORLD
 
@@ -16,8 +15,8 @@ def u_soln_f(x):
     # return np.exp(x[0] - x[1])
 
 
-poly_o = 3
-n_eles = [8, 16, 32, 64]
+poly_o = 2
+n_eles = [8, 16, 32]
 l2errors_u = np.zeros_like(n_eles, dtype=np.double)
 l2errors_p = np.zeros_like(n_eles, dtype=np.double)
 hs = np.zeros_like(n_eles, dtype=np.double)

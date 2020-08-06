@@ -1,13 +1,11 @@
 import numpy as np
+from dolfin import (
+    parameters, UnitSquareMesh, FunctionSpace, TrialFunction, TestFunction,
+    Expression, derivative, solve, Constant, dot, FacetNormal, MPI, dx, ds,
+    errornorm, interpolate)
 
-from dolfin import *
-from dolfin_dg import *
+from dolfin_dg import HLLE, HyperbolicOperator, DGDirichletBC
 
-__author__ = 'njcs4'
-
-parameters['form_compiler']["cpp_optimize"] = True
-parameters['form_compiler']["optimize"] = True
-parameters['form_compiler']['representation'] = 'uflacs'
 parameters["ghost_mode"] = "shared_facet"
 
 run_count = 0
@@ -41,8 +39,7 @@ for ele_n in ele_ns:
     du = TrialFunction(V)
     J = derivative(residual, u, du)
     solve(residual == 0, u, [], J=J)
-    # plot(u)
-    # plt.show()
+
     errorl2[run_count] = errornorm(gD, u, norm_type='l2', degree_rise=3)
     errorh1[run_count] = errornorm(gD, u, norm_type='h1', degree_rise=3)
     hsizes[run_count] = mesh.hmax()
@@ -52,5 +49,4 @@ for ele_n in ele_ns:
 if MPI.rank(mesh.mpi_comm()) == 0:
     print(np.log(errorl2[0:-1]/errorl2[1:])/np.log(hsizes[0:-1]/hsizes[1:]))
     print(np.log(errorh1[0:-1]/errorh1[1:])/np.log(hsizes[0:-1]/hsizes[1:]))
-
 

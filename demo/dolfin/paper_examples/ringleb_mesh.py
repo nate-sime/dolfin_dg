@@ -1,8 +1,6 @@
 import dolfin as fin
 import numpy as np
 
-__author__ = 'njcs4'
-
 
 def fun_ringleb(gamma, x, y, c):
     gb = gamma - 1.0

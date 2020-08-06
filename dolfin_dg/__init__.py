@@ -1,6 +1,3 @@
-
-__author__ = 'njcs4'
-
 from .dg_form import (
     DGFemTerm, DGFemSIPG, DGFemNIPG, DGFemBO,
     DGFemCurlTerm, DGFemStokesTerm,

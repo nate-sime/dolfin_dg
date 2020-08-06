@@ -1,5 +1,9 @@
-from dolfin import *
-from dolfin_dg import *
+from dolfin import (
+    parameters, UnitSquareMesh, VectorElement, FiniteElement, MixedElement,
+    FunctionSpace, info, Function, split, TrialFunction, TestFunction,
+    SpatialCoordinate, Expression, MeshFunction, CompiledSubDomain, Measure,
+    FacetNormal, grad, Identity, derivative, solve, assemble, dx)
+from dolfin_dg import (DGDirichletBC, DGNeumannBC, StokesOperator)
 import numpy as np
 
 parameters['std_out_all_processes'] = False
@@ -27,11 +31,12 @@ for n in range(2, 6):
     x, y = SpatialCoordinate(mesh)
 
     u_soln = Expression(("-(x[1]*cos(x[1]) + sin(x[1]))*exp(x[0])",
-                           "x[1] * sin(x[1]) * exp(x[0])"),
+                         "x[1] * sin(x[1]) * exp(x[0])"),
                         degree=W.sub(0).ufl_element().degree() + 1,
                         domain=mesh)
-    p_soln = Expression("2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
-                        degree=W.sub(1).ufl_element().degree() + 1)
+    p_soln = Expression(
+        "2.0 * exp(x[0]) * sin(x[1]) + 1.5797803888225995912 / 3.0",
+        degree=W.sub(1).ufl_element().degree() + 1)
 
     ff = MeshFunction("size_t", mesh, mesh.topology().dim() - 1, 0)
     CompiledSubDomain("near(x[0], 0.0) or near(x[1], 0.0)").mark(ff, 1)

@@ -2,8 +2,6 @@ from dolfin import *
 from dolfin_dg import *
 import numpy as np
 
-__author__ = 'njcs4'
-
 # WARNING: This demo is *very* computationally expensive to run.
 
 parameters["ghost_mode"] = "shared_facet"
@@ -41,7 +39,7 @@ class CustomSolver(NewtonSolver):
 
 
 run_count = 0
-ele_ns = [4, 8, 12, 16, 20, 24]
+ele_ns = [8, 16]
 errorl2 = np.zeros(len(ele_ns))
 errorh1 = np.zeros(len(ele_ns))
 hsizes = np.zeros(len(ele_ns))

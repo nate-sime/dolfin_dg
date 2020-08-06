@@ -1,8 +1,9 @@
-from dolfin import *
-from dolfin_dg import *
 import numpy as np
+from dolfin import (
+    UnitSquareMesh, FunctionSpace, Function, TestFunction, dx, errornorm,
+    MPI, Expression, grad, dot, div, solve, parameters, ds)
 
-__author__ = 'njcs4'
+from dolfin_dg import NitscheBoundary
 
 # We compute the DG approximation of
 #   -∇·(u+1)∇u = f   in  Ω
@@ -30,7 +31,8 @@ for j, ele_n in enumerate(ele_ns):
     gD = Expression('sin(pi*x[0])*sin(pi*x[1]) + 1.0',
                     domain=mesh, degree=p_order+1)
 
-    F_v = lambda u, grad_u: (u + 1) * grad_u
+    def F_v(u, grad_u):
+        return (u + 1) * grad_u
     bc = NitscheBoundary(F_v, u, v)
 
     f = -div(F_v(gD, grad(gD)))
@@ -45,5 +47,8 @@ for j, ele_n in enumerate(ele_ns):
 
 
 if MPI.rank(mesh.mpi_comm()) == 0:
-    print("L2 convergence rates: " + str(np.log(errorl2[0:-1] / errorl2[1:]) / np.log(hsizes[0:-1] / hsizes[1:])))
-    print("H1 convergence rates: " + str(np.log(errorh1[0:-1] / errorh1[1:]) / np.log(hsizes[0:-1] / hsizes[1:])))
+    hrates = np.log(hsizes[0:-1] / hsizes[1:])
+    print("L2 convergence rates: "
+          + str(np.log(errorl2[0:-1] / errorl2[1:]) / hrates))
+    print("H1 convergence rates: "
+          + str(np.log(errorh1[0:-1] / errorh1[1:]) / hrates))

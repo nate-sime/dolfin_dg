@@ -2,7 +2,6 @@ from dolfin import *
 from dolfin_dg import *
 import numpy as np
 
-__author__ = 'njcs4'
 
 parameters["ghost_mode"] = "shared_facet"
 parameters['form_compiler']['representation'] = 'uflacs'

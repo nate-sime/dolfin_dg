@@ -1,16 +1,19 @@
 import numpy as np
+from dolfin import (
+    parameters, BoxMesh, Point, DOLFIN_EPS, TrialFunction, TestFunction,
+    MeshFunction, Measure, derivative, solve, assemble, Constant, info,
+    CompiledSubDomain, VectorFunctionSpace, CellVolume, FacetArea, inner,
+    grad, dot, FacetNormal, tr, Identity, MPI, Function, variable, diff, ln,
+    det, dS, dx)
 
-from dolfin import *
-from dolfin_dg import *
+from dolfin_dg import homogeneity_tensor, DGFemSIPG
 
 # This demo reproduces the numerical experiment shown in Section 4.1 of
-# L. Noels and R. Radovitzky, A general discontinuous galerkin method for finite hyperelasticity. formulation
-# and numerical applications, Internat. J. Numer. Methods Engrg. 68 (2006), no. 1, 64–97.
-# Here we compute the small-strain deflection of a cantilever.
+# L. Noels and R. Radovitzky, A general discontinuous galerkin method for finite
+# hyperelasticity, formulation and numerical applications, Internat. J.
+# Numer. Methods Engrg. (2006). Here we compute the small-strain deflection
+# of a cantilever.
 
-# Optimization options for the form compiler
-parameters["form_compiler"]["cpp_optimize"] = True
-parameters["form_compiler"]["representation"] = "uflacs"
 parameters["std_out_all_processes"] = False
 parameters["ghost_mode"] = "shared_facet"
 
@@ -66,7 +69,8 @@ for n in range(1, 7):
 
     # Neo-Hookean strain energy function
     def Psi(F):
-        return (mu/2)*(tr(F.T*F) - 3) - mu*ln(det(F)) + (lmbda/2)*(ln(det(F)))**2
+        return (mu/2)*(tr(F.T*F) - 3) - mu*ln(det(F)) \
+               + (lmbda/2)*(ln(det(F)))**2
 
     # First Piola-Kirchoff stress tensor
     def F_v(u, grad_u):
@@ -82,33 +86,41 @@ for n in range(1, 7):
 
     vt = DGFemSIPG(F_v, u, v, sig, G, n)
     interior = vt.interior_residual(dS)
-    exterior = vt.exterior_residual(c, ds(LEFT)) + vt.neumann_residual(T, ds(RIGHT))
+    exterior = vt.exterior_residual(c, ds(LEFT)) \
+        + vt.neumann_residual(T, ds(RIGHT))
 
     F = inner(F_v(u, grad(u)), grad(v))*dx - dot(B, v)*dx + interior + exterior
 
     # Compute Jacobian of F
     J = derivative(F, u, du)
 
-    solve(F == 0, u, bcs=[], J=J, solver_parameters={"newton_solver": {"relative_tolerance": 1e-6}})
+    solve(F == 0, u, bcs=[], J=J,
+          solver_parameters={"newton_solver": {"relative_tolerance": 1e-6}})
 
     # Store mesh size and strain energy
     h_max.append(mesh.hmax())
     W_int.append(assemble(Psi(Identity(3) + grad(u))*dx))
 
-    # Find which process owns the tip of the cantilever and compute the displacement there.
-    tip_cell, distance = mesh.bounding_box_tree().compute_closest_entity(Point(beta/2, beta/2, L))
+    # Find which process owns the tip of the cantilever and compute the
+    # displacement there.
+    tip_cell, distance = mesh.bounding_box_tree().compute_closest_entity(
+        Point(beta/2, beta/2, L))
     local_tip_disp = u(beta/2, beta/2, L)[1] if distance < DOLFIN_EPS else None
 
     # Once found, broadcast the displacement at the tip to process 0.
     comm = mesh.mpi_comm()
     computed_tip_displacements = comm.gather(local_tip_disp)
     if comm.rank == 0:
-        # If process 0 has received more than one valid tip displacement from the other processes,
-        # this means that the tip lies on both a process boundary and on a point adjacent to two (or more)
-        # cells. We must assert that all the computed tip displacements from these processes
+        # If process 0 has received more than one valid tip displacement from
+        # the other processes, this means that the tip lies on both a process
+        # boundary and on a point adjacent to two (or more) cells. We must
+        # assert that all the computed tip displacements from these processes
         # are approximately equivalent.
-        valid_displacements = np.array([y for y in computed_tip_displacements if y is not None], dtype=np.double)
-        assert np.all(np.abs(valid_displacements[0] - valid_displacements) < 1e-9)
+        valid_displacements = np.array(
+            [y for y in computed_tip_displacements if y is not None],
+            dtype=np.double)
+        assert np.all(
+            np.abs(valid_displacements[0] - valid_displacements) < 1e-9)
         tip_disp.append(valid_displacements[0])
 
 
@@ -117,10 +129,13 @@ if MPI.rank(mesh.mpi_comm()) == 0:
     error_wint = np.abs(np.array(W_int, dtype=np.double) - 10.0)
     error_tip_disp = np.abs(np.array(tip_disp, dtype=np.double) - 2e-3)
     h_max = np.array(h_max, dtype=np.double)
+    hrates = np.log(h_max[:-1]/h_max[1:])
 
     print("Mesh sizes:", h_max)
     print("Internal strain energies:", W_int)
     print("Tip displacements:", tip_disp)
 
-    print("\u222B\u03A8(u_h)dX convergence rate:", np.log(error_wint[0:-1]/error_wint[1:])/np.log(h_max[0:-1]/h_max[1:]))
-    print("u_h(\u03B2/2,\u03B2/2,L) convergence rate:", np.log(error_tip_disp[0:-1]/error_tip_disp[1:])/np.log(h_max[0:-1]/h_max[1:]))
+    print("\u222B\u03A8(u_h)dX convergence rate:",
+          np.log(error_wint[:-1]/error_wint[1:])/hrates)
+    print("u_h(\u03B2/2,\u03B2/2,L) convergence rate:",
+          np.log(error_tip_disp[:-1]/error_tip_disp[1:])/hrates)

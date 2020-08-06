@@ -8,7 +8,7 @@ from ufl import (
 from dolfin_dg.dg_ufl import (
     apply_dg_operators, avg, tensor_jump, jump, tangent_jump, dg_cross)
 
-__author__ = 'njcs4'
+
 
 
 def normal_proj(u, n):

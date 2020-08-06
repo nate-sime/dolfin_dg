@@ -1,7 +1,7 @@
 import ufl
 from ufl import dot, Max, Min
 
-__author__ = 'njcs4'
+
 
 
 def max_abs_of_sequence(a):

@@ -1,14 +1,10 @@
+import dolfinx.plotting
 import numpy as np
 import ufl
-
-import dolfinx
-import dolfinx.plotting
-
-import dolfin_dg
-import dolfin_dg.dolfinx
-
-from petsc4py import PETSc
 from mpi4py import MPI
+from petsc4py import PETSc
+
+import dolfin_dg.dolfinx
 
 comm = MPI.COMM_WORLD
 p_order = 2
@@ -27,6 +23,7 @@ def p_analytical(x):
     return 2.0 * np.exp(x[0]) * np.sin(x[1]) + 1.5797803888225995912 / 3.0
 
 
+# Run convergence rate experiment on all matrix types
 for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
     l2errors_u = []
     l2errors_p = []

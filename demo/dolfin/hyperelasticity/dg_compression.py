@@ -1,15 +1,19 @@
-from dolfin import *
-from dolfin_dg import *
+from dolfin import (
+    parameters, BoxMesh, Point, TrialFunction, TestFunction,
+    MeshFunction, Measure, derivative, solve, assemble, Constant, info,
+    CompiledSubDomain, VectorFunctionSpace, CellVolume, FacetArea, inner,
+    grad, dot, FacetNormal, tr, Identity, Function, variable, diff, ln, det,
+    dS, dx, PETScOptions, XDMFFile, refine)
 
-from fenicstools import interpolate_nonmatching_mesh
+from dolfin_dg import homogeneity_tensor, DGFemSIPG
+from dolfin_dg.dolfin import NonlinearAPosterioriEstimator, \
+    FixedFractionMarkerParallel
 
-parameters["form_compiler"]["cpp_optimize"] = True
-parameters["form_compiler"]["representation"] = "uflacs"
 parameters["std_out_all_processes"] = False
 parameters["ghost_mode"] = "shared_facet"
 parameters["refinement_algorithm"] = "plaza"
 
-# Polynomial dgree and quadrature order
+# Polynomial degree and quadrature order
 poly_o = 1
 parameters["form_compiler"]["quadrature_degree"] = 2*poly_o + 1
 
@@ -19,7 +23,7 @@ nu = 0.46
 
 mesh = BoxMesh(Point(0., 0., 0.), Point(0.5, 0.5, 2.0), 4, 4, 12)
 
-bottom =  CompiledSubDomain("near(x[2], side) && on_boundary", side=0.0)
+bottom = CompiledSubDomain("near(x[2], side) && on_boundary", side=0.0)
 top = CompiledSubDomain("near(x[2], side) && on_boundary", side=2.0)
 clamp = Constant((0.0, 0.0, 0.0))
 r = Constant((0.0, 0.07, -0.5))
@@ -34,14 +38,17 @@ ds = Measure("ds", subdomain_data=ff)
 B = Constant((0.0, 0.0, 0.0))
 mu, lmbda = Constant(E/(2*(1 + nu))), Constant(E*nu/((1 + nu)*(1 - 2*nu)))
 
+
 # Neo-Hookean strain energy function
 def Psi(F):
     return (mu/2)*(tr(F.T*F) - 3) - mu*ln(det(F)) + (lmbda/2)*(ln(det(F)))**2
+
 
 # First Piola-Kirchoff stress tensor
 def F_v(u, grad_u):
     F = variable(Identity(3) + grad_u)
     return diff(Psi(F), F)
+
 
 # Ouput file
 xdmf = XDMFFile("displacement.xdmf")
@@ -65,7 +72,7 @@ for ref_level in range(n_ref_max):
     # between refinement levels
     du = TrialFunction(V)
     v = TestFunction(V)
-    u = Function(V) if ref_level == 0 else interpolate_nonmatching_mesh(u, V)
+    u = Function(V)
     u.rename("u", "u")
 
     # DGFEM formulation
@@ -78,7 +85,7 @@ for ref_level in range(n_ref_max):
     vt = DGFemSIPG(F_v, u, v, sig, G, n)
     interior = vt.interior_residual(dS)
     exterior = vt.exterior_residual(clamp, ds(BOTTOM)) \
-               + vt.exterior_residual(r, ds(TOP))
+        + vt.exterior_residual(r, ds(TOP))
 
     F = inner(F_v(u, grad(u)), grad(v))*dx + interior + exterior - dot(B, v)*dx
     J = derivative(F, u, du)
@@ -103,12 +110,14 @@ for ref_level in range(n_ref_max):
         PETScOptions.set("dual_pc_type", "lu")
         PETScOptions.set("dual_pc_factor_mat_solver_type", "mumps")
 
-        est = NonlinearAPosterioriEstimator(J, F, W_int*dx, u, options_prefix="dual_")
-        markers = est.compute_cell_markers(FixedFractionMarkerParallel(frac=0.1))
-        mesh = refine(mesh, cell_markers=markers, redistribute=True)
+        est = NonlinearAPosterioriEstimator(J, F, W_int*dx, u,
+                                            options_prefix="dual_")
+        markers = est.compute_cell_markers(
+            FixedFractionMarkerParallel(frac=0.1))
+        mesh = refine(mesh, marker=markers, redistribute=True)
 
 if mesh.mpi_comm().rank == 0:
-    print("\u222B\u03A8(u_h)dX:", energies)
+    print("∫Ψ(u_h)dX:", energies)
     print("DoFs:", dof_count)
 
 xdmf.close()

@@ -1,6 +1,10 @@
 import numpy as np
 
-from dolfin import *
+from dolfin import (
+    RectangleMesh, Point, FunctionSpace, Expression, Function, FacetNormal,
+    VectorFunctionSpace, TestFunction, parameters, DirichletBC, Constant,
+    div, grad, curl, dot, inner, solve, derivative, project, errornorm, MPI,
+    dx, ds, dS)
 import dolfin_dg as dg
 
 # C0-IPG formulation of the streamfunction formulation of the Stokes
@@ -27,7 +31,7 @@ import dolfin_dg as dg
 
 parameters["ghost_mode"] = "shared_facet"
 
-ele_ns = [4, 8, 16, 32]
+ele_ns = [8, 16, 32]
 errorl2 = np.zeros(len(ele_ns))
 errorh1 = np.zeros(len(ele_ns))
 errorpsil2 = np.zeros(len(ele_ns))
@@ -62,7 +66,8 @@ for j, n_ele in enumerate(ele_ns):
         return div_grad_u
 
     # Fourth order DG discretisation
-    G = dg.homogeneity_tensor(F_v, psi, differential_operator=lambda u: div(grad(u)))
+    G = dg.homogeneity_tensor(
+        F_v, psi, differential_operator=lambda u: div(grad(u)))
     sigma = dg.generate_default_sipg_penalty_term(psi, C_IP=Constant(1e1))
     fo = dg.DGClassicalFourthOrderDiscretisation(F_v, psi, phi, sigma, G, n, -1)
 
