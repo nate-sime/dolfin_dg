@@ -41,8 +41,9 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+..  toctree::
+    :maxdepth: 2
+    :caption: Contents:
 
-   tree/reference.rst
+    tree/nitsche.rst
+    tree/operators.rst
