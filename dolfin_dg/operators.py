@@ -16,6 +16,14 @@ from dolfin_dg.fluxes import LocalLaxFriedrichs
 class DGBC:
 
     def __init__(self, boundary, function):
+        """Utility class indicating the nature of a weakly imposed boundary
+        condition. The actual implementation is application dependent.
+
+        Parameters
+        ----------
+        boundary : The UFL measure
+        function : The function or expression to be weakly imposed
+        """
         self.__boundary = boundary
         self.__function = function
 
@@ -49,7 +57,20 @@ class DGAdiabticWallBC(DGBC):
 
 class DGFemFormulation:
 
-    def __init__(self, mesh, fspace, bcs, **kwargs):
+    def __init__(self, mesh, fspace, bcs):
+        """Abstract base class for automatic formulation of a DG FEM
+        formulation.
+
+        Parameters
+        ----------
+        mesh
+            Problem mesh
+        fspace
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            `DGBC`s to be weakly imposed and included in the formulation
+        """
         if not hasattr(bcs, '__len__'):
             bcs = [bcs]
         self.mesh = mesh
@@ -58,12 +79,49 @@ class DGFemFormulation:
         self.neumann_bcs = [bc for bc in bcs if isinstance(bc, DGNeumannBC)]
 
     def generate_fem_formulation(self, u, v, dx=None, dS=None, vt=None):
+        """Automatically generate the DG FEM formulation
+
+        Parameters
+        ----------
+        u
+            Solution variable
+        v
+            Test function
+        dx
+            Volume integration measure
+        dS
+            Interior facet integration measure
+        vt
+            A specific implementation of `DGClassicalSecondOrderDiscretisation`
+
+        Returns
+        -------
+        The UFL representation of the DG FEM formulation
+        """
         raise NotImplementedError('Function not yet implemented')
 
 
 class EllipticOperator(DGFemFormulation):
 
     def __init__(self, mesh, fspace, bcs, F_v):
+        """Base class for the automatic generation of a DG formulation for
+        the underlying elliptic (2nd order) operator of the form
+
+        .. math:: -nabla \cdot \mathcal{F}^v(u, \nabla u)
+
+        Parameters
+        ----------
+        mesh
+            Problem mesh
+        fspace
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            `DGBC`s to be weakly imposed and included in the formulation
+        F_v
+            Two argument function ``F_v(u, grad_u)`` corresponding to the
+            viscous flux term
+        """
         DGFemFormulation.__init__(self, mesh, fspace, bcs)
         self.F_v = F_v
 
@@ -105,6 +163,21 @@ class EllipticOperator(DGFemFormulation):
 class PoissonOperator(EllipticOperator):
 
     def __init__(self, mesh, fspace, bcs, kappa=1):
+        """Specific implementation of `EllipticOperator` for the Poisson
+        problem
+
+        Parameters
+        ----------
+        mesh
+            Problem mesh
+        fspace
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            `DGBC`s to be weakly imposed and included in the formulation
+        kappa
+            (Potentially nonlinear) diffusion coefficient
+        """
         def F_v(u, grad_u):
             return kappa*grad_u
 
@@ -114,6 +187,15 @@ class PoissonOperator(EllipticOperator):
 class MaxwellOperator(DGFemFormulation):
 
     def __init__(self, mesh, fspace, bcs, F_m):
+        """
+
+        Parameters
+        ----------
+        mesh
+        fspace
+        bcs
+        F_m
+        """
         DGFemFormulation.__init__(self, mesh, fspace, bcs)
         self.F_m = F_m
 
