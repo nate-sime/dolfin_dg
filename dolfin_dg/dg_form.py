@@ -10,14 +10,62 @@ from dolfin_dg.dg_ufl import (
 
 
 def normal_proj(u, n):
+    r"""
+    Parameters
+    ----------
+    u
+        Vector expression
+    n
+        Normal vector
+
+    Returns
+    -------
+    Normal projection of the vector expression :math:`(n \otimes n) u`
+    """
     return ufl.outer(n, n) * u
 
 
 def tangential_proj(u, n):
+    r"""
+
+    Parameters
+    ----------
+    u
+        Vector expression
+    n
+        Normal vector
+
+    Returns
+    -------
+    Tangential projection of the vector expression :math:`(I - n \otimes n) u`
+    """
     return (ufl.Identity(u.ufl_shape[0]) - ufl.outer(n, n)) * u
 
 
 def hyper_tensor_product(G, tau):
+    r"""
+    Computes the product
+
+    .. math::
+
+        (G \tau)_{ik} = \sum_{j=1}^m \sum_{l=1}^d (G_{kl})_{ij} \tau{jl}
+
+    where :math:`m` and :math:`d` are the number of rows and columns in
+    :math:`\tau`, respectively. Typically :math:`d` is the spatial dimension
+    and :math:`m` is the dimension of the solution vector when used in the
+    automatic generation of DG FE formulations by homogenisation.
+
+    Parameters
+    ----------
+    G
+        Homogeneity tensor
+    tau
+        Tensor to be multiplied
+
+    Returns
+    -------
+    G * tau
+    """
     if len(G.ufl_shape) == 0:
         if not len(tau.ufl_shape) == 0:
             raise IndexError("G is scalar, tau has shape: %s"
@@ -33,6 +81,29 @@ def hyper_tensor_product(G, tau):
 
 
 def hyper_tensor_T_product(G, tau):
+    r"""
+    Computes the transpose product
+
+    .. math::
+
+        (G^\top \tau)_{jl} = \sum_{i=1}^m \sum_{k=1}^d (G_{kl})_{ij} \tau{ik}
+
+    where :math:`m` and :math:`d` are the number of rows and columns in
+    :math:`\tau`, respectively. Typically :math:`d` is the spatial dimension
+    and :math:`m` is the dimension of the solution vector when used in the
+    automatic generation of DG FE formulations by homogenisation.
+
+    Parameters
+    ----------
+    G
+        Homogeneity tensor
+    tau
+        Tensor to be multiplied
+
+    Returns
+    -------
+    G^T * tau
+    """
     if len(G.ufl_shape) == 0:
         if not len(tau.ufl_shape) == 0:
             raise IndexError("G^T is scalar, tau has shape: %s"
