@@ -16,6 +16,19 @@ class SeparateSpaceFormSplitter(ufl.corealg.multifunction.MultiFunction):
 
 
 def extract_rows(F, v):
+    """
+    Parameters
+    ----------
+    F
+        UFL residual formulation
+    v
+        Ordered list of test functions
+
+    Returns
+    -------
+    List of extracted block residuals ordered corresponding to each test
+    function
+    """
     vn = len(v)
     L = [None for _ in range(vn)]
 
@@ -31,6 +44,21 @@ def extract_rows(F, v):
 
 
 def extract_blocks(F, u, v):
+    """
+    Parameters
+    ----------
+    F
+        UFL residual formulation
+    u
+        Ordered list of trial functions
+    v
+        Ordered list of test functions
+
+    Returns
+    -------
+    A nested list of block matrix components ordered by test function rows
+    and trial function columns
+    """
     un, vn = len(u), len(v)
     a = [[None for _ in range(un)] for _ in range(vn)]
 
@@ -48,6 +76,21 @@ def extract_blocks(F, u, v):
 
 
 def extract_block_linear_system(F, u, v):
+    """
+    Parameters
+    ----------
+    F
+        UFL residual formulation
+    u
+        Ordered list of trial functions
+    v
+        Ordered list of test functions
+
+    Returns
+    -------
+    The `left hand side' and `right hand side' block matrix and vector
+    formulation, respectively
+    """
     F_a = extract_blocks(F, u, v)
     F_L = extract_rows(F, v)
 
@@ -58,6 +101,23 @@ def extract_block_linear_system(F, u, v):
 
 
 def derivative_block(F, u, du=None, coefficient_derivatives=None):
+    """
+    Parameters
+    ----------
+    F
+        Block residual formulation
+    u
+        Ordered solution functions
+    du
+        Ordered trial functions
+    coefficient_derivatives
+        Prescribed derivative map
+
+    Returns
+    -------
+    Block matrix corresponding to the ordered components of the
+    Gateaux/Frechet derivative.
+    """
     import ufl
     if isinstance(F, ufl.Form):
         return ufl.derivative(F, u, du, coefficient_derivatives)
