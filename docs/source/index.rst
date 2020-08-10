@@ -45,5 +45,6 @@ Indices and tables
     :maxdepth: 2
     :caption: Contents:
 
+    tree/aero.rst
     tree/nitsche.rst
     tree/operators.rst
