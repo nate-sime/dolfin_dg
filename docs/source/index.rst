@@ -46,6 +46,7 @@ Indices and tables
     :caption: Contents:
 
     tree/aero.rst
+    tree/dg_form.rst
     tree/block.rst
     tree/nitsche.rst
     tree/operators.rst
