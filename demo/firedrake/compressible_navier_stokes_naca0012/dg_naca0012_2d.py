@@ -130,7 +130,7 @@ drag = 1.0/C_infty*dot(psi_drag, p*n - tau*n)*ds(WALL)
 
 # The adjoint consistent drag coefficient
 z_drag = 1.0/C_infty*as_vector((0, psi_drag[0], psi_drag[1], 0))
-drag += inner(sigma*hyper_tensor_product(G_adiabitic, dg_outer(u_vec - no_slip_bc, n)), dg_outer(z_drag, n))*ds(WALL)
+drag += inner(sigma*hyper_tensor_product(G_adiabitic, outer(u_vec - no_slip_bc, n)), outer(z_drag, n))*ds(WALL)
 
 # The lift coefficient
 psi_lift = as_vector((-sin(attack), cos(attack)))

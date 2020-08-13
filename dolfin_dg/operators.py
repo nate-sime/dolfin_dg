@@ -14,8 +14,19 @@ from dolfin_dg.fluxes import LocalLaxFriedrichs
 
 
 class DGBC:
+    """Utility class indicating the nature of a weakly imposed boundary
+    condition. The actual implementation is application dependent.
+    """
 
     def __init__(self, boundary, function):
+        """
+        Parameters
+        ----------
+        boundary
+            The UFL measure
+        function
+            The function or expression to be weakly imposed
+        """
         self.__boundary = boundary
         self.__function = function
 
@@ -32,24 +43,49 @@ class DGBC:
 
 
 class DGDirichletBC(DGBC):
+    """Indicates weak imposition of Dirichlet BCs
+    """
     pass
 
 
 class DGNeumannBC(DGBC):
+    """Indicates weak imposition of Neumann or outflow BCs
+    """
     pass
 
 
 class DGDirichletNormalBC(DGBC):
+    """Indicates weak imposition of Dirichlet BCs to be imposed on the normal
+    component of the solution. E.g. free slip BCs
+    """
     pass
 
 
 class DGAdiabticWallBC(DGBC):
+    """Indicates weak imposition of specialised Dirichlet BC case in
+    compressible flow where there is zero energy flux through the boundary
+    """
     pass
 
 
 class DGFemFormulation:
+    """Abstract base class for automatic formulation of a DG FEM
+    formulation
+    """
 
-    def __init__(self, mesh, fspace, bcs, **kwargs):
+    def __init__(self, mesh, fspace, bcs):
+        """
+        Parameters
+        ----------
+        mesh
+            Problem mesh
+        fspace
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            List of :class:`dolfin_dg.operators.DGBC` to be weakly imposed and
+            included in the formulation
+        """
         if not hasattr(bcs, '__len__'):
             bcs = [bcs]
         self.mesh = mesh
@@ -58,12 +94,52 @@ class DGFemFormulation:
         self.neumann_bcs = [bc for bc in bcs if isinstance(bc, DGNeumannBC)]
 
     def generate_fem_formulation(self, u, v, dx=None, dS=None, vt=None):
+        """Automatically generate the DG FEM formulation
+
+        Parameters
+        ----------
+        u
+            Solution variable
+        v
+            Test function
+        dx
+            Volume integration measure
+        dS
+            Interior facet integration measure
+        vt
+            A specific implementation of
+            :class:`dolfin_dg.dg_form.DGClassicalSecondOrderDiscretisation`
+
+        Returns
+        -------
+        The UFL representation of the DG FEM formulation
+        """
         raise NotImplementedError('Function not yet implemented')
 
 
 class EllipticOperator(DGFemFormulation):
+    r"""Base class for the automatic generation of a DG formulation for
+    the underlying elliptic (2nd order) operator of the form
+
+    .. math:: -\nabla \cdot \mathcal{F}^v(u, \nabla u)
+    """
 
     def __init__(self, mesh, fspace, bcs, F_v):
+        """
+        Parameters
+        ----------
+        mesh
+            Problem mesh
+        fspace
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            List of :class:`dolfin_dg.operators.DGBC` to be weakly imposed and
+            included in the formulation
+        F_v
+            Two argument function ``F_v(u, grad_u)`` corresponding to the
+            viscous flux term
+        """
         DGFemFormulation.__init__(self, mesh, fspace, bcs)
         self.F_v = F_v
 
@@ -103,8 +179,27 @@ class EllipticOperator(DGFemFormulation):
 
 
 class PoissonOperator(EllipticOperator):
+    r"""Specific implementation of
+    :class:`dolfin_dg.operators.EllipticOperator` for the Poisson operator:
+
+    .. math :: - \nabla \cdot \kappa \nabla u
+    """
 
     def __init__(self, mesh, fspace, bcs, kappa=1):
+        """
+        Parameters
+        ----------
+        mesh
+            Problem mesh
+        fspace
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            List of :class:`dolfin_dg.operators.DGBC` to be weakly imposed and
+            included in the formulation
+        kappa
+            (Potentially nonlinear) diffusion coefficient
+        """
         def F_v(u, grad_u):
             return kappa*grad_u
 
@@ -112,8 +207,28 @@ class PoissonOperator(EllipticOperator):
 
 
 class MaxwellOperator(DGFemFormulation):
+    r"""Base class for the automatic generation of a DG formulation for
+    the underlying elliptic (2nd order) operator of the form
+
+    .. math:: \nabla \times \mathcal{F}^m(u, \nabla \times u)
+    """
 
     def __init__(self, mesh, fspace, bcs, F_m):
+        """
+        Parameters
+        ----------
+        mesh
+            Problem mesh
+        fspace
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            List of :class:`dolfin_dg.operators.DGBC` to be weakly imposed and
+            included in the formulation
+        F_m
+            Two argument function ``F_m(u, curl_u)`` corresponding to the
+            viscous flux term
+        """
         DGFemFormulation.__init__(self, mesh, fspace, bcs)
         self.F_m = F_m
 
@@ -145,15 +260,55 @@ class MaxwellOperator(DGFemFormulation):
 
 
 class HyperbolicOperator(DGFemFormulation):
+    r"""Base class for the automatic generation of a DG formulation for
+    the underlying hyperbolic (1st order) operator of the form
 
-    def __init__(self, mesh, V, bcs,
-                 F_c=lambda u: u,
+    .. math:: \nabla \cdot \mathcal{F}^c(u)
+    """
+
+    def __init__(self, mesh, V, bcs, F_c=lambda u: u,
                  H=LocalLaxFriedrichs(lambda u, n: inner(u, n))):
+        """
+        Parameters
+        ----------
+        mesh
+            Problem mesh
+        fspace
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            List of :class:`dolfin_dg.operators.DGBC` to be weakly imposed and
+            included in the formulation
+        F_c
+            One argument function ``F_c(u)`` corresponding to the
+            convective flux term
+        H
+            An instance of a :class:`dolfin_dg.fluxes.ConvectiveFlux`
+            describing the convective flux scheme to employ
+        """
         DGFemFormulation.__init__(self, mesh, V, bcs)
         self.F_c = F_c
         self.H = H
 
     def generate_fem_formulation(self, u, v, dx=None, dS=None):
+        """Automatically generate the DG FEM formulation
+
+        Parameters
+        ----------
+        u
+            Solution variable
+        v
+            Test function
+        dx
+            Volume integration measure
+        dS
+            Interior facet integration measure
+
+        Returns
+        -------
+        The UFL representation of the DG FEM formulation
+        """
+
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
         if dS is None:
@@ -186,6 +341,17 @@ class HyperbolicOperator(DGFemFormulation):
 
 
 class SpacetimeBurgersOperator(HyperbolicOperator):
+    r"""Specific implementation of
+    :class:`dolfin_dg.operators.HyperbolicOperator` for the spacetime Burgers
+    operator where :math:`t=y`
+
+    .. math ::
+        \nabla \cdot
+        \begin{pmatrix}
+        \frac{1}{2} u^2 \\
+        u
+        \end{pmatrix}
+    """
 
     def __init__(self, mesh, V, bcs, flux=None):
 
@@ -199,8 +365,34 @@ class SpacetimeBurgersOperator(HyperbolicOperator):
 
 
 class CompressibleEulerOperator(HyperbolicOperator):
+    r"""Specific implementation of
+    :class:`dolfin_dg.operators.HyperbolicOperator` for the compressible Euler
+    operator
+
+    .. math ::
+        \nabla \cdot
+        \begin{pmatrix}
+        \rho \vec{u} \\
+        \rho \vec{u} \otimes \vec{u} + p I \\
+        (\rho E + p) \vec{u}
+        \end{pmatrix}
+    """
 
     def __init__(self, mesh, V, bcs, gamma=1.4):
+        """
+        Parameters
+        ----------
+        mesh
+            Problem mesh
+        V
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            List of :class:`dolfin_dg.operators.DGDC` to be weakly imposed
+            and included in the formulation
+        gamma
+            Ratio of specific heats
+        """
         try:
             dim = mesh.geometry().dim()
         except AttributeError:
@@ -230,8 +422,49 @@ class CompressibleEulerOperator(HyperbolicOperator):
 
 class CompressibleNavierStokesOperator(EllipticOperator,
                                        CompressibleEulerOperator):
+    r"""Specific implementation of
+    :class:`dolfin_dg.operators.EllipticOperator` and
+    :class:`dolfin_dg.operators.CompressibleEulerOperator` for the compressible
+    Navier-Stokes operator
+
+    .. math ::
+        \nabla \cdot \left(
+        \begin{pmatrix}
+        \rho \vec{u} \\
+        \rho \vec{u} \otimes \vec{u} + p I \\
+        (\rho E + p) \vec{u}
+        \end{pmatrix}
+        -
+        \begin{pmatrix}
+        \vec{0} \\
+        \sigma \\
+        \sigma \vec{u} + \kappa \nabla T
+        \end{pmatrix}
+        \right)
+
+    where :math:`\sigma = \mu \left( \nabla \vec{u} + \nabla \vec{u}^\top
+    - \frac{2}{3} (\nabla \cdot \vec{u}) I \right)`.
+    """
 
     def __init__(self, mesh, V, bcs, gamma=1.4, mu=1.0, Pr=0.72):
+        """
+        Parameters
+        ----------
+        mesh
+            Problem mesh
+        V
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            List of :class:`dolfin_dg.operators.DGDC` to be weakly imposed
+            and included in the formulation
+        gamma
+            Ratio of specific heats
+        mu
+            Viscosity
+        Pr
+            Prandtl number
+        """
         try:
             dim = mesh.geometry().dim()
         except AttributeError:
@@ -316,6 +549,20 @@ class CompressibleNavierStokesOperator(EllipticOperator,
 
 
 def V_to_U(V, gamma):
+    """Map the entropy variable formulation to the mass, momentum, energy
+    variables.
+
+    Parameters
+    ----------
+    V
+        Entropy variables
+    gamma
+        Ratio of specific heats
+
+    Returns
+    -------
+    mass, momentum and energy variables
+    """
     V1, V2, V3, V4 = V
     U = as_vector([-V4, V2, V3, 1 - 0.5*(V2**2 + V3**2)/V4])
     s = gamma - V1 + (V2**2 + V3**2)/(2*V4)
@@ -325,8 +572,25 @@ def V_to_U(V, gamma):
 
 
 class CompressibleEulerOperatorEntropyFormulation(HyperbolicOperator):
-
+    r"""Specific implementation of
+    :class:`dolfin_dg.operators.HyperbolicOperator` for the entropy variable
+    formulation of the compressible Euler operator
+    """
     def __init__(self, mesh, V, bcs, gamma=1.4):
+        """
+        Parameters
+        ----------
+        mesh
+            Problem mesh
+        V
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            List of :class:`dolfin_dg.operators.DGDC` to be weakly imposed
+            and included in the formulation
+        gamma
+            Ratio of specific heats
+        """
 
         try:
             dim = mesh.geometry().dim()
@@ -361,9 +625,31 @@ class CompressibleEulerOperatorEntropyFormulation(HyperbolicOperator):
 class CompressibleNavierStokesOperatorEntropyFormulation(
         EllipticOperator,
         CompressibleEulerOperatorEntropyFormulation):
+    r"""Specific implementation of
+    :class:`dolfin_dg.operators.CompressibleEulerOperatorEntropyFormulation`
+    and :class:`dolfin_dg.operators.EllipticOperator` for the entropy variable
+    formulation of the compressible Navier-Stokes operator
+    """
 
     def __init__(self, mesh, V, bcs, gamma=1.4, mu=1.0, Pr=0.72):
-
+        """
+        Parameters
+        ----------
+        mesh
+            Problem mesh
+        V
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            List of :class:`dolfin_dg.operators.DGDC` to be weakly imposed
+            and included in the formulation
+        gamma
+            Ratio of specific heats
+        mu
+            Viscosity
+        Pr
+            Prandtl number
+        """
         try:
             dim = mesh.geometry().dim()
         except AttributeError:
@@ -412,6 +698,30 @@ class CompressibleNavierStokesOperatorEntropyFormulation(
 
 
 class StokesOperator(DGFemFormulation):
+    r"""Base class for the Stokes operator
+
+    .. math::
+
+        \nabla \cdot
+        \begin{pmatrix}
+        - \mathcal{F}^v(\vec{u}, \nabla \vec{u})
+        \vec{u}
+        \end{pmatrix}
+        =
+        \begin{pmatrix}
+        \vec{f} \\
+        0
+        \end{pmatrix}
+
+    which is discretised into the saddle point system
+
+    .. math::
+
+        (\mathcal{F}^v(\vec{u}, \nabla \vec{u}), \vec{v})
+        &= (\vec{f}, \vec{v}) \\
+        (\nabla \cdot \vec{u}, q) &= 0
+
+    """
 
     def __init__(self, mesh, fspace, bcs, F_v):
         DGFemFormulation.__init__(self, mesh, fspace, bcs)
@@ -419,6 +729,33 @@ class StokesOperator(DGFemFormulation):
 
     def generate_fem_formulation(self, u, v, p, q, dx=None, dS=None,
                                  penalty=None, block_form=False):
+        """Automatically generate the DG FEM formulation
+
+        Parameters
+        ----------
+        u
+            Solution velocity variable
+        v
+            Velocity test function
+        p
+            Solution pressure variable
+        q
+            Pressure test function
+        dx
+            Volume integration measure
+        dS
+            Interior facet integration measure
+        penalty
+            Interior penalty parameter
+        block_form
+            If true a list of formulations is returned, each element of the list
+            corresponds to a block of the Stokes residual
+
+        Returns
+        -------
+        The UFL representation of the DG FEM formulation
+        """
+
         if dx is None:
             dx = Measure('dx', domain=self.mesh)
         if dS is None:

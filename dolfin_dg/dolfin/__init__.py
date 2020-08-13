@@ -1,8 +1,10 @@
 # DWR highly experimental
-from dolfin_dg.dolfin.dwr import \
-    NonlinearAPosterioriEstimator, \
-    LinearAPosterioriEstimator, \
+from dolfin_dg.dolfin.dwr import (
+    NonlinearAPosterioriEstimator,
+    LinearAPosterioriEstimator,
     dual
+)
 
-from dolfin_dg.dolfin.mark import \
+from dolfin_dg.dolfin.mark import (
     FixedFractionMarker, FixedFractionMarkerParallel
+)

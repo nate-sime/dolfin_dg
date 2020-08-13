@@ -118,7 +118,7 @@ sudo python3 setup.py install
 
 ## Contributors
 
-* Nate J. C. Sime <nsime@carnegiescience.edu>
+* Nate Sime <nsime@carnegiescience.edu>
 * Paul Houston <Paul.Houston@nottingham.ac.uk>
 * Patrick E. Farrell <patrick.farrell@maths.ox.ac.uk>
 
