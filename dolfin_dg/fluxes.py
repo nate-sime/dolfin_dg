@@ -13,7 +13,7 @@ def max_abs_of_sequence(a):
     Notes
     -----
     This is required because (currently) ufl only allows two values in
-    the constuctor of :py:method:`ufl.Max`.
+    the constuctor of :py:meth:`ufl.Max`.
 
     Parameters
     ----------
@@ -22,7 +22,7 @@ def max_abs_of_sequence(a):
 
     Returns
     -------
-    Maximum of the sequence
+    Maximum of absolute values of elements in the sequence
     """
     if isinstance(a, ufl.core.expr.Expr):
         return abs(a)
@@ -34,48 +34,54 @@ def max_abs_of_sequence(a):
 
 
 def max_of_sequence(a):
-    """
-    Utility function to generate the Max of a sequence of N elements
-    e.g.: Max(a1, a2, a3, ..., aN).
+    """Utility function to generate the maximum of the absolute values of
+    elements in a sequence
 
+    .. math::
+
+        \max(a_1, a_2, a_3, \ldots, a_N)
+
+    Notes
+    -----
     This is required because (currently) ufl only allows two values in
-    the constuctor of Max().
+    the constuctor of :py:meth:`ufl.Max`.
 
-    :param a: sequence of ufl elements
-    :return:
+    Returns
+    -------
+    Maximum value of elements in the sequence
     """
     return map_ufl_operator_to_sequence(a, Max)
 
 
 def min_of_sequence(a):
-    """
-    Utility function to generate the Max of a sequence of N elements
-    e.g.: Max(a1, a2, a3, ..., aN).
+    """Utility function to generate the maximum of the absolute values of
+    elements in a sequence
 
+    .. math::
+
+        \min(a_1, a_2, a_3, \ldots, a_N)
+
+    Notes
+    -----
     This is required because (currently) ufl only allows two values in
-    the constuctor of Max().
+    the constuctor of :py:meth:`ufl.Max`.
 
-    :param a: sequence of ufl elements
-    :return:
+    Returns
+    -------
+    Minimum value of elements in the sequence
     """
     return map_ufl_operator_to_sequence(a, Min)
 
 
 def map_ufl_operator_to_sequence(a, op):
     """
-    Utility function to generate the op of a sequence of N elements
-    e.g.: op(a1, a2, a3, ..., aN).
+    Utility function to map an operator to a sequence of N UFL expressions
 
+    Notes
+    -----
     This is required because (currently and commonly) ufl only allows
-    two values in the constuctors of MathOperator.
-
-    Warning: If the sequence has length 1, op(a) is assumed == a
-
-    This is intended to be used with Min and Max
-
-    :param a: sequence of ufl elements
-    :param op: a ufl MathOperator
-    :return:
+    two values in the constuctors of :py:meth:`ufl.MathOperator`. This is
+    intended to be used with :py:meth:`ufl.Min` and :py:mesh`ufl.Max`.
     """
     if isinstance(a, ufl.core.expr.Expr):
         return a
@@ -89,21 +95,66 @@ def map_ufl_operator_to_sequence(a, op):
 
 
 class ConvectiveFlux:
+    """Abstract bass class of symbolic convection flux approximations
+    """
 
     def __init__(self):
         pass
 
     def setup(self):
+        """Called internally prior to formulation by
+        :py:meth:`ConvectiveFlux.interior` and
+        :py:meth:`ConvectiveFlux.exterior`.
+        """
         pass
 
     def interior(self, F_c, u_p, u_m, n):
+        """Formulate interior residual formulation using the symbolic flux
+        formulation
+
+        Parameters
+        ----------
+        F_c
+            Convective flux tensor
+        u_p
+            ":math:`+`" outward flux solution vector
+        u_m
+            ":math:`-`" inward flux solution vector
+        n
+            ":math:`+`" outward side facet normal
+
+        Returns
+        -------
+        Interior residual formulation
+        """
         pass
 
     def exterior(self, F_c, u_p, u_m, n):
+        """Formulate exterior residual formulation using the symbolic flux
+        formulation
+
+        Parameters
+        ----------
+        F_c
+            Convective flux tensor
+        u_p
+            ":math:`+`" outward flux solution vector
+        u_m
+            ":math:`-`" inward flux function or solution vector
+        n
+            Facet normal (outward pointing)
+
+        Returns
+        -------
+        Exterior residual formulation
+        """
         pass
 
 
 class LocalLaxFriedrichs(ConvectiveFlux):
+    """Implementation of symbolic representation of the local-Lax Friedrichs
+    flux function
+    """
 
     def __init__(self, flux_jacobian_eigenvalues):
         self.flux_jacobian_eigenvalues = flux_jacobian_eigenvalues
@@ -124,6 +175,8 @@ class LocalLaxFriedrichs(ConvectiveFlux):
 
 
 class HLLE(ConvectiveFlux):
+    """Implementation of the Harten-Lax-van Leer-Einfeldt flux function
+    """
 
     TOL = 1e-14
 
@@ -152,6 +205,8 @@ class HLLE(ConvectiveFlux):
 
 
 class Vijayasundaram(ConvectiveFlux):
+    """Implementation of the Vijayasundaram flux function
+    """
 
     def __init__(self, eigenvals, left, right):
         self.eigenvals = eigenvals
