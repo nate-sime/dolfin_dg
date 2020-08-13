@@ -489,7 +489,6 @@ class DGFemCurlTerm(DGFemTerm):
         \nabla \times \mathcal{F}^m(u, \nabla \times u) = 0
     """
 
-
     def interior_residual(self, dInt):
         G = self.G
         u, v = self.U, self.V

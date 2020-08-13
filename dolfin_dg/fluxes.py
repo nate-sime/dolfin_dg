@@ -3,7 +3,7 @@ from ufl import dot, Max, Min
 
 
 def max_abs_of_sequence(a):
-    """Utility function to generate the maximum of the absolute values of
+    r"""Utility function to generate the maximum of the absolute values of
     elements in a sequence
 
     .. math::
@@ -34,7 +34,7 @@ def max_abs_of_sequence(a):
 
 
 def max_of_sequence(a):
-    """Utility function to generate the maximum of the absolute values of
+    r"""Utility function to generate the maximum of the absolute values of
     elements in a sequence
 
     .. math::
@@ -54,7 +54,7 @@ def max_of_sequence(a):
 
 
 def min_of_sequence(a):
-    """Utility function to generate the maximum of the absolute values of
+    r"""Utility function to generate the maximum of the absolute values of
     elements in a sequence
 
     .. math::
