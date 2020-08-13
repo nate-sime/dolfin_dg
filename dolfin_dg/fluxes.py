@@ -3,15 +3,26 @@ from ufl import dot, Max, Min
 
 
 def max_abs_of_sequence(a):
-    """
-    Utility function to generate the Max Abs of a sequence of N elements
-    e.g.: Max(|a1|, |a2|, |a3|, ..., |aN|).
+    """Utility function to generate the maximum of the absolute values of
+    elements in a sequence
 
+    .. math::
+
+        \max(|a_1|, |a_2|, |a_3|, \ldots, |a_N|)
+
+    Notes
+    -----
     This is required because (currently) ufl only allows two values in
-    the constuctor of Max().
+    the constuctor of :py:method:`ufl.Max`.
 
-    :param a: sequence of ufl elements
-    :return:
+    Parameters
+    ----------
+    a
+        Sequence of ufl expressions
+
+    Returns
+    -------
+    Maximum of the sequence
     """
     if isinstance(a, ufl.core.expr.Expr):
         return abs(a)
