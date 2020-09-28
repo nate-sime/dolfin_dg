@@ -61,6 +61,9 @@ nonlinear problems in geodynamics*.
 
 * For `dolfin` support and the example demos: the core components of the [FEniCS
   project](https://fenicsproject.org/).
+* For the hybrid discontinuous Galerkin (HDG) solvers employing static
+ condensation with `dolfin`,
+ [`leopart`](https://bitbucket.org/jakob_maljaars/leopart) is required.
 * For `firedrake` support the core components of the [Firedrake
   project](https://www.firedrakeproject.org/)
 
@@ -79,10 +82,9 @@ Unit tests are provided in ``test/unit/test_*.py``.
 
 ![](https://quay.io/repository/natesime/dolfin_dg/status)
 
-
-Follow the instructions for installing https://fenicsproject.org/download/. A docker image 
-of the `dolfin_dg` master branch is available:
-
+Follow the instructions for installing https://fenicsproject.org/download/. A
+docker image facilitating compilation and execution of `dolfin_dg` examples
+with the development version of `dolfin` and `leopart` is available:
 
 ```bash
 docker run -it quay.io/natesime/dolfin_dg:master
