@@ -12,6 +12,36 @@ class StaticCondensationNewtonSolver:
 
     def __init__(self, F, J, bcs,
                  rtol=1e-12, atol=1e-10, maximum_iterations=20):
+        """
+        Newton solver which implements static condensation via `leopart`. The
+        residual and Jacobian are constructed as follows:
+
+        F = [F_local, F_global]
+        J = [[J_(local,local),  J_(local,global) ],
+             [J_(global,local), J_(global,global)]]
+
+        where "local" refers to components of the variational formulation
+        whose unknown components are defined cellwise with no inter-cell
+        communication (e.g. DG elements), and "global" refers to the
+        components of the variational formulation (typically defined on
+        facets in HDG) which must be solved in a global sense as a necessity of
+        inter-entity communication.
+
+        Parameters
+        ----------
+        F
+            Iterable of size 2 containing the residual block formulation
+        J
+            Iterable of size 2x2 containing the block Jacobi formulation
+        bcs
+            Boundary conditions
+        rtol
+            Residual 2-norm residual tolerance
+        atol
+            Residual 2-norm absolute tolerance
+        maximum_iterations
+            Maximum number of Newton iterations
+        """
         if not hasattr(bcs, "__len__"):
             bcs = (bcs,)
         self.bcs = bcs
