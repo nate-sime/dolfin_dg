@@ -11,7 +11,8 @@ def _formit(F):
 class StaticCondensationNewtonSolver:
 
     def __init__(self, F, J, bcs,
-                 rtol=1e-12, atol=1e-10, maximum_iterations=20):
+                 rtol=1e-12, atol=1e-10, maximum_iterations=20,
+                 krylov_solver=None):
         """
         Newton solver which implements static condensation via `leopart`. The
         residual and Jacobian are constructed as follows:
@@ -41,6 +42,8 @@ class StaticCondensationNewtonSolver:
             Residual 2-norm absolute tolerance
         maximum_iterations
             Maximum number of Newton iterations
+        krylov_solver
+            Custom implementation of a `PETScKrylov` solver
         """
         if not hasattr(bcs, "__len__"):
             bcs = (bcs,)
@@ -61,13 +64,16 @@ class StaticCondensationNewtonSolver:
         self.A = dolfin.PETScMatrix()
         self.b = dolfin.PETScVector()
 
-        solver = dolfin.PETScKrylovSolver()
-        solver.set_operator(self.A)
-        dolfin.PETScOptions.set("ksp_type", "preonly")
-        dolfin.PETScOptions.set("pc_type", "lu")
-        dolfin.PETScOptions.set("pc_factor_mat_solver_type", "mumps")
-        solver.set_from_options()
-        self.solver = solver
+        if krylov_solver is None:
+            solver = dolfin.PETScKrylovSolver()
+            solver.set_operator(self.A)
+            dolfin.PETScOptions.set("ksp_type", "preonly")
+            dolfin.PETScOptions.set("pc_type", "lu")
+            dolfin.PETScOptions.set("pc_factor_mat_solver_type", "mumps")
+            solver.set_from_options()
+            self.solver = solver
+        else:
+            self.solver = krylov_solver
 
         self.maximum_iterations = maximum_iterations
         self.rtol = rtol
@@ -101,9 +107,9 @@ class StaticCondensationNewtonSolver:
             bc.apply(self.A, self.b)
 
         if self.converged(self.b, 0):
-            return
+            return 0, True
 
-        for j in range(self.maximum_iterations):
+        for newton_iteration in range(1, self.maximum_iterations+1):
             self.solver.solve(dubar.vector(), self.b)
             self.assembler.backsubstitute(
                 dubar._cpp_object, du._cpp_object)
@@ -115,8 +121,11 @@ class StaticCondensationNewtonSolver:
             for bc in self.bcs_homo:
                 bc.apply(self.b)
 
-            if self.converged(self.b, j+1):
-                return
+            if self.converged(self.b, newton_iteration):
+                return newton_iteration, True
+
+            if newton_iteration == self.maximum_iterations:
+                return newton_iteration, False
 
             self.assembler.assemble_global_lhs(self.A)
             for bc in self.bcs_homo:
