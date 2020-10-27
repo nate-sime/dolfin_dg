@@ -85,7 +85,10 @@ class StaticCondensationNewtonSolver:
         if it == 0:
             self._residual0 = _residual
 
-        relative_residual = _residual / self._residual0
+        if self._residual0 > self.atol:
+            relative_residual = _residual / self._residual0
+        else:
+            relative_residual = 1.0
 
         dolfin.info(
             "(static condensation) Newton iteration %d: "
