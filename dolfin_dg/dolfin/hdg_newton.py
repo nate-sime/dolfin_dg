@@ -99,8 +99,10 @@ class StaticCondensationNewtonSolver:
 
     def solve(self, u, ubar):
         for bc in self.bcs:
-            bc.apply(u.vector())
-            bc.apply(ubar.vector())
+            if u.function_space()._cpp_object is bc.function_space():
+                bc.apply(u.vector())
+            if ubar.function_space()._cpp_object is bc.function_space():
+                bc.apply(ubar.vector())
 
         du = u.copy(deepcopy=True)
         dubar = ubar.copy(deepcopy=True)

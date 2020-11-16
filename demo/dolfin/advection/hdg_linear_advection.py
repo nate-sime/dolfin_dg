@@ -6,6 +6,7 @@ from dolfin import (
     FiniteElement, CellDiameter, div, Form)
 
 import dolfin_dg.hdg_form
+import dolfin_dg.dolfin.hdg_newton
 
 poly_o = 2
 n_eles = [8, 16, 32, 64]
@@ -64,25 +65,9 @@ for run_no, n_ele in enumerate(n_eles):
     Fr = dolfin_dg.extract_rows(F, [v, vbar])
     J = dolfin_dg.derivative_block(Fr, [u, ubar])
 
-    Fr[0] = -Fr[0]
-    Fr[1] = -Fr[1]
-
-    def formit(F):
-        if isinstance(F, (list, tuple)):
-            return list(map(formit, F))
-        return Form(F)
-
-    Fr = formit(Fr)
-    J = formit(J)
-
-    ssc = leopart.StokesStaticCondensation(
-        mesh,
-        J[0][0], J[0][1],
-        J[1][0], J[1][1],
-        Fr[0], Fr[1])
-
-    ssc.assemble_global_system(True)
-    ssc.solve_problem(ubar.cpp_object(), u.cpp_object(), "mumps", "default")
+    solver = dolfin_dg.dolfin.hdg_newton.StaticCondensationNewtonSolver(
+        Fr, J, [])
+    solver.solve(u, ubar)
 
     l2error_u = errornorm(u_soln_f, u, "l2")
     h1error_u = errornorm(u_soln_f, u, "h1")
