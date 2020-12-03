@@ -1,12 +1,11 @@
-import leopart
 import numpy as np
 from dolfin import (
     Point, FunctionSpace, TestFunction, Expression, Constant, inner, grad, dot,
     FacetNormal, MPI, Function, dS, dx, ds, errornorm, RectangleMesh,
-    FiniteElement, CellDiameter, div, Form)
+    FiniteElement, CellDiameter, div)
 
-import dolfin_dg.hdg_form
 import dolfin_dg.dolfin.hdg_newton
+import dolfin_dg.hdg_form
 
 poly_o = 2
 n_eles = [8, 16, 32, 64]

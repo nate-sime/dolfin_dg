@@ -144,8 +144,11 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
             # Copy initial guess into vector
             dolfinx.cpp.la.scatter_local_vectors(
                 soln_vector, [u.vector.array_r, p.vector.array_r],
-                [u.function_space.dofmap.index_map,
-                 p.function_space.dofmap.index_map])
+                [(u.function_space.dofmap.index_map,
+                  u.function_space.dofmap.index_map_bs),
+                 (p.function_space.dofmap.index_map,
+                  p.function_space.dofmap.index_map_bs)])
+
         elif matrixtype is dolfin_dg.dolfinx.MatrixType.nest:
             snes.setFunction(problem.F_nest, dolfinx.fem.create_vector_nest(F))
             snes.setJacobian(problem.J_nest,
