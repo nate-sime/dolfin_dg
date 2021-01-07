@@ -99,9 +99,11 @@ class StaticCondensationNewtonSolver:
 
     def solve(self, u, ubar):
         for bc in self.bcs:
-            if u.function_space()._cpp_object is bc.function_space():
+            if u.function_space().contains(
+                    dolfin.FunctionSpace(bc.function_space())):
                 bc.apply(u.vector())
-            if ubar.function_space()._cpp_object is bc.function_space():
+            if ubar.function_space().contains(
+                    dolfin.FunctionSpace(bc.function_space())):
                 bc.apply(ubar.vector())
 
         du = u.copy(deepcopy=True)
