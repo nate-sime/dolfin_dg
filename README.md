@@ -121,7 +121,7 @@ sudo python3 setup.py install
 * Nate Sime <nsime@carnegiescience.edu>
 * Paul Houston <Paul.Houston@nottingham.ac.uk>
 * Patrick E. Farrell <patrick.farrell@maths.ox.ac.uk>
-
+* Robert Klöfkorn <robert.klofkorn@math.lu.se>
 
 ## License
 
