@@ -64,8 +64,12 @@ for run_no, n_ele in enumerate(n_eles):
     Fr = dolfin_dg.extract_rows(F, [v, vbar])
     J = dolfin_dg.derivative_block(Fr, [u, ubar])
 
+    # import dolfin
+    # bcs = [dolfin.DirichletBC(Vbar, gD, "on_boundary")]
+    bcs = []
+
     solver = dolfin_dg.dolfin.hdg_newton.StaticCondensationNewtonSolver(
-        Fr, J, [])
+        Fr, J, bcs)
     solver.solve(u, ubar)
 
     l2error_u = errornorm(u_soln_f, u, "l2")
