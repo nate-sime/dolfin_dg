@@ -73,6 +73,18 @@ class DGFemFormulation:
     formulation
     """
 
+    @staticmethod
+    def mesh_dimension(mesh):
+        # the DUNE way
+        if hasattr(mesh, "dimension"):
+            return mesh.dimension
+        else:
+        # the Fenics/Dolfin way
+            try:
+                return mesh.geometry().dim()
+            except AttributeError:
+                return mesh.geometric_dimension()
+
     def __init__(self, mesh, fspace, bcs):
         """
         Parameters
@@ -92,6 +104,14 @@ class DGFemFormulation:
         self.fspace = fspace
         self.dirichlet_bcs = [bc for bc in bcs if isinstance(bc, DGDirichletBC)]
         self.neumann_bcs = [bc for bc in bcs if isinstance(bc, DGNeumannBC)]
+
+    def ufl_domain(self):
+        try:
+            # the Fenics/Dolfin way
+            return self.mesh.ufl_domain()
+        except AttributeError:
+            # the DUNE way (the FE space is also ufl domain)
+            return self.fspace
 
     def generate_fem_formulation(self, u, v, dx=None, dS=None, vt=None):
         """Automatically generate the DG FEM formulation
@@ -150,7 +170,7 @@ class EllipticOperator(DGFemFormulation):
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
 
-        n = ufl.FacetNormal(self.mesh.ufl_domain())
+        n = ufl.FacetNormal(self.ufl_domain())
         G = homogeneity_tensor(self.F_v, u)
 
         if penalty is None:
@@ -238,7 +258,7 @@ class MaxwellOperator(DGFemFormulation):
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
 
-        n = ufl.FacetNormal(self.mesh.ufl_domain())
+        n = ufl.FacetNormal(self.ufl_domain())
         curl_u = variable(curl(u))
         G = diff(self.F_m(u, curl_u), curl_u)
         penalty = generate_default_sipg_penalty_term(u)
@@ -314,7 +334,7 @@ class HyperbolicOperator(DGFemFormulation):
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
 
-        n = ufl.FacetNormal(self.mesh.ufl_domain())
+        n = ufl.FacetNormal(self.ufl_domain())
 
         F_c_eval = self.F_c(u)
         if len(F_c_eval.ufl_shape) == 0:
@@ -393,10 +413,8 @@ class CompressibleEulerOperator(HyperbolicOperator):
         gamma
             Ratio of specific heats
         """
-        try:
-            dim = mesh.geometry().dim()
-        except AttributeError:
-            dim = mesh.geometric_dimension()
+
+        dim = self.mesh_dimension( mesh )
 
         def F_c(U):
             rho, u, E = aero.flow_variables(U)
@@ -465,10 +483,7 @@ class CompressibleNavierStokesOperator(EllipticOperator,
         Pr
             Prandtl number
         """
-        try:
-            dim = mesh.geometry().dim()
-        except AttributeError:
-            dim = mesh.geometric_dimension()
+        dim = self.mesh_dimension( mesh )
 
         if not hasattr(bcs, '__len__'):
             bcs = [bcs]
@@ -592,10 +607,7 @@ class CompressibleEulerOperatorEntropyFormulation(HyperbolicOperator):
             Ratio of specific heats
         """
 
-        try:
-            dim = mesh.geometry().dim()
-        except AttributeError:
-            dim = mesh.geometric_dimension()
+        dim = self.mesh_dimension( mesh )
 
         def F_c(V):
             V = variable(V)
@@ -650,10 +662,8 @@ class CompressibleNavierStokesOperatorEntropyFormulation(
         Pr
             Prandtl number
         """
-        try:
-            dim = mesh.geometry().dim()
-        except AttributeError:
-            dim = mesh.geometric_dimension()
+
+        dim = self.mesh_dimension( mesh )
 
         def F_v(V, grad_V):
             V = variable(V)
@@ -761,7 +771,7 @@ class StokesOperator(DGFemFormulation):
         if dS is None:
             dS = Measure('dS', domain=self.mesh)
 
-        n = ufl.FacetNormal(self.mesh.ufl_domain())
+        n = ufl.FacetNormal(self.ufl_domain())
         G = homogeneity_tensor(self.F_v, u)
         delta = -1
 
