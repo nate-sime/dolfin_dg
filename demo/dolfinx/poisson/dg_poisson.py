@@ -1,5 +1,4 @@
-import dolfinx.plotting
-import matplotlib.pyplot as plt
+import dolfinx.io
 import numpy as np
 import ufl
 from mpi4py import MPI
@@ -55,5 +54,7 @@ snes.setJacobian(problem.J_mono, J=dolfinx.fem.create_matrix(J))
 snes.solve(None, u.vector)
 print("SNES converged:", snes.getConvergedReason())
 print("KSP converged:", snes.getKSP().getConvergedReason())
-dolfinx.plotting.plot(u)
-plt.show()
+
+with dolfinx.io.XDMFFile(MPI.COMM_WORLD, "poisson.xdmf", "w") as file:
+    file.write_mesh(mesh)
+    file.write_function(u)
