@@ -5,11 +5,14 @@ DG FEM formulations using [UFL](https://github.com/FEniCS/ufl).
 
 `dolfin_dg` derives its name from original development with the DOLFIN
 component of the FEniCS project. However, the core components of `dolfin_dg` now
-solely depend on UFL. `dolfin_dg` has been successfully employed with:
+solely depend on UFL. 
+
+`dolfin_dg` has been successfully employed with:
+
 * [DOLFIN](https://bitbucket.org/fenics-project/dolfin)
 * [DOLFINX](https://github.com/FEniCS/dolfinx)
 * [Firedrake](https://www.firedrakeproject.org/)
-* [dune-fem](https://www.dune-project.org/modules/dune-fem/).
+* [dune-fem](https://www.dune-project.org/modules/dune-fem/)
 
 ## Specifically, what does it do?
 
