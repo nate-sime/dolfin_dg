@@ -106,5 +106,5 @@ hrates = np.log(hs[:-1] / hs[1:])
 rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / hrates
 rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / hrates
 
-print("rates u L2: %s" % str(rates_u_l2))
-print("rates u H1: %s" % str(rates_u_h1))
+info(f"rates u L2: {rates_u_l2}")
+info(f"rates u H1: {rates_u_h1}")

@@ -6,6 +6,12 @@ from petsc4py import PETSc
 
 import dolfin_dg.dolfinx
 
+
+# Printing alias which flushes in parallel processing
+def info(msg):
+    PETSc.Sys.Print(msg)
+
+
 comm = MPI.COMM_WORLD
 p_order = 2
 dirichlet_id, neumann_id = 1, 2
@@ -191,8 +197,8 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
         snes_converged = snes.getConvergedReason()
         ksp_converged = snes.getKSP().getConvergedReason()
         if snes_converged < 1 or ksp_converged < 1:
-            print("SNES converged reason:", snes_converged)
-            print("KSP converged reason:", ksp_converged)
+            info("SNES converged reason:", snes_converged)
+            info("KSP converged reason:", ksp_converged)
 
         # Computer error
         l2error_u = comm.allreduce(
@@ -216,5 +222,5 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
     hrates = np.log(hs[:-1] / hs[1:])
     rates_u = np.log(l2errors_u[:-1] / l2errors_u[1:]) / hrates
     rates_p = np.log(l2errors_p[:-1] / l2errors_p[1:]) / hrates
-    print(matrixtype, "rates u: %s" % str(rates_u))
-    print(matrixtype, "rates p: %s" % str(rates_p))
+    info(f"{matrixtype} rates u: {rates_u}")
+    info(f"{matrixtype} rates p: {rates_p}")

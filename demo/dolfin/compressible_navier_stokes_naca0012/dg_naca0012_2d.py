@@ -63,7 +63,7 @@ class CustomSolver(NewtonSolver):
                         iteration):
         tau = 1.0
         theta = min(sqrt(2.0*tau/norm(dx, norm_type="l2", mesh=V.mesh())), 1.0)
-        info("Newton damping parameter: %.3e" % theta)
+        info(f"Newton damping parameter: {theta:.3e}")
         x.axpy(-theta, dx)
 
 
@@ -108,7 +108,7 @@ results = []
 # Maximum number of refinement levels
 n_ref_max = 3
 for ref_level in range(n_ref_max):
-    info("Refinement level %d" % ref_level)
+    info(f"Refinement level {ref_level}")
 
     # Label the boundary components of the mesh. Initially label all exterior
     # facets as the adiabatic wall, then label the exterior facets far from
@@ -126,7 +126,7 @@ for ref_level in range(n_ref_max):
 
     # Problem function space, (rho, rho*u1, rho*u2, rho*E)
     V = VectorFunctionSpace(mesh, 'DG', poly_o, dim=4)
-    info("Problem size: %d degrees of freedom" % V.dim())
+    info(f"Problem size: {V.dim()} degrees of freedom")
 
     # Use the initial guess.
     u_vec = project(gD_guess, V)
@@ -189,7 +189,7 @@ for ref_level in range(n_ref_max):
     lift = 1.0/C_infty*dot(psi_lift, p*n - tau*n)*ds(WALL)
 
     result = (V.dim(), assemble(drag), assemble(lift))
-    info("DoFs: %d, Drag: %.5e, Lift: %.5e" % result)
+    info("DoFs: {:d}, Drag: {:.5e}, Lift: {:.5e}".format(*result))
     results += [result]
 
     # If we're not on the last refinement level, apply dual-weighted-residual
@@ -207,5 +207,5 @@ for ref_level in range(n_ref_max):
     xdmf.write(u_vec.sub(0), float(ref_level))
 
 if MPI.rank(mesh.mpi_comm()) == 0:
-    print("\n".join(map(lambda result: "DoFs: %d, Drag: %.5e, Lift: %.5e"
-                                       % result, results)))
+    for result in results:
+        print("DoFs: {:d}, Drag: {:.5e}, Lift: {:.5e}".format(*result))

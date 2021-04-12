@@ -21,7 +21,7 @@ for n in range(2, 6):
     Ve = VectorElement("DG", mesh.ufl_cell(), p_order)
     Qe = FiniteElement("DG", mesh.ufl_cell(), p_order-1)
     W = FunctionSpace(mesh, MixedElement([Ve, Qe]))
-    info("DoFs: %d" % W.dim())
+    info(f"DoFs: {W.dim()}")
 
     U = Function(W)
     u, p = split(U)
@@ -65,8 +65,8 @@ for n in range(2, 6):
     hs.append(mesh.hmin())
     l2errors_u.append(l2error_u)
     l2errors_p.append(l2error_p)
-    info("n: %d, l2 u error: %.6e" % (n, l2error_u))
-    info("n: %d, l2 p error: %.6e" % (n, l2error_p))
+    info(f"n: {n}, l2 u error: {l2error_u:.6e}")
+    info(f"n: {n}, l2 p error: {l2error_p:.6e}")
 
 
 l2errors_u = np.array(l2errors_u)
@@ -74,5 +74,5 @@ l2errors_p = np.array(l2errors_p)
 hs = np.array(hs)
 rates_u = np.log(l2errors_u[:-1] / l2errors_u[1:]) / np.log(hs[:-1] / hs[1:])
 rates_p = np.log(l2errors_p[:-1] / l2errors_p[1:]) / np.log(hs[:-1] / hs[1:])
-info("rates u: %s" % str(rates_u))
-info("rates p: %s" % str(rates_p))
+info(f"rates u: {rates_u}")
+info(f"rates p: {rates_p}")
