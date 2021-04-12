@@ -9,6 +9,9 @@ import dolfin_dg.hdg_form
 
 comm = MPI.COMM_WORLD
 
+raise NotImplementedError(
+    "Demo disabled until basix provides support for trace elements")
+
 
 def u_soln_f(x):
     return np.sin(np.pi*x[0])*np.sin(np.pi*x[1])

@@ -1,4 +1,4 @@
-import dolfinx.plotting
+import dolfinx
 import numpy as np
 import ufl
 from mpi4py import MPI
@@ -34,6 +34,11 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
             comm, n, n,
             cell_type=dolfinx.cpp.mesh.CellType.triangle,
             ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
+
+        h_measure = dolfinx.cpp.mesh.h(
+            mesh, 2, np.arange(mesh.topology.connectivity(2, 0).num_nodes,
+                               dtype=np.int32))
+        hmin = comm.allreduce(h_measure.min(), op=MPI.MIN)
 
         # Higher order FE spaces for interpolation of the true solution
         V_high = dolfinx.VectorFunctionSpace(mesh, ("DG", p_order + 2))
@@ -148,7 +153,6 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
                   u.function_space.dofmap.index_map_bs),
                  (p.function_space.dofmap.index_map,
                   p.function_space.dofmap.index_map_bs)])
-
         elif matrixtype is dolfin_dg.dolfinx.MatrixType.nest:
             snes.setFunction(problem.F_nest, dolfinx.fem.create_vector_nest(F))
             snes.setJacobian(problem.J_nest,
@@ -200,7 +204,7 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
                 (p - p_soln) ** 2 * ufl.dx)**0.5,
             op=MPI.SUM)
 
-        hs.append(comm.allreduce(mesh.hmin(), op=MPI.MIN))
+        hs.append(hmin)
         l2errors_u.append(l2error_u)
         l2errors_p.append(l2error_p)
 
