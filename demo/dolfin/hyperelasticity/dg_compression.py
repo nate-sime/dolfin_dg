@@ -60,7 +60,7 @@ energies = []
 n_ref_max = 2
 for ref_level in range(n_ref_max):
     V = VectorFunctionSpace(mesh, "DG", poly_o)
-    info("Refinement level: %d, Problem dim: %d" % (ref_level, V.dim()))
+    info(f"Refinement level: {ref_level}, Problem dim: {V.dim()}")
 
     # Mark the Dirichlet boundaries of the mesh
     ff = MeshFunction("size_t", mesh, mesh.topology().dim()-1, 0)

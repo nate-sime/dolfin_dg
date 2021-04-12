@@ -43,7 +43,7 @@ for n in range(1, 7):
     mesh = BoxMesh(Point(0, 0, 0), Point(beta, beta, L), n, n, 3*n)
 
     V = VectorFunctionSpace(mesh, "DG", poly_o)
-    info("Initialising system with %d DoF" % V.dim())
+    info(f"Initialising system with {V.dim()} DoF")
 
     # The left and right face subdomains used in the boundary defintions
     left = CompiledSubDomain("near(x[2], side) && on_boundary", side=0.0)

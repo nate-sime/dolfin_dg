@@ -1,11 +1,11 @@
-import leopart
 import numpy as np
 from dolfin import (
     UnitSquareMesh, FunctionSpace, Function, TestFunction, dS, dx, errornorm,
     MPI, Expression, Constant, CellDiameter, FacetNormal, inner, grad, dot,
     div, DirichletBC, FiniteElement, MeshFunction, CompiledSubDomain,
-    Measure, Form)
+    Measure)
 
+import dolfin_dg.dolfin.hdg_newton
 import dolfin_dg.hdg_form
 
 poly_o = 2
@@ -28,8 +28,6 @@ for run_no, n_ele in enumerate(n_eles):
     dsD = ds(1)
     dsN = ds(2)
 
-    # u_soln_f = Expression("sin(pi * x[0]) * sin(pi * x[1]) + 1",
-    #                       degree=poly_o+2)
     u_soln_f = Expression("1 + sin(pi*(1 + x[0])*pow(1 + x[1], 2) / 8.0)",
                           degree=poly_o+2)
 
@@ -54,10 +52,8 @@ for run_no, n_ele in enumerate(n_eles):
     n = FacetNormal(mesh)
 
     # Second order terms
-    kappa = Constant(1.0)
-
     def F_v(u, grad_u):
-        return kappa * grad_u
+        return (1 + u**2) * grad_u
 
     F = inner(F_v(u, grad(u)), grad(v)) * dx
 
@@ -90,34 +86,14 @@ for run_no, n_ele in enumerate(n_eles):
     f = div(F_c(u_soln) - F_v(u_soln, grad(u_soln)))
     F += - f * v * dx
 
-    # bcs = []
     bcs = [DirichletBC(Vbar, gDbar, ff, 1)]
-    # bcs = [DirichletBC(Vbar, gDbar, "on_boundary")]
 
     Fr = dolfin_dg.extract_rows(F, [v, vbar])
     J = dolfin_dg.derivative_block(Fr, [u, ubar])
 
-    Fr[0] = -Fr[0]
-    Fr[1] = -Fr[1]
-
-    def formit(F):
-        if isinstance(F, (list, tuple)):
-            return list(map(formit, F))
-        return Form(F)
-
-    Fr = formit(Fr)
-    J = formit(J)
-
-    ssc = leopart.StokesStaticCondensation(
-        mesh,
-        J[0][0], J[0][1],
-        J[1][0], J[1][1],
-        Fr[0], Fr[1])
-
-    ssc.assemble_global_system(True)
-    for bc in bcs:
-        ssc.apply_boundary(bc)
-    ssc.solve_problem(ubar.cpp_object(), u.cpp_object(), "mumps", "default")
+    solver = dolfin_dg.dolfin.hdg_newton.StaticCondensationNewtonSolver(
+        Fr, J, bcs)
+    solver.solve(u, ubar)
 
     l2error_u = errornorm(u_soln_f, u, "l2")
     h1error_u = errornorm(u_soln_f, u, "h1")
@@ -130,5 +106,5 @@ hrates = np.log(hs[:-1] / hs[1:])
 rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / hrates
 rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / hrates
 
-print("rates u L2: %s" % str(rates_u_l2))
-print("rates u H1: %s" % str(rates_u_h1))
+info(f"rates u L2: {rates_u_l2}")
+info(f"rates u H1: {rates_u_h1}")

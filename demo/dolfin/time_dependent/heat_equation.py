@@ -69,7 +69,7 @@ for j in range(maxsteps):
     errors.append(errornorm(uex, un, "l2"))
 
 # Display error metrics
-info("Steps taken: %d, L2 error at final time step: %.3e" % (j + 1, errors[-1]))
+info(f"Steps taken: {j + 1}, L2 error at final time step: {errors[-1]:.3e}")
 plt.plot(np.arange(0.0, tmax+float(dt), float(dt)), errors)
 plt.xlabel(r"$t$")
 plt.ylabel(r"$\Vert u(x, t) - u_h(x, t)\Vert_{L_2(\Omega)}$")

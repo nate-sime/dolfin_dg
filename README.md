@@ -1,10 +1,15 @@
 # dolfin_dg
 
-## What does it do?
-
 `dolfin_dg` provides utility functions for the automatic generation of nonlinear
 DG FEM formulations using [UFL](https://github.com/FEniCS/ufl).
 
+`dolfin_dg` derives its name from original development with the DOLFIN
+component of the FEniCS project. However, the core components of `dolfin_dg` now
+solely depend on UFL. `dolfin_dg` has been successfully employed with:
+* [DOLFIN](https://bitbucket.org/fenics-project/dolfin)
+* [DOLFINX](https://github.com/FEniCS/dolfinx)
+* [Firedrake](https://www.firedrakeproject.org/)
+* [dune-fem](https://www.dune-project.org/modules/dune-fem/).
 
 ## Specifically, what does it do?
 
@@ -61,6 +66,9 @@ nonlinear problems in geodynamics*.
 
 * For `dolfin` support and the example demos: the core components of the [FEniCS
   project](https://fenicsproject.org/).
+* For the hybrid discontinuous Galerkin (HDG) solvers employing static
+ condensation with `dolfin`,
+ this [LEoPart fork](https://bitbucket.org/nate-sime/leopart/) is required.
 * For `firedrake` support the core components of the [Firedrake
   project](https://www.firedrakeproject.org/)
 
@@ -79,10 +87,9 @@ Unit tests are provided in ``test/unit/test_*.py``.
 
 ![](https://quay.io/repository/natesime/dolfin_dg/status)
 
-
-Follow the instructions for installing https://fenicsproject.org/download/. A docker image 
-of the `dolfin_dg` master branch is available:
-
+Follow the instructions for installing https://fenicsproject.org/download/. A
+docker image facilitating compilation and execution of `dolfin_dg` examples
+with the development version of `dolfin` and `leopart` is available:
 
 ```bash
 docker run -it quay.io/natesime/dolfin_dg:master

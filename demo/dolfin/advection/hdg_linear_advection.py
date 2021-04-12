@@ -1,10 +1,10 @@
-import leopart
 import numpy as np
 from dolfin import (
     Point, FunctionSpace, TestFunction, Expression, Constant, inner, grad, dot,
     FacetNormal, MPI, Function, dS, dx, ds, errornorm, RectangleMesh,
-    FiniteElement, CellDiameter, div, Form)
+    FiniteElement, CellDiameter, div)
 
+import dolfin_dg.dolfin.hdg_newton
 import dolfin_dg.hdg_form
 
 poly_o = 2
@@ -64,25 +64,13 @@ for run_no, n_ele in enumerate(n_eles):
     Fr = dolfin_dg.extract_rows(F, [v, vbar])
     J = dolfin_dg.derivative_block(Fr, [u, ubar])
 
-    Fr[0] = -Fr[0]
-    Fr[1] = -Fr[1]
+    # import dolfin
+    # bcs = [dolfin.DirichletBC(Vbar, gD, "on_boundary")]
+    bcs = []
 
-    def formit(F):
-        if isinstance(F, (list, tuple)):
-            return list(map(formit, F))
-        return Form(F)
-
-    Fr = formit(Fr)
-    J = formit(J)
-
-    ssc = leopart.StokesStaticCondensation(
-        mesh,
-        J[0][0], J[0][1],
-        J[1][0], J[1][1],
-        Fr[0], Fr[1])
-
-    ssc.assemble_global_system(True)
-    ssc.solve_problem(ubar.cpp_object(), u.cpp_object(), "mumps", "default")
+    solver = dolfin_dg.dolfin.hdg_newton.StaticCondensationNewtonSolver(
+        Fr, J, bcs)
+    solver.solve(u, ubar)
 
     l2error_u = errornorm(u_soln_f, u, "l2")
     h1error_u = errornorm(u_soln_f, u, "h1")
@@ -95,5 +83,5 @@ hrates = np.log(hs[:-1] / hs[1:])
 rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / hrates
 rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / hrates
 print(l2errors_u_l2)
-print("rates u L2: %s" % str(rates_u_l2))
-print("rates u H1: %s" % str(rates_u_h1))
+print(f"rates u L2: {rates_u_l2}")
+print(f"rates u H1: {rates_u_h1}")

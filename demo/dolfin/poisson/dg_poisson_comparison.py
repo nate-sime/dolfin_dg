@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from dolfin import (
     UnitSquareMesh, FunctionSpace, Function, TestFunction, Expression,
-    ds, dx, solve, parameters, errornorm, MPI)
+    ds, dx, solve, parameters, errornorm, MPI, info)
 
 from dolfin_dg import (DGFemSIPG, DGFemNIPG, DGFemBO, DGDirichletBC,
                        PoissonOperator)
@@ -23,7 +23,6 @@ p = 2
 fluxes = [("SIPG", DGFemSIPG),
           ("NIPG", DGFemNIPG),
           ("Baumann-Oden", DGFemBO)]
-
 
 # Solve the linear Poisson problem and return the L2 and H1 errors, in addition
 # to the mesh size.
@@ -63,23 +62,25 @@ for name, flux in fluxes:
     l2_rates = compute_rate(error[:, 0], h_sizes)
     h1_rates = compute_rate(error[:, 1], h_sizes)
 
-    rate_messages += ["%s flux\nL2 rates: %s\nH1 rates: %s"
-                      % (name, str(l2_rates), str(h1_rates))]
+    rate_messages += [
+        f"{name} flux\n"
+        f"L2 rates: {str(l2_rates)}\n"
+        f"H1 rates: {str(h1_rates)}"]
 
     l2_plt.loglog(h_sizes, error[:, 0], "-x")
     h1_plt.loglog(h_sizes, error[:, 1], "--x")
 
 
-print("\n".join(rate_messages))
+info("\n".join(rate_messages))
 
 l2_plt.legend([name for (name, _) in fluxes])
 l2_plt.set_ylabel("$\\Vert u - u_h \\Vert_{L_2}$")
 l2_plt.set_xlabel("$h$")
-l2_plt.set_title("$p = %d$" % p)
+l2_plt.set_title(f"$p = {p}$")
 
 h1_plt.legend([name for (name, _) in fluxes])
 h1_plt.set_ylabel("$\\Vert u - u_h \\Vert_{H_1}$")
 h1_plt.set_xlabel("$h$")
-h1_plt.set_title("$p = %d$" % p)
+h1_plt.set_title(f"$p = {p}$")
 
 plt.show()
