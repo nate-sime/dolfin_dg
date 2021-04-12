@@ -1,10 +1,15 @@
 # dolfin_dg
 
-## What does it do?
-
 `dolfin_dg` provides utility functions for the automatic generation of nonlinear
 DG FEM formulations using [UFL](https://github.com/FEniCS/ufl).
 
+`dolfin_dg` derives its name from original development with the DOLFIN
+component of the FEniCS project. However, the core components of `dolfin_dg` now
+solely depend on UFL. `dolfin_dg` has been successfully employed with:
+* [DOLFIN](https://bitbucket.org/fenics-project/dolfin)
+* [DOLFINX](https://github.com/FEniCS/dolfinx)
+* [Firedrake](https://www.firedrakeproject.org/)
+* [dune-fem](https://www.dune-project.org/modules/dune-fem/).
 
 ## Specifically, what does it do?
 
@@ -63,7 +68,7 @@ nonlinear problems in geodynamics*.
   project](https://fenicsproject.org/).
 * For the hybrid discontinuous Galerkin (HDG) solvers employing static
  condensation with `dolfin`,
- [`leopart`](https://bitbucket.org/jakob_maljaars/leopart) is required.
+ this [LEoPart fork](https://bitbucket.org/nate-sime/leopart/) is required.
 * For `firedrake` support the core components of the [Firedrake
   project](https://www.firedrakeproject.org/)
 
