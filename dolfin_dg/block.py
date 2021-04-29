@@ -35,11 +35,24 @@ def extract_rows(F, v):
     fs = SeparateSpaceFormSplitter()
 
     for vi in range(vn):
+        # Do the initial split replacing testfunctions with zero
         L[vi] = fs.split(F, v[vi])
-        L[vi] = ufl.algorithms.apply_algebra_lowering.\
-            apply_algebra_lowering(L[vi])
-        L[vi] = ufl.algorithms.apply_derivatives.apply_derivatives(L[vi])
 
+        # Now remove the empty forms. Why don't FFC/UFL do this already?
+        L_reconstruct = []
+        for integral in L[vi].integrals():
+            arguments = ufl.algorithms.analysis.extract_arguments(integral)
+            if len(arguments) < 1:
+                continue
+
+            # Sanity checks: Should be only one test function, and it should
+            # be the one we want to keep
+            assert len(arguments) == 1
+            assert arguments[0] is v[vi]
+            L_reconstruct.append(integral)
+
+        # Generate the new form with the removed zeroes
+        L[vi] = ufl.Form(L_reconstruct)
     return L
 
 
