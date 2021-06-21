@@ -181,7 +181,7 @@ def _get_terminal_operand_coefficient(u):
     -------
     The first terminal operand of the expression
     """
-    if not isinstance(u, ufl.Coefficient):
+    if not isinstance(u, (ufl.Coefficient, ufl.Argument)):
         return _get_terminal_operand_coefficient(
             u.ufl_operands[0])
     return u
@@ -203,7 +203,7 @@ def _get_ufl_element_degree(u):
     -------
     First terminal operands approximating polynomial degree
     """
-    if isinstance(u, (ufl.Coefficient, ufl.FunctionSpace)):
+    if isinstance(u, (ufl.Coefficient, ufl.FunctionSpace, ufl.Argument)):
         return u.ufl_element().degree()
     if isinstance(u, ufl.tensors.ListTensor):
         return _get_ufl_element_degree(_get_terminal_operand_coefficient(u))
