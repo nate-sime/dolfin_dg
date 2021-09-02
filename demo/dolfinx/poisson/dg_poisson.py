@@ -23,7 +23,7 @@ f = x[0]*ufl.sin(x[1])
 # Construct boundary measure for BCs
 free_end_facets = dolfinx.mesh.locate_entities_boundary(
     mesh, 1, lambda x: np.isclose(x[0], 1.0))
-facets = dolfinx.mesh.MeshTags(mesh, 1, free_end_facets, 1)
+facets = dolfinx.mesh.MeshTags(mesh, 1, np.sort(free_end_facets), 1)
 ds = ufl.Measure("ds", subdomain_data=facets)
 
 # Boundary condition data

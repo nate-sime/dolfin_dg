@@ -88,8 +88,10 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
         bc_facet_ids = np.concatenate((dirichlet_facets, neumann_facets))
         bc_idxs = np.concatenate((np.full_like(dirichlet_facets, dirichlet_id),
                                   np.full_like(neumann_facets, neumann_id)))
-        facets = dolfinx.mesh.MeshTags(mesh, mesh.topology.dim - 1,
-                                       bc_facet_ids, bc_idxs)
+        sorted_idx = np.argsort(bc_facet_ids)
+        facets = dolfinx.mesh.MeshTags(
+            mesh, mesh.topology.dim - 1,
+            bc_facet_ids[sorted_idx], bc_idxs[sorted_idx])
         ds = ufl.Measure("ds", subdomain_data=facets)
         dsD, dsN = ds(dirichlet_id), ds(neumann_id)
 
