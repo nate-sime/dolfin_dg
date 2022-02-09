@@ -1,6 +1,6 @@
 from petsc4py import PETSc
 import ufl
-import dolfinx
+import dolfinx.fem
 
 
 def _form_with_estimated_quad_degree(mesh, form, quadrature_degree):
@@ -8,7 +8,7 @@ def _form_with_estimated_quad_degree(mesh, form, quadrature_degree):
         quadrature_degree = \
             mesh.ufl_domain().ufl_coordinate_element().degree() + 1
 
-    dolfinx_form = dolfinx.fem.Form(
+    dolfinx_form = dolfinx.fem.form(
         form, form_compiler_parameters={
             "quadrature_degree": quadrature_degree})
 
@@ -16,8 +16,8 @@ def _form_with_estimated_quad_degree(mesh, form, quadrature_degree):
 
 
 def facet_area_avg_dg0(mesh, quadrature_degree=None):
-    DG0 = dolfinx.FunctionSpace(mesh, ("DG", 0))
-    facet_area_avg = dolfinx.Function(DG0)
+    DG0 = dolfinx.fem.FunctionSpace(mesh, ("DG", 0))
+    facet_area_avg = dolfinx.fem.Function(DG0)
     v_dg = ufl.TestFunction(DG0)
     num_facets = dolfinx.cpp.mesh.cell_num_entities(
         mesh.topology.cell_type, mesh.topology.dim - 1)
@@ -32,8 +32,8 @@ def facet_area_avg_dg0(mesh, quadrature_degree=None):
 
 
 def cell_volume_dg0(mesh, quadrature_degree=None):
-    DG0 = dolfinx.FunctionSpace(mesh, ("DG", 0))
-    cell_volume = dolfinx.Function(DG0)
+    DG0 = dolfinx.fem.FunctionSpace(mesh, ("DG", 0))
+    cell_volume = dolfinx.fem.Function(DG0)
     v_dg = ufl.TestFunction(DG0)
     cell_volume_form = v_dg*ufl.dx
     dolfinx_form = _form_with_estimated_quad_degree(
