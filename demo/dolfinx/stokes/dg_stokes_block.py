@@ -1,4 +1,5 @@
-import dolfinx
+import dolfinx.mesh
+import dolfinx.fem
 import numpy as np
 import ufl
 from mpi4py import MPI
@@ -36,7 +37,7 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
     hs = []
 
     for run_no, n in enumerate([8, 16, 32]):
-        mesh = dolfinx.UnitSquareMesh(
+        mesh = dolfinx.mesh.create_unit_square(
             comm, n, n,
             cell_type=dolfinx.cpp.mesh.CellType.triangle,
             ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
@@ -47,13 +48,13 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
         hmin = comm.allreduce(h_measure.min(), op=MPI.MIN)
 
         # Higher order FE spaces for interpolation of the true solution
-        V_high = dolfinx.VectorFunctionSpace(mesh, ("DG", p_order + 2))
-        Q_high = dolfinx.FunctionSpace(mesh, ("DG", p_order + 1))
+        V_high = dolfinx.fem.VectorFunctionSpace(mesh, ("DG", p_order + 2))
+        Q_high = dolfinx.fem.FunctionSpace(mesh, ("DG", p_order + 1))
 
-        u_soln = dolfinx.Function(V_high)
+        u_soln = dolfinx.fem.Function(V_high)
         u_soln.interpolate(u_analytical)
 
-        p_soln = dolfinx.Function(Q_high)
+        p_soln = dolfinx.fem.Function(Q_high)
         p_soln.interpolate(p_analytical)
 
         # Problem FE spaces and FE functions
@@ -61,16 +62,16 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
         Qe = ufl.FiniteElement("DG", mesh.ufl_cell(), p_order-1)
 
         if not matrixtype.is_block_type():
-            W = dolfinx.FunctionSpace(mesh, ufl.MixedElement([Ve, Qe]))
-            U = dolfinx.Function(W)
+            W = dolfinx.fem.FunctionSpace(mesh, ufl.MixedElement([Ve, Qe]))
+            U = dolfinx.fem.Function(W)
             u, p = ufl.split(U)
             dU = ufl.TrialFunction(W)
             VV = ufl.TestFunction(W)
             v, q = ufl.split(VV)
         else:
-            V = dolfinx.FunctionSpace(mesh, Ve)
-            Q = dolfinx.FunctionSpace(mesh, Qe)
-            u, p = dolfinx.Function(V), dolfinx.Function(Q)
+            V = dolfinx.fem.FunctionSpace(mesh, Ve)
+            Q = dolfinx.fem.FunctionSpace(mesh, Qe)
+            u, p = dolfinx.fem.Function(V), dolfinx.fem.Function(Q)
             U = [u, p]
             du, dp = ufl.TrialFunction(V), ufl.TrialFunction(Q)
             v, q = ufl.TestFunction(V), ufl.TestFunction(Q)
@@ -137,6 +138,7 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
         snes.setFromOptions()
 
         # Setup nonlinear problem
+        F, J, P = map(dolfinx.fem.form, (F, J, P))
         problem = dolfin_dg.dolfinx.nls.NonlinearPDE_SNESProblem(
             F, J, U, [], P=P)
 
@@ -155,7 +157,7 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
             soln_vector = dolfinx.fem.create_vector_block(F)
 
             # Copy initial guess into vector
-            dolfinx.cpp.la.scatter_local_vectors(
+            dolfinx.cpp.la.petsc.scatter_local_vectors(
                 soln_vector, [u.vector.array_r, p.vector.array_r],
                 [(u.function_space.dofmap.index_map,
                   u.function_space.dofmap.index_map_bs),
@@ -199,17 +201,17 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
         snes_converged = snes.getConvergedReason()
         ksp_converged = snes.getKSP().getConvergedReason()
         if snes_converged < 1 or ksp_converged < 1:
-            info("SNES converged reason:", snes_converged)
-            info("KSP converged reason:", ksp_converged)
+            info(f"SNES converged reason: {snes_converged}")
+            info(f"KSP converged reason: {ksp_converged}")
 
         # Computer error
         l2error_u = comm.allreduce(
             dolfinx.fem.assemble.assemble_scalar(
-                (u - u_soln) ** 2 * ufl.dx)**0.5,
+                dolfinx.fem.form((u - u_soln) ** 2 * ufl.dx))**0.5,
             op=MPI.SUM)
         l2error_p = comm.allreduce(
             dolfinx.fem.assemble.assemble_scalar(
-                (p - p_soln) ** 2 * ufl.dx)**0.5,
+                dolfinx.fem.form((p - p_soln) ** 2 * ufl.dx))**0.5,
             op=MPI.SUM)
 
         hs.append(hmin)
