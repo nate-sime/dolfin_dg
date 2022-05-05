@@ -27,7 +27,7 @@ class NonlinearPDE_SNESProblem():
             self.soln_vars.x.array[:] = _x.array_r
         with F.localForm() as f_local:
             f_local.set(0.0)
-        dolfinx.fem.assemble_vector(F, self.L)
+        dolfinx.fem.petsc.assemble_vector(F, self.L)
         dolfinx.fem.apply_lifting(
             F, [self.a], bcs=[self.bcs], x0=[x], scale=-1.0)
         F.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
@@ -35,11 +35,11 @@ class NonlinearPDE_SNESProblem():
 
     def J_mono(self, snes, x, J, P):
         J.zeroEntries()
-        dolfinx.fem.assemble_matrix(J, self.a, bcs=self.bcs, diagonal=1.0)
+        dolfinx.fem.petsc.assemble_matrix(J, self.a, bcs=self.bcs, diagonal=1.0)
         J.assemble()
         if self.a_precon is not None:
             P.zeroEntries()
-            dolfinx.fem.assemble_matrix(
+            dolfinx.fem.petsc.assemble_matrix(
                 P, self.a_precon, bcs=self.bcs, diagonal=1.0)
             P.assemble()
 
@@ -60,19 +60,19 @@ class NonlinearPDE_SNESProblem():
                                    mode=PETSc.ScatterMode.FORWARD)
             offset += size_local
 
-        dolfinx.fem.assemble_vector_block(
+        dolfinx.fem.petsc.assemble_vector_block(
             F, self.L, self.a, bcs=self.bcs, x0=x, scale=-1.0)
 
     def J_block(self, snes, x, J, P):
         assert x.getType() != "nest" and J.getType() != "nest" \
                and P.getType() != "nest"
         J.zeroEntries()
-        dolfinx.fem.assemble_matrix_block(
+        dolfinx.fem.petsc.assemble_matrix_block(
             J, self.a, bcs=self.bcs, diagonal=1.0)
         J.assemble()
         if self.a_precon is not None:
             P.zeroEntries()
-            dolfinx.fem.assemble_matrix_block(
+            dolfinx.fem.petsc.assemble_matrix_block(
                 P, self.a_precon, bcs=self.bcs, diagonal=1.0)
             P.assemble()
 
@@ -92,7 +92,7 @@ class NonlinearPDE_SNESProblem():
         for L, F_sub, a in zip(self.L, F.getNestSubVecs(), self.a):
             with F_sub.localForm() as F_sub_local:
                 F_sub_local.set(0.0)
-            dolfinx.fem.assemble_vector(F_sub, L)
+            dolfinx.fem.petsc.assemble_vector(F_sub, L)
             dolfinx.fem.apply_lifting(F_sub, a, bcs=bcs1, x0=x, scale=-1.0)
             F_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
@@ -108,10 +108,10 @@ class NonlinearPDE_SNESProblem():
     def J_nest(self, snes, x, J, P):
         assert J.getType() == "nest" and P.getType() == "nest"
         J.zeroEntries()
-        dolfinx.fem.assemble_matrix_nest(J, self.a, bcs=self.bcs, diagonal=1.0)
+        dolfinx.fem.petsc.assemble_matrix_nest(J, self.a, bcs=self.bcs, diagonal=1.0)
         J.assemble()
         if self.a_precon is not None:
             P.zeroEntries()
-            dolfinx.fem.assemble_matrix_nest(
+            dolfinx.fem.petsc.assemble_matrix_nest(
                 P, self.a_precon, bcs=self.bcs, diagonal=1.0)
             P.assemble()
