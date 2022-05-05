@@ -90,7 +90,7 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
         bc_idxs = np.concatenate((np.full_like(dirichlet_facets, dirichlet_id),
                                   np.full_like(neumann_facets, neumann_id)))
         sorted_idx = np.argsort(bc_facet_ids)
-        facets = dolfinx.mesh.MeshTags(
+        facets = dolfinx.mesh.meshtags(
             mesh, mesh.topology.dim - 1,
             bc_facet_ids[sorted_idx], bc_idxs[sorted_idx])
         ds = ufl.Measure("ds", subdomain_data=facets)
@@ -144,17 +144,18 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
 
         # Construct linear system data structures
         if matrixtype is dolfin_dg.dolfinx.MatrixType.monolithic:
-            snes.setFunction(problem.F_mono, dolfinx.fem.create_vector(F))
-            snes.setJacobian(problem.J_mono, J=dolfinx.fem.create_matrix(J),
-                             P=None)
+            snes.setFunction(
+                problem.F_mono, dolfinx.fem.petsc.create_vector(F))
+            snes.setJacobian(
+                problem.J_mono, J=dolfinx.fem.petsc.create_matrix(J), P=None)
             soln_vector = U.vector
         elif matrixtype is dolfin_dg.dolfinx.MatrixType.block:
             snes.setFunction(problem.F_block,
-                             dolfinx.fem.create_vector_block(F))
+                             dolfinx.fem.petsc.create_vector_block(F))
             snes.setJacobian(problem.J_block,
-                             J=dolfinx.fem.create_matrix_block(J),
+                             J=dolfinx.fem.petsc.create_matrix_block(J),
                              P=None)
-            soln_vector = dolfinx.fem.create_vector_block(F)
+            soln_vector = dolfinx.fem.petsc.create_vector_block(F)
 
             # Copy initial guess into vector
             dolfinx.cpp.la.petsc.scatter_local_vectors(
@@ -164,11 +165,12 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
                  (p.function_space.dofmap.index_map,
                   p.function_space.dofmap.index_map_bs)])
         elif matrixtype is dolfin_dg.dolfinx.MatrixType.nest:
-            snes.setFunction(problem.F_nest, dolfinx.fem.create_vector_nest(F))
+            snes.setFunction(
+                problem.F_nest, dolfinx.fem.petsc.create_vector_nest(F))
             snes.setJacobian(problem.J_nest,
-                             J=dolfinx.fem.create_matrix_nest(J),
-                             P=dolfinx.fem.create_matrix_nest(P))
-            soln_vector = dolfinx.fem.create_vector_nest(F)
+                             J=dolfinx.fem.petsc.create_matrix_nest(J),
+                             P=dolfinx.fem.petsc.create_matrix_nest(P))
+            soln_vector = dolfinx.fem.petsc.create_vector_nest(F)
 
             # Copy initial guess into vector
             for soln_vec_sub, var_sub in zip(soln_vector.getNestSubVecs(), U):

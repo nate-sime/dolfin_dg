@@ -25,7 +25,7 @@ f = x[0]*ufl.sin(x[1])
 # Construct boundary measure for BCs
 free_end_facets = dolfinx.mesh.locate_entities_boundary(
     mesh, 1, lambda x: np.isclose(x[0], 1.0))
-facets = dolfinx.mesh.MeshTags(mesh, 1, np.sort(free_end_facets), 1)
+facets = dolfinx.mesh.meshtags(mesh, 1, np.sort(free_end_facets), 1)
 ds = ufl.Measure("ds", subdomain_data=facets)
 
 # Boundary condition data
@@ -50,8 +50,8 @@ snes.getKSP().getPC().setFactorSolverType("mumps")
 # Setup nonlinear problem
 F, J = dolfinx.fem.form(F), dolfinx.fem.form(J)
 problem = dolfin_dg.dolfinx.nls.NonlinearPDE_SNESProblem(F, J, u, [])
-snes.setFunction(problem.F_mono, dolfinx.fem.create_vector(F))
-snes.setJacobian(problem.J_mono, J=dolfinx.fem.create_matrix(J))
+snes.setFunction(problem.F_mono, dolfinx.fem.petsc.create_vector(F))
+snes.setJacobian(problem.J_mono, J=dolfinx.fem.petsc.create_matrix(J))
 
 # Solve and plot
 snes.solve(None, u.vector)
