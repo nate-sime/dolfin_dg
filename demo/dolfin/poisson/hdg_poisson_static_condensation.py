@@ -106,5 +106,6 @@ hrates = np.log(hs[:-1] / hs[1:])
 rates_u_l2 = np.log(l2errors_u_l2[:-1] / l2errors_u_l2[1:]) / hrates
 rates_u_h1 = np.log(l2errors_u_h1[:-1] / l2errors_u_h1[1:]) / hrates
 
-info(f"rates u L2: {rates_u_l2}")
-info(f"rates u H1: {rates_u_h1}")
+import dolfin
+dolfin.info(f"rates u L2: {rates_u_l2}")
+dolfin.info(f"rates u H1: {rates_u_h1}")
