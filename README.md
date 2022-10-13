@@ -18,9 +18,11 @@ solely depend on UFL.
 
 Consider the nonlinear conservation equation
 
-```math
+
+$$
 a = b
-```
+$$
+
 
 ![//]: <> (\nabla \cdot \mathcal{L}(u; \nabla u) = f)
 ![](https://latex.codecogs.com/gif.download?-%5Cnabla%20%5Ccdot%20%5Cmathcal%7BL%7D%28u%3B%20%5Cnabla%20u%29%20%3D%20f)
