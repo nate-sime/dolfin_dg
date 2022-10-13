@@ -1,3 +1,5 @@
+import functools
+
 import ufl
 from ufl.algorithms.map_integrands import map_integrand_dags
 from ufl.algorithms.multifunction import MultiFunction
@@ -29,7 +31,7 @@ def jump(u, n=None):
     if n is None:
         return Jump(u)
     n = ufl.as_ufl(n)
-    return Jump(u, n)
+    return NormalJump(u, n)
 
 
 def tensor_jump(u, n):
@@ -52,24 +54,45 @@ def tangent_jump(u, n):
           inherit_indices_from_operand=0,
           is_restriction=False,
           is_terminal_modifier=True)
-class Avg(Operator):
+class Avg(Restricted):
     __slots__ = ()
 
     def __init__(self, f):
         Operator.__init__(self, (f,))
 
     def __str__(self):
-        return "{%s}" % parstr(self.ufl_operands[0], self)
+        return "〈%s〉" % parstr(self.ufl_operands[0], self)
+
+
+@ufl_type(is_abstract=True,
+          inherit_shape_from_operand=0,
+          inherit_indices_from_operand=0,
+          is_restriction=False)
+class Jump(Restricted, CompoundTensorOperator):
+    __slots__ = ()
+
+    def __init__(self, f):
+        Operator.__init__(self, (f,))
+
+    def side(self):
+        return self._side
+
+    def evaluate(self, x, mapping, component, index_values):
+        return self.ufl_operands[0].evaluate(x, mapping, component,
+                                             index_values)
+
+    def __str__(self):
+        return "[" + str(self.ufl_operands[0]) + "]"
 
 
 @ufl_type(is_abstract=True,
           inherit_indices_from_operand=0,
           is_restriction=False)
-class Jump(CompoundTensorOperator):
+class NormalJump(Restricted, CompoundTensorOperator):
     __slots__ = ()
 
-    def __init__(self, f, *n):
-        Operator.__init__(self, (f, *n))
+    def __init__(self, f, n):
+        Operator.__init__(self, (f, n))
 
     def side(self):
         return self._side
@@ -84,15 +107,14 @@ class Jump(CompoundTensorOperator):
 
     @property
     def ufl_shape(self):
-        if len(self.ufl_operands) == 1:
-            return self.ufl_operands[0].ufl_shape
-        if len(self.ufl_operands[0].ufl_shape) == 0:
-            return self.ufl_operands[1].ufl_shape
-        return ufl.dot(self.ufl_operands[0], self.ufl_operands[1]).ufl_shape
+        v, n = self.ufl_operands
+        if len(v.ufl_shape) == 0:
+            return n.ufl_shape
+        return ufl.dot(v, n).ufl_shape
 
 
 @ufl_type(num_ops=2)
-class TensorJump(Jump):
+class TensorJump(NormalJump):
     __slots__ = ("ufl_free_indices", "ufl_index_dimensions")
 
     def __new__(cls, a, b):
@@ -119,7 +141,7 @@ class TensorJump(Jump):
 
 
 @ufl_type(num_ops=2)
-class TangentJump(Jump):
+class TangentJump(NormalJump):
     __slots__ = ("ufl_free_indices", "ufl_index_dimensions")
 
     def __new__(cls, a, b):
@@ -154,19 +176,29 @@ class DGOperatorLowering(MultiFunction):
     operator = MultiFunction.reuse_if_untouched
 
     def avg(self, o):
-        o = apply_average_lowering(o.ufl_operands[0])
-        if isinstance(o, Jump):
-            return apply_dg_operators(o)
-        return 0.5 * (o("+") + o("-"))
+        o = apply_average_lowering(o)
+        return o
 
     def jump(self, o):
         o_args = o.ufl_operands
         v = apply_jump_lowering(o_args[0])
-        if len(o_args) == 1:
-            return v("+") - v("-")
-        assert len(o_args) == 2
-        n = o_args[1]
+
+        if isinstance(v, Zero):
+            return v
+
+        return v("+") - v("-")
+
+    def normal_jump(self, o):
+        n = o.ufl_operands[1]
+        v = apply_jump_lowering(o.ufl_operands[0])
+
         r = len(v.ufl_shape)
+
+        if isinstance(v, Zero):
+            if r == 0:
+                return v * n
+            return ufl.dot(v, n)
+
         if r == 0:
             jump_eval = v('+') * n('+') + v('-') * n('-')
         else:
@@ -203,12 +235,66 @@ class AverageLowering(MultiFunction):
     terminal = _ignore
 
     def avg(self, o):
-        return apply_average_lowering(o.ufl_operands[0])
+        o_arg = o.ufl_operands[0]
+
+        # Handle {u + u} = {u} + {u}
+        if isinstance(o_arg, ufl.algebra.Sum):
+            distributed_avg = map(lambda oarg: apply_average_lowering(Avg(oarg)), o_arg.ufl_operands)
+            return ufl.algebra.Sum(*distributed_avg)
+
+        # Handle {u {u}} = {u} {u}
+        if isinstance(o_arg, ufl.algebra.Product):
+            avg_components = [o_arg_arg for o_arg_arg in o_arg.ufl_operands if isinstance(o_arg_arg, (Avg, Jump))]
+            if len(avg_components) > 0:
+                avg_components = map(apply_average_lowering, avg_components)
+                avg_components = functools.reduce(ufl.algebra.Product, avg_components)
+                other_components = [o_arg_arg for o_arg_arg in o_arg.ufl_operands if not isinstance(o_arg_arg, (Avg, Jump))]
+                if len(other_components) > 0:
+                    other_components = functools.reduce(ufl.algebra.Product, other_components)
+                    other_components = apply_average_lowering(Avg(other_components))
+                    return ufl.algebra.Product(other_components, avg_components)
+                return avg_components
+
+        reto = apply_average_lowering(o.ufl_operands[0])
+        if reto == o.ufl_operands[0]:
+            return 0.5 * (reto("+") + reto("-"))
+        return reto
 
     def jump(self, o):
-        if len(o.ufl_operands) == 0:
-            return Jump(apply_jump_lowering(o.ufl_operands[0]))
-        return Jump(apply_jump_lowering(o.ufl_operands[0]), o.ufl_operands[1])
+        return Zero(shape=o.ufl_shape)
+
+    def normal_jump(self, o):
+        lowered_jump = apply_normal_jump_lowering(o.ufl_operands[0])
+        if isinstance(lowered_jump, Zero):
+            return lowered_jump
+
+        n = o.ufl_operands[1]
+        v = lowered_jump
+        r = len(v.ufl_shape)
+        if r == 0:
+            jump_eval = v('+') * n('+') + v('-') * n('-')
+        else:
+            jump_eval = ufl.dot(v('+'), n('+')) + ufl.dot(v('-'), n('-'))
+        return jump_eval
+
+    def tensor_jump(self, o):
+        lowered_jump = apply_normal_jump_lowering(o.ufl_operands[0])
+        if isinstance(lowered_jump, Zero):
+            return lowered_jump
+
+        n = o.ufl_operands[1]
+        v = lowered_jump
+        return ufl.outer(v, n)("+") + ufl.outer(v, n)("-")
+
+    def tangent_jump(self, o):
+        # jump_class = type(o)
+        lowered_jump = apply_normal_jump_lowering(o.ufl_operands[0])
+        if isinstance(lowered_jump, Zero):
+            return lowered_jump
+
+        n = o.ufl_operands[1]
+        v = lowered_jump
+        return dg_cross(n("+"), v("+")) + dg_cross(n("-"), v("-"))
 
 
 def apply_average_lowering(expression):
@@ -232,7 +318,22 @@ class JumpLowering(MultiFunction):
         return Zero(shape=o.ufl_shape)
 
     def jump(self, o):
+        lowered_jump = apply_jump_lowering(o.ufl_operands[0])
+        return 2*lowered_jump
+
+    def normal_jump(self, o):
         return Zero(shape=o.ufl_shape)
+        # v, n = o.ufl_operands
+        # lowered_jump = apply_normal_jump_lowering(v)
+        # if len(v.ufl_shape) == 0:
+        #     return 2*lowered_jump*n
+        # return 2*ufl.dot(lowered_jump, n)
+    #
+    # def tensor_jump(self, o):
+    #     return Zero(shape=o.ufl_shape)
+    #
+    # def tangent_jump(self, o):
+    #     return Zero(shape=o.ufl_shape)
 
 
 def apply_jump_lowering(expression):
@@ -241,3 +342,127 @@ def apply_jump_lowering(expression):
     rules = JumpLowering()
     return map_integrand_dags(rules, expression,
                               only_integral_type=integral_types)
+
+
+class NormalJumpLowering(MultiFunction):
+
+    operator = MultiFunction.reuse_if_untouched
+
+    def _ignore(self, o):
+        return o
+
+    terminal = _ignore
+
+    def avg(self, o):
+        return Zero(shape=o.ufl_shape)
+
+    def jump(self, o):
+        lowered_jump = apply_jump_lowering(o.ufl_operands[0])
+        return 2*lowered_jump
+
+    def normal_jump(self, o):
+        return Zero(shape=ufl.dot(o.ufl_operands[0], o.ufl_operands[1]))
+
+    def tensor_jump(self, o):
+        o_args = o.ufl_operands
+        return Zero(shape=ufl.outer(o_args[0], o_args[1]).ufl_shape)
+
+    def tangent_jump(self, o):
+        o_args = o.ufl_operands
+        return Zero(shape=ufl.cross(o_args[1], o_args[0]).ufl_shape)
+
+
+def apply_normal_jump_lowering(expression):
+    integral_types = [k for k in integral_type_to_measure_name.keys()
+                      if k.startswith("interior_facet")]
+    rules = NormalJumpLowering()
+    return map_integrand_dags(rules, expression,
+                              only_integral_type=integral_types)
+
+# class DGRestrictionDispatcher(MultiFunction):
+#
+#     operator = MultiFunction.reuse_if_untouched
+#     terminal = MultiFunction.reuse_if_untouched
+#
+#     def restricted(self, o):
+#         flip = {"+": "-", "-": "+"}
+#
+#         parent_side = o.side()
+#
+#         print("Top parent:", o, "parent side", parent_side)
+#         ret_val = map_expr_dag(_rp[parent_side], o.ufl_operands[0])
+#
+#         if not isinstance(ret_val, Restricted):
+#             print("Top parent, ret_val is not restricted", ret_val)
+#             return ret_val#(parent_side)
+#
+#         child_side = ret_val.side()
+#
+#         # new_side = child_side
+#         # if parent_side == "-":
+#         #     new_side = flip[ret_val.side()]
+#
+#         print("Top parent: Returning", ret_val, "parent side", parent_side, "child_side", child_side)#, "new_side", new_side)
+#         return ret_val
+#
+#
+# class DGRestrictionApplier(MultiFunction):
+#     def __init__(self, side):
+#         MultiFunction.__init__(self)
+#         self.parent_side = side
+#
+#     def terminal(self, o):
+#         return o
+#
+#     # Default: Operators should reconstruct only if subtrees are not touched
+#     operator = MultiFunction.reuse_if_untouched
+#
+#     def coefficient(self, o):
+#         print("Applier: coefficient", o, "parent side", self.parent_side)
+#         return o(self.parent_side)
+#
+#     def sum(self, o):
+#         print("Applier: sum", o, "opands", *o.ufl_operands, "parent side", self.parent_side)
+#         side = self.parent_side
+#         ret_val = map(lambda opand: map_expr_dag(_rp[side], opand), o.ufl_operands)
+#         return ufl.algebra.Sum(*ret_val)
+#
+#     # Apply restriction coming back up
+#     def restricted(self, o):
+#         flip = {"+": "-", "-": "+"}
+#
+#         print("Applier: restricted", o, "old child side", o.side(), "parent_side", self.parent_side)
+#         ret_val = map_expr_dag(_rp[o.side()], o.ufl_operands[0])
+#
+#         if not isinstance(ret_val, Restricted):
+#             new_side = o.side()
+#             if self.parent_side == "-":
+#                 new_side = flip[o.side()]
+#             print("Applier: non restricted flip? parent side", self.parent_side, "child side", o.side(), "new side", new_side)
+#             print("Applier: returning non restricted", ret_val(new_side))
+#             return ret_val#(new_side)
+#
+#         new_child_side = ret_val.side()
+#         new_side = new_child_side
+#         if self.parent_side == "-":
+#             new_side = flip[new_child_side]
+#
+#         print("Applier: restricted flip? parent side", self.parent_side, "new child side",new_child_side, "new side", new_side)
+#         print("Applier: returning restricted", ret_val.ufl_operands[0](new_side))
+#         return ret_val.ufl_operands[0]#(new_side)
+#
+#
+#
+# _rp = {"+": DGRestrictionApplier("+"),
+#        "-": DGRestrictionApplier("-")}
+#
+#
+# def apply_dg_restrictions(expression):
+#     """Some terminals can be restricted from either side.
+#
+#     This applies a default restriction to such terminals if unrestricted."""
+#     integral_types = [k for k in integral_type_to_measure_name.keys()
+#                       if k.startswith("interior_facet")]
+#     rules = DGRestrictionDispatcher()
+#     return map_integrand_dags(rules, expression,
+#                               only_integral_type=integral_types)
