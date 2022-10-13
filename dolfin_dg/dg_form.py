@@ -1,6 +1,7 @@
 import abc
 import inspect
 
+import dolfin_dg
 import ufl
 from ufl import (
     as_matrix, outer, inner, replace, grad, variable, diff, dot, curl, div)
@@ -578,7 +579,7 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
             residual = sum(residual)
         return residual
 
-    def _slip_exterior_residual_no_integral(self, u_gamma, f2):
+    def _slip_exterior_residual_no_integral(self, u_gamma, f2, tau=None):
         q = self.q
 
         G = self._make_boundary_G(self.G, u_gamma)
@@ -587,34 +588,37 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
         sigma, n = self.sigma, self.n
         delta = self.delta
 
+        if tau is None:
+            tau = n
+
         # Velocity block
         F0 = delta * inner(
-            u - u_gamma, normal_proj(hyper_tensor_T_product(G, grad_v) * n, n))\
-            - inner(normal_proj(self.F_v(u, grad_u) * n, n), v)
+            u - u_gamma, normal_proj(hyper_tensor_T_product(G, grad_v) * n, tau)) \
+             - inner(normal_proj(self.F_v(u, grad_u) * n, tau), v)
         if sigma is not None:
             F0 += inner(sigma * normal_proj(
-                hyper_tensor_product(G, dg_outer(u - u_gamma, n)) * n, n), v)
+                hyper_tensor_product(G, dg_outer(u - u_gamma, n)) * n, tau), v)
 
         # Tangential force
-        F0 -= dot(tangential_proj(f2, n), v)
+        F0 -= dot(tangential_proj(f2, tau), v)
 
         # Continuity block
-        F1 = - dot(u - u_gamma, n) * q
+        F1 = - dot(u - u_gamma, dolfin_dg.normal_proj(n, tau)) * q
 
         return [F0, F1]
 
-    def slip_exterior_residual(self, u_gamma, f2, dExt):
+    def slip_exterior_residual(self, u_gamma, f2, dExt, tau=None):
         residual = list(map(
             lambda Fj: Fj*dExt,
-            self._slip_exterior_residual_no_integral(u_gamma, f2)))
+            self._slip_exterior_residual_no_integral(u_gamma, f2, tau=tau)))
         if not self.block_form:
             residual = sum(residual)
         return residual
 
-    def slip_exterior_residual_on_interior(self, u_gamma, f2, dExt):
+    def slip_exterior_residual_on_interior(self, u_gamma, f2, dExt, tau=None):
         residual = list(map(
             lambda Fj: sum(Fj(side)*dExt for side in ("+", "-")),
-            self._slip_exterior_residual_no_integral(u_gamma, f2)))
+            self._slip_exterior_residual_no_integral(u_gamma, f2, tau=tau)))
         if not self.block_form:
             residual = sum(residual)
         return residual

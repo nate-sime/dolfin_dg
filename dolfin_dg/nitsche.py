@@ -152,7 +152,7 @@ class StokesNitscheBoundary:
         """
         return self.vt.exterior_residual_on_interior(u_bc, dS)
 
-    def slip_nitsche_bc_residual(self, u_bc, f2, ds):
+    def slip_nitsche_bc_residual(self, u_bc, f2, ds, tau=None):
         r"""Weakly import Dirichlet data on the *normal* component of the
         solution, e.g., :math:`\vec{u} \cdot \vec{n} = \vec{u}_\text{bc} \cdot
         \vec{n}`
@@ -171,9 +171,9 @@ class StokesNitscheBoundary:
         -------
         The corresponding boundary terms in the residual FE formulation
         """
-        return self.vt.slip_exterior_residual(u_bc, f2, ds)
+        return self.vt.slip_exterior_residual(u_bc, f2, ds, tau=tau)
 
-    def slip_nitsche_bc_residual_on_interior(self, u_bc, f2, dS):
+    def slip_nitsche_bc_residual_on_interior(self, u_bc, f2, dS, tau=None):
         r"""Weakly import Dirichlet data on the *normal* component of the
         solution, e.g., :math:`\vec{u} \cdot \vec{n} = \vec{u}_\text{bc} \cdot
         \vec{n}` on an *interior* boundary
@@ -192,4 +192,4 @@ class StokesNitscheBoundary:
         -------
         The corresponding boundary terms in the residual FE formulation
         """
-        return self.vt.slip_exterior_residual_on_interior(u_bc, f2, dS)
+        return self.vt.slip_exterior_residual_on_interior(u_bc, f2, dS, tau=tau)
