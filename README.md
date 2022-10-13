@@ -20,23 +20,15 @@ Consider the nonlinear conservation equation
 
 
 $$
-a = b
+\nabla \cdot \mathcal{L}(u; \nabla u) = f
 $$
-
-
-![//]: <> (\nabla \cdot \mathcal{L}(u; \nabla u) = f)
-![](https://latex.codecogs.com/gif.download?-%5Cnabla%20%5Ccdot%20%5Cmathcal%7BL%7D%28u%3B%20%5Cnabla%20u%29%20%3D%20f)
-
-[//]: <> (\mathcal{L}(\cdot; \cdot))
-[//]: <> (u \in V)
 
 [nonlinearoperator]: https://latex.codecogs.com/gif.download?%5Cmathcal%7BL%7D%28%5Ccdot%3B%20%5Ccdot%29
 [uinv]: https://latex.codecogs.com/gif.download?u%20%5Cin%20V
 
-Here ![][nonlinearoperator]
-is a semilinear operator (nonlinear in the first argument and linear in the
+Here $\mathcal{L}(\cdot; \cdot)$ is a semilinear operator (nonlinear in the first argument and linear in the
 second). The semilinear residual weak formulation, subject to appropriate
-boundary conditions, reads: find ![][uinv] such that
+boundary conditions, reads: find $u \in V$ such that
 
 [//]: <> (\mathcal{N}(u; v) = \int_D \mathcal{L}(u; \nabla u) : \nabla v \; \mathrm{d}x - \int_{\partial D} \mathcal{L}(u; \nabla u) \cdot n \cdot v \; \mathrm{d} s - \int_D f \cdot v \; \mathrm{d} x \equiv 0 \quad \forall v \in V.)
 
