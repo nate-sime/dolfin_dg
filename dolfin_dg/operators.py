@@ -570,7 +570,7 @@ class CompressibleNavierStokesOperator(EllipticOperator,
 
             grad_rho = grad_U[0, :]
             grad_rhou = ufl.as_tensor([grad_U[j, :] for j in range(1, dim + 1)])
-            grad_rhoE = grad_U[-1, :]
+            grad_rhoE = grad_U[dim+1, :]
 
             # Quotient rule to find grad(u) and grad(E)
             grad_u = (grad_rhou*rho - ufl.outer(rhou, grad_rho))/rho**2
@@ -750,7 +750,7 @@ class CompressibleNavierStokesOperatorEntropyFormulation(
 
             grad_rho = grad_U[0, :]
             grad_rhou = ufl.as_tensor([grad_U[j, :] for j in range(1, dim + 1)])
-            grad_rhoE = grad_U[-1, :]
+            grad_rhoE = grad_U[dim+1, :]
 
             grad_u = (grad_rhou*rho - ufl.outer(rhou, grad_rho))/rho**2
             grad_E = (grad_rhoE*rho - rhoE*grad_rho)/rho**2
