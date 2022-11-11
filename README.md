@@ -18,28 +18,20 @@ solely depend on UFL.
 
 Consider the nonlinear conservation equation
 
-[//]: <> (\nabla \cdot \mathcal{L}(u; \nabla u) = f)
-![](https://latex.codecogs.com/gif.download?-%5Cnabla%20%5Ccdot%20%5Cmathcal%7BL%7D%28u%3B%20%5Cnabla%20u%29%20%3D%20f)
+$$
+\nabla \cdot \mathcal{L}(u; \nabla u) = f
+$$
 
-[//]: <> (\mathcal{L}(\cdot; \cdot))
-[//]: <> (u \in V)
-
-[nonlinearoperator]: https://latex.codecogs.com/gif.download?%5Cmathcal%7BL%7D%28%5Ccdot%3B%20%5Ccdot%29
-[uinv]: https://latex.codecogs.com/gif.download?u%20%5Cin%20V
-
-Here ![][nonlinearoperator]
-is a semilinear operator (nonlinear in the first argument and linear in the
+Here $\mathcal{L}(\cdot; \cdot)$ is a semilinear operator (nonlinear in the first argument and linear in the
 second). The semilinear residual weak formulation, subject to appropriate
-boundary conditions, reads: find ![][uinv] such that
+boundary conditions, reads: find $u \in V$ such that
 
-[//]: <> (\mathcal{N}(u; v) = \int_D \mathcal{L}(u; \nabla u) : \nabla v \; \mathrm{d}x - \int_{\partial D} \mathcal{L}(u; \nabla u) \cdot n \cdot v \; \mathrm{d} s - \int_D f \cdot v \; \mathrm{d} x \equiv 0 \quad \forall v \in V.)
-
-![](https://latex.codecogs.com/gif.download?%5Cmathcal%7BN%7D%28u%3B%20v%29%20%3A%3D%20%5C%5C%20%5Cint_D%20%5Cmathcal%7BL%7D%28u%3B%20%5Cnabla%20u%29%20%3A%20%5Cnabla%20v%20%5C%3B%20%5Cmathrm%7Bd%7Dx%20-%20%5Cint_%7B%5Cpartial%20D%7D%20%5Cmathcal%7BL%7D%28u%3B%20%5Cnabla%20u%29%20%5Ccdot%20n%20%5Ccdot%20v%20%5C%3B%20%5Cmathrm%7Bd%7D%20s%20-%20%5Cint_D%20f%20%5Ccdot%20v%20%5C%3B%20%5Cmathrm%7Bd%7D%20x%20%5Cequiv%200%20%5Cquad%20%5Cforall%20v%20%5Cin%20V.)
-
-[uhinvh]: https://latex.codecogs.com/gif.download?u_h%20%5Cin%20V_h
+$$
+\mathcal{N}(u; v) = \int_D \mathcal{L}(u; \nabla u) : \nabla v \; \mathrm{d}x - \int_{\partial D} \mathcal{L}(u; \nabla u) \cdot n \cdot v \; \mathrm{d} s - \int_D f \cdot v \; \mathrm{d} x \equiv 0 \quad \forall v \in V.
+$$
 
 The DG FEM formulation of the above equation is notoriously verbose to define.
-Programming the code to compute the DG FEM approximation ![][uhinvh] is a large
+Programming the code to compute the DG FEM approximation $u_h \in V_h$ is a large
 task. `dolfin_dg` provides utility functions for the automatic formulation of
 the DG FEM discretisation of the weak formulation. These functions work with
 UFL to facilitate simple implementation and efficient computation of the DG
@@ -50,13 +42,13 @@ approximation of nonlinear FEM problems.
 
 Paul Houston and Nathan Sime,  
 *Automatic symbolic computation for discontinuous Galerkin finite element methods*,  
-[SIAM Journal on Scientific Computing, 2018, 40(3), C327–C357](https://doi.org/10.1137/17M1129751).  
+[SIAM Journal on Scientific Computing, 2018, 40(3), C327–C357](https://doi.org/10.1137/17M1129751)  
 ([arXiv](https://arxiv.org/abs/1804.02338))
 
 
 Nathan Sime and Cian R. Wilson,  
 *Automatic weak imposition of free slip boundary conditions via Nitsche's method: application to
-nonlinear problems in geodynamics*.  
+nonlinear problems in geodynamics*  
 ([arXiv](https://arxiv.org/abs/2001.10639))
 
 
