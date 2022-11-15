@@ -9,6 +9,30 @@ import dolfin_dg.dolfinx
 from dolfin_dg import HLLE, HyperbolicOperator, DGDirichletBC
 
 
+class DivIBP:
+
+    def __init__(self, F_c, u, v):
+        self.F_c = F_c
+        self.u = u
+        self.v = v
+
+    def interior_residual(self, alpha, dS=ufl.dS):
+        n = ufl.FacetNormal(self.u.function_space)
+        u, v = self.u, self.v
+        F_c = self.F_c
+        F = ufl.inner(ufl.avg(F_c(u)), ufl.jump(v, n)) * dS \
+            + ufl.inner(alpha * ufl.jump(v, n), ufl.jump(u, n)) * dS
+        return F
+
+    def exterior_residual(self, alpha, uD, ds=ufl.ds):
+        n = ufl.FacetNormal(self.u.function_space)
+        u, v = self.u, self.v
+        F_c = self.F_c
+        F = ufl.inner(0.5*(F_c(u) + F_c(u_soln)), v * n) * ds \
+            + ufl.inner(alpha * v * n, (u - uD) * n) * ds
+        return F
+
+
 run_count = 0
 ele_ns = [4, 8, 16, 32, 64]
 errorl2 = np.zeros(len(ele_ns))
@@ -42,17 +66,19 @@ for ele_n in ele_ns:
 
     f = ufl.div(F_c(u_soln))
 
+    # Domain
+    F = - ufl.inner(F_c(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
+
+    # Interior
     eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_c(u), u), n)("+"))
     eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_c(u), u), n)("-"))
-    alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m)
+    alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m) / 2.0
+    divibp = DivIBP(F_c, u, v)
+    F += divibp.interior_residual(alpha)
 
-    F = - ufl.inner(F_c(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
-    F += ufl.inner(ufl.avg(F_c(u)), ufl.jump(v, n)) * ufl.dS \
-        + ufl.inner(alpha / 2.0 * ufl.jump(v, n), ufl.jump(u, n)) * ufl.dS
-
-    alpha = abs(ufl.dot(b, n))
-    F += ufl.inner(0.5*(F_c(u) + F_c(u_soln)), v * n) * ufl.ds \
-        + ufl.inner(alpha / 2.0 * v * n, (u - u_soln) * n) * ufl.ds
+    # Exterior
+    alpha = abs(ufl.dot(b, n)) / 2.0
+    F += divibp.exterior_residual(alpha, u_soln)
 
     du = ufl.TrialFunction(V)
     J = ufl.derivative(F, u, du)
