@@ -33,33 +33,26 @@ for ele_n in ele_ns:
     x = ufl.SpatialCoordinate(mesh)
     u_soln = ufl.exp(x[0] - x[1])
 
-    f = dolfinx.fem.Constant(mesh, np.array(0, dtype=np.double))
+    # f = dolfinx.fem.Constant(mesh, np.array(0, dtype=np.double))
     b = dolfinx.fem.Constant(mesh, np.array((1, 1), dtype=np.double))
 
     # Convective Operator
     def F_c(U):
-        return b*U
+        return 0.5*b*U**3
 
-    # flux_function = dolfin_dg.LocalLaxFriedrichs(lambda u, n: ufl.dot(b, n))
-    # ho = HyperbolicOperator(
-    #     mesh, V, DGDirichletBC(ufl.ds, u_soln), F_c, flux_function)
-    # F = ho.generate_fem_formulation(u, v) - f*v*ufl.dx
+    f = ufl.div(F_c(u_soln))
 
-    eigen_vals_max_p = abs(ufl.dot(b("+"), n("+")))
-    eigen_vals_max_m = abs(ufl.dot(b("-"), n("-")))
+    eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_c(u), u), n)("+"))
+    eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_c(u), u), n)("-"))
     alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m)
-    def H(F_c, u_p, u_m, n):
-        ff = 0.5*(ufl.dot(F_c(u_p), n) + ufl.dot(F_c(u_m), n) + alpha*(u_p - u_m))
-        return ff
 
-    F = - ufl.inner(F_c(u), ufl.grad(v)) * ufl.dx
-    F += ufl.inner(H(F_c, u('+'), u('-'), n('+')), (v('+') - v('-'))) * ufl.dS
+    F = - ufl.inner(F_c(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
+    F += ufl.inner(ufl.avg(F_c(u)), ufl.jump(v, n)) * ufl.dS \
+        + ufl.inner(alpha / 2.0 * ufl.jump(v, n), ufl.jump(u, n)) * ufl.dS
 
     alpha = abs(ufl.dot(b, n))
-    def H(F_c, u_p, u_m, n):
-        ff = 0.5*(ufl.dot(F_c(u_p), n) + ufl.dot(F_c(u_m), n) + alpha*(u_p - u_m))
-        return ff
-    F += ufl.inner(H(F_c, u, u_soln, n), v) * ufl.ds
+    F += ufl.inner(0.5*(F_c(u) + F_c(u_soln)), v * n) * ufl.ds \
+        + ufl.inner(alpha / 2.0 * v * n, (u - u_soln) * n) * ufl.ds
 
     du = ufl.TrialFunction(V)
     J = ufl.derivative(F, u, du)
@@ -102,5 +95,6 @@ for ele_n in ele_ns:
 
 if mesh.comm.rank == 0:
     h_rates = np.log(hsizes[:-1] / hsizes[1:])
+    print(f"L2 errors: {errorl2}")
     print(f"L2 error rates: {np.log(errorl2[:-1]/errorl2[1:]) / h_rates}")
     print(f"H1 error rates: {np.log(errorh1[:-1]/errorh1[1:]) / h_rates}")
