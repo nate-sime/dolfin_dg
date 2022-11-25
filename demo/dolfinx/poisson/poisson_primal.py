@@ -11,26 +11,48 @@ from dolfin_dg import HLLE, HyperbolicOperator, DGDirichletBC
 
 class DivIBP:
 
-    def __init__(self, F_c, u, v):
-        self.F_c = F_c
+    def __init__(self, F, u, v):
+        self.F = F
         self.u = u
         self.v = v
 
-    def interior_residual(self, alpha, dS=ufl.dS):
+    def interior_residual1(self, alpha, dS=ufl.dS):
         n = ufl.FacetNormal(self.u.function_space)
         u, v = self.u, self.v
-        F_c = self.F_c
-        F = ufl.inner(ufl.avg(F_c(u)), ufl.jump(v, n)) * dS \
-            + ufl.inner(alpha * ufl.jump(v, n), ufl.jump(u, n)) * dS
-        return F
+        F = self.F
+        R = ufl.inner(ufl.avg(F(u)), ufl.jump(v, n)) * dS \
+            - ufl.inner(alpha * ufl.jump(v, n), ufl.jump(u, n)) * dS
+        return R
 
-    def exterior_residual(self, alpha, uD, ds=ufl.ds):
+    def exterior_residual1(self, alpha, uD, ds=ufl.ds):
         n = ufl.FacetNormal(self.u.function_space)
         u, v = self.u, self.v
-        F_c = self.F_c
-        F = ufl.inner(0.5*(F_c(u) + F_c(u_soln)), v * n) * ds \
-            + ufl.inner(alpha * v * n, (u - uD) * n) * ds
-        return F
+        F_c = self.F
+        R = ufl.inner(0.5*(F_c(u) + F_c(uD)), v * n) * ds \
+            - ufl.inner(alpha * v * n, (u - uD) * n) * ds
+        return R
+
+
+class GradIBP:
+
+    def __init__(self, F, u, v):
+        self.F = F
+        self.u = u
+        self.v = v
+
+    def interior_residual2(self, dS=ufl.dS):
+        n = ufl.FacetNormal(self.u.function_space)
+        u, v = self.u, self.v
+        F = self.F
+        R = ufl.inner(ufl.avg(v), ufl.jump(F(u), n)) * dS
+        return R
+
+    def exterior_residual2(self, uD, ds=ufl.ds):
+        n = ufl.FacetNormal(self.u.function_space)
+        u, v = self.u, self.v
+        F = self.F
+        R = ufl.inner(v, (F(u) - F(uD)) * n) * ds
+        return R
 
 
 run_count = 0
@@ -51,34 +73,65 @@ for ele_n in ele_ns:
     V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
     v = ufl.TestFunction(V)
 
-    u = dolfinx.fem.Function(V)
-    u.interpolate(lambda x: x[0] + 1.0)
+    u = dolfinx.fem.Function(V, name="u")
+    # u.interpolate(lambda x: np.exp(x[0] - x[1]))
+    u.interpolate(lambda x: x[0] + 1)
+    # import febug
+    # febug.plot_function(u).show()
 
     x = ufl.SpatialCoordinate(mesh)
-    u_soln = ufl.exp(x[0] - x[1])
+    # u_soln = ufl.exp(x[0] - x[1])
+    u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
 
-    # f = dolfinx.fem.Constant(mesh, np.array(0, dtype=np.double))
-    b = dolfinx.fem.Constant(mesh, np.array((1, 1), dtype=np.double))
+    problem = 2
+    if problem == 1:
+        # f = dolfinx.fem.Constant(mesh, np.array(0, dtype=np.double))
+        b = dolfinx.fem.Constant(mesh, np.array((1, 1), dtype=np.double))
 
-    # Convective Operator
-    def F_c(U):
-        return 0.5*b*U**3
+        # Convective Operator
+        def F_c(U):
+            return 0.5*b*U**3
 
-    f = ufl.div(F_c(u_soln))
+        f = ufl.div(F_c(u_soln))
 
-    # Domain
-    F = - ufl.inner(F_c(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
+        # Domain
+        F = - ufl.inner(F_c(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
 
-    # Interior
-    eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_c(u), u), n)("+"))
-    eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_c(u), u), n)("-"))
-    alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m) / 2.0
-    divibp = DivIBP(F_c, u, v)
-    F += divibp.interior_residual(alpha)
+        # Interior
+        eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_c(u), u), n)("+"))
+        eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_c(u), u), n)("-"))
+        alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m) / 2.0
+        divibp = DivIBP(F_c, u, v)
+        F += divibp.interior_residual1(-alpha)
 
-    # Exterior
-    alpha = abs(ufl.dot(b, n)) / 2.0
-    F += divibp.exterior_residual(alpha, u_soln)
+        # Exterior
+        alpha = abs(ufl.dot(b, n)) / 2.0
+        F += divibp.exterior_residual1(-alpha, u_soln)
+    elif problem == 2:
+        # Convective Operator
+        def F_2(u):
+            return u
+
+        def F_1(u):
+            return ufl.grad(F_2(u))
+
+        f = -ufl.div(F_1(u_soln))
+
+        # Domain
+        F = ufl.inner(F_1(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
+
+        # Interior
+        # h = ufl.CellVolume(mesh) / ufl.FacetArea(mesh)
+        h = ufl.CellDiameter(mesh)
+        alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
+        divibp = DivIBP(F_1, u, v)
+        F -= divibp.interior_residual1(alpha("+"))
+        F -= divibp.exterior_residual1(alpha, u_soln)
+
+        gradibp = GradIBP(F_2, u, ufl.grad(v))
+        F -= gradibp.interior_residual2()
+        F -= gradibp.exterior_residual2(u_soln)
+
 
     du = ufl.TrialFunction(V)
     J = ufl.derivative(F, u, du)
@@ -98,6 +151,17 @@ for ele_n in ele_ns:
     snes.solve(None, u.vector)
     print(f"SNES converged: {snes.getConvergedReason()}")
     print(f"KSP converged: {snes.getKSP().getConvergedReason()}")
+
+    # from dolfinx.io import VTXWriter
+    # with VTXWriter(mesh.comm, "output.bp", u) as f:
+    #     f.write(0.0)
+    # # u.interpolate(lambda x: np.exp(x[0] - x[1]))
+    # u.interpolate(lambda x: np.sin(np.pi*x[0])*np.sin(np.pi*x[1]))
+    # with VTXWriter(mesh.comm, "soln.bp", u) as f:
+    #     f.write(0.0)
+    # quit()
+    # import febug
+    # febug.plot_function(u).show()
 
     l2error_u = mesh.comm.allreduce(
         dolfinx.fem.assemble.assemble_scalar(
