@@ -44,14 +44,14 @@ class GradIBP:
         n = ufl.FacetNormal(self.u.function_space)
         u, v = self.u, self.v
         F = self.F
-        R = ufl.inner(ufl.avg(v), ufl.jump(F(u), n)) * dS
+        R = -ufl.inner(ufl.avg(v), ufl.jump(F(u), n)) * dS
         return R
 
     def exterior_residual2(self, uD, ds=ufl.ds):
         n = ufl.FacetNormal(self.u.function_space)
         u, v = self.u, self.v
         F = self.F
-        R = ufl.inner(v, (F(u) - F(uD)) * n) * ds
+        R = -ufl.inner(v, (F(u) - F(uD)) * n) * ds
         return R
 
 
@@ -129,8 +129,8 @@ for ele_n in ele_ns:
         F -= divibp.exterior_residual1(alpha, u_soln)
 
         gradibp = GradIBP(F_2, u, ufl.grad(v))
-        F -= gradibp.interior_residual2()
-        F -= gradibp.exterior_residual2(u_soln)
+        F += gradibp.interior_residual2()
+        F += gradibp.exterior_residual2(u_soln)
 
 
     du = ufl.TrialFunction(V)
