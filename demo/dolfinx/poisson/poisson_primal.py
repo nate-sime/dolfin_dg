@@ -35,23 +35,28 @@ class DivIBP:
 
 class GradIBP:
 
-    def __init__(self, F, u, v):
+    def __init__(self, F, u, v, G):
         self.F = F
         self.u = u
         self.v = v
+        self.G = G
 
     def interior_residual2(self, dS=ufl.dS):
         n = ufl.FacetNormal(self.u.function_space)
         u, v = self.u, self.v
         F = self.F
-        R = -ufl.inner(ufl.avg(v), ufl.jump(F(u), n)) * dS
+        G = self.G
+        R = -ufl.inner(ufl.avg(ufl.dot(G.T, v)), ufl.jump(F(u), n)) * dS
         return R
 
     def exterior_residual2(self, uD, ds=ufl.ds):
         n = ufl.FacetNormal(self.u.function_space)
         u, v = self.u, self.v
         F = self.F
-        R = -ufl.inner(v, (F(u) - F(uD)) * n) * ds
+        G = self.G
+        G_gamma = ufl.replace(G, {u: uD})
+        # Should this be avg(G)?
+        R = -ufl.inner(ufl.dot(G_gamma.T, v), (F(u) - F(uD)) * n) * ds
         return R
 
 
@@ -109,11 +114,15 @@ for ele_n in ele_ns:
         F += divibp.exterior_residual1(-alpha, u_soln)
     elif problem == 2:
         # Convective Operator
-        def F_2(u):
-            return u
+        def F_2(u, flux=None):
+            if flux is None:
+                flux = u
+            return flux
 
-        def F_1(u):
-            return ufl.grad(F_2(u))
+        def F_1(u, flux=None):
+            if flux is None:
+                flux = ufl.grad(F_2(u))
+            return (u + 1) * flux
 
         f = -ufl.div(F_1(u_soln))
 
@@ -128,7 +137,9 @@ for ele_n in ele_ns:
         F -= divibp.interior_residual1(alpha("+"))
         F -= divibp.exterior_residual1(alpha, u_soln)
 
-        gradibp = GradIBP(F_2, u, ufl.grad(v))
+        g_u = ufl.variable(ufl.grad(F_2(u)))
+        G = ufl.diff(F_1(u, g_u), g_u)
+        gradibp = GradIBP(F_2, u, ufl.grad(v), G)
         F += gradibp.interior_residual2()
         F += gradibp.exterior_residual2(u_soln)
 
