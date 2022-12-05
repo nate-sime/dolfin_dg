@@ -24,6 +24,10 @@ def G_T_mult(G, tau):
     return ufl.as_matrix([[ufl.inner(G[:, :, i, k], tau) for k in range(d)]
                           for i in range(m)])
 
+
+def tensor_jump(u, n):
+    return ufl.outer(u, n)("+") + ufl.outer(u, n)("-")
+
 # def G_T(G):
 #     if len(G.ufl_shape) == 0:
 #         return G
@@ -115,22 +119,17 @@ for ele_n in ele_ns:
         ghost_mode=dolfinx.mesh.GhostMode.shared_facet,
         diagonal=dolfinx.mesh.DiagonalType.right)
     n = ufl.FacetNormal(mesh)
-
-    V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
-    v = ufl.TestFunction(V)
-
-    u = dolfinx.fem.Function(V, name="u")
-    # u.interpolate(lambda x: np.exp(x[0] - x[1]))
-    u.interpolate(lambda x: x[0] + 1)
-    # import febug
-    # febug.plot_function(u).show()
-
     x = ufl.SpatialCoordinate(mesh)
-    u_soln = ufl.exp(x[0] - x[1])
-    # u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
 
-    problem = 2
+    problem = 3
     if problem == 1:
+        V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+        v = ufl.TestFunction(V)
+
+        u = dolfinx.fem.Function(V, name="u")
+        u.interpolate(lambda x: x[0] + 1)
+
+        u_soln = ufl.exp(x[0] - x[1])
         # f = dolfinx.fem.Constant(mesh, np.array(0, dtype=np.double))
         b = dolfinx.fem.Constant(mesh, np.array((1, 1), dtype=np.double))
 
@@ -158,6 +157,14 @@ for ele_n in ele_ns:
         alpha = abs(ufl.dot(b, n)) / 2.0
         F += divibp.exterior_residual1(-alpha, u_soln)
     elif problem == 2:
+        V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+        v = ufl.TestFunction(V)
+
+        u = dolfinx.fem.Function(V, name="u")
+        u.interpolate(lambda x: x[0] + 1)
+
+        u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1]) + 1
+
         # Convective Operator
         def F_2(u, flux=None):
             if flux is None:
@@ -166,15 +173,16 @@ for ele_n in ele_ns:
 
         def F_1(u, flux=None):
             if flux is None:
-                flux = dolfinx.fem.Constant(mesh, 1.0) * ufl.grad(F_2(u))
+                flux = ufl.grad(F_2(u))
             return flux
 
         def F_0(u, flux=None):
             if flux is None:
                 flux = ufl.div(F_1(u))
-            return flux
+            return -flux
 
-        f = -ufl.div(F_1(u_soln))
+        # f = F_0(u_soln, F_1(u_soln, F_2(u_soln, u_soln)))
+        f = F_0(u_soln, ufl.div(F_1(u_soln)))
 
         # Domain
         F = ufl.inner(F_1(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
@@ -187,8 +195,56 @@ for ele_n in ele_ns:
         # F0(u, F1(u)) = -div(F1(u))
         G0 = homogenize(F_0, ufl.div(F_1(u)))
         divibp = DivIBP(F_1, u, v, G0)
-        F -= divibp.interior_residual1(alpha("+"))
-        F -= divibp.exterior_residual1(alpha, u_soln)
+        F += divibp.interior_residual1(alpha("+"))
+        F += divibp.exterior_residual1(alpha, u_soln)
+
+        # F1(u) = G1 grad(F2(u))
+        G1 = homogenize(F_1, ufl.grad(u))
+        gradibp = GradIBP(F_2, u, ufl.grad(v), G1)
+        F += gradibp.interior_residual2()
+        F += gradibp.exterior_residual2(u_soln)
+    elif problem == 3:
+        V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
+        v = ufl.TestFunction(V)
+
+        u = dolfinx.fem.Function(V, name="u")
+        u.interpolate(lambda x: np.stack((x[0] + 1, x[0] + 1.0)))
+
+        u_soln = ufl.as_vector(
+            [ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1]) + 1]*2)
+
+        # Convective Operator
+        def F_2(u, flux=None):
+            if flux is None:
+                flux = u
+            return flux
+
+        def F_1(u, flux=None):
+            if flux is None:
+                flux = ufl.grad(F_2(u))
+            return flux
+
+        def F_0(u, flux=None):
+            if flux is None:
+                flux = ufl.div(F_1(u))
+            return -flux
+
+        # f = F_0(u_soln, F_1(u_soln, F_2(u_soln, u_soln)))
+        f = F_0(u_soln, ufl.div(F_1(u_soln)))
+
+        # Domain
+        F = ufl.inner(F_1(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
+
+        # Interior
+        # h = ufl.CellVolume(mesh) / ufl.FacetArea(mesh)
+        h = ufl.CellDiameter(mesh)
+        alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
+
+        # F0(u, F1(u)) = -div(F1(u))
+        G0 = homogenize(F_0, ufl.div(F_1(u)))
+        divibp = DivIBP(F_1, u, v, G0)
+        F += divibp.interior_residual1(alpha("+"))
+        F += divibp.exterior_residual1(alpha, u_soln)
 
         # F1(u) = G1 grad(F2(u))
         G1 = homogenize(F_1, ufl.grad(u))
@@ -211,6 +267,7 @@ for ele_n in ele_ns:
     snes.getKSP().getPC().setFactorSolverType("mumps")
     snes.setFunction(problem.F_mono, dolfinx.fem.petsc.create_vector(F))
     snes.setJacobian(problem.J_mono, J=dolfinx.fem.petsc.create_matrix(J))
+    snes.setTolerances(rtol=1e-14, atol=1e-14)
 
     snes.solve(None, u.vector)
     print(f"SNES converged: {snes.getConvergedReason()}")
