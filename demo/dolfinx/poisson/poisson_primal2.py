@@ -128,7 +128,7 @@ for ele_n in ele_ns:
     n = ufl.FacetNormal(mesh)
     x = ufl.SpatialCoordinate(mesh)
 
-    problem = 1
+    problem = 4
     if problem == 1:
         V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
         v = ufl.TestFunction(V)
@@ -156,9 +156,7 @@ for ele_n in ele_ns:
         eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_c(u), u), n)("-"))
         alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m) / 2.0
 
-        print(F_c(u).ufl_shape)
-        quit()
-        G = homogenize(F_c, b*u)
+        G = ufl.as_ufl(1)
         divibp = DivIBP(F_c, u, v, G)
         F += divibp.interior_residual1(-alpha)
 
@@ -204,16 +202,12 @@ for ele_n in ele_ns:
         # F0(u, F1(u)) = -div(F1(u))
         G0 = homogenize(F_0, ufl.div(F_1(u)))
         divibp = DivIBP(F_1, u, v, G0)
-        print(G0.ufl_shape)
+
         F += divibp.interior_residual1(alpha("+"))
         F += divibp.exterior_residual1(alpha, u_soln)
 
         # F1(u) = G1 grad(F2(u))
         G1 = homogenize(F_1, ufl.grad(u))
-        # print("F1")
-        # print(F_1(u_soln).ufl_shape)
-        # print(G1.ufl_shape)
-        # quit()
         gradibp = GradIBP(F_2, u, ufl.grad(v), G1)
         F += gradibp.interior_residual2()
         F += gradibp.exterior_residual2(u_soln)
@@ -250,28 +244,74 @@ for ele_n in ele_ns:
         F = ufl.inner(F_1(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
 
         # Interior
-        # h = ufl.CellVolume(mesh) / ufl.FacetArea(mesh)
         h = ufl.CellDiameter(mesh)
         alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
 
         # F0(u, F1(u)) = -div(F1(u))
         G0 = homogenize(F_0, ufl.div(F_1(u)))
-        # print("F_0")
-        # print(F_0(u_soln).ufl_shape)
-        # print(G0.ufl_shape)
         divibp = DivIBP(F_1, u, v, G0)
         F += divibp.interior_residual1(alpha("+"))
         F += divibp.exterior_residual1(alpha, u_soln)
 
         # F1(u) = G1 grad(F2(u))
         G1 = homogenize(F_1, ufl.grad(u))
-        # print(F_1(u_soln).ufl_shape)
-        # print(G1.ufl_shape)
-        # quit()
         gradibp = GradIBP(F_2, u, ufl.grad(v), G1)
         F += gradibp.interior_residual2()
         F += gradibp.exterior_residual2(u_soln)
+    elif problem == 4:
+        V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
+        v = ufl.TestFunction(V)
 
+        u = dolfinx.fem.Function(V, name="u")
+        u.interpolate(lambda x: np.stack((x[0] + 1, x[0] + 1.0)))
+        # u_soln = dolfinx.fem.Function(V)
+        # u_soln.interpolate(lambda x: np.stack([np.zeros_like(x[0])]*2))
+        # u_soln = ufl.as_vector((x[0], x[1]))
+        u_soln = ufl.as_vector(
+            [ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])]*2)
+
+        E = 10.0
+        nu = 0.3
+        mu = dolfinx.fem.Constant(mesh, E / (2.0 * (1.0 + nu)))
+        lmda = dolfinx.fem.Constant(mesh, E * nu / ((1.0 + nu) * (1.0 - 2.0 * nu)))
+
+        # Convective Operator
+        def F_2(u, flux=None):
+            if flux is None:
+                flux = u
+            return flux
+
+        def F_1(u, grad_u=None):
+            if grad_u is None:
+                grad_u = ufl.grad(F_2(u))
+            return 2 * mu * ufl.sym(grad_u) + lmda * ufl.tr(ufl.sym(grad_u)) * ufl.Identity(2)
+
+        def F_0(u, flux=None):
+            if flux is None:
+                flux = ufl.div(F_1(u))
+            return -flux
+
+        # f = F_0(u_soln, F_1(u_soln, F_2(u_soln, u_soln)))
+        f = F_0(u_soln, ufl.div(F_1(u_soln)))
+
+        # Domain
+        F = ufl.inner(F_1(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
+
+        # Interior
+        h = ufl.CellDiameter(mesh)
+        alpha = dolfinx.fem.Constant(mesh, 200.0) * p**2 / h
+
+        # F0(u, F1(u)) = -div(F1(u))
+        G0 = homogenize(F_0, ufl.div(F_1(u)))
+        divibp = DivIBP(F_1, u, v, G0)
+        F += divibp.interior_residual1(alpha("+"))
+        F += divibp.exterior_residual1(alpha, u_soln)
+
+        # F1(u) = G1 grad(F2(u))
+        G1 = homogenize(F_1, ufl.grad(u))
+        gradibp = GradIBP(F_2, u, ufl.grad(v), G1)
+        F += gradibp.interior_residual2()
+        F += gradibp.exterior_residual2(u_soln)
 
     du = ufl.TrialFunction(V)
     J = ufl.derivative(F, u, du)
