@@ -8,28 +8,61 @@ import dolfinx
 import dolfin_dg.dolfinx
 from dolfin_dg import HLLE, HyperbolicOperator, DGDirichletBC
 
+def G_T_mult(G, tau):
+    if len(G.ufl_shape) == 0:
+        if not len(tau.ufl_shape) == 0:
+            raise IndexError("G^T is scalar, tau has shape: %s"
+                             + str(tau.ufl_shape))
+        return G*tau
+    elif ufl.rank(tau) == 0 and ufl.rank(G) == 2:
+        return G.T * tau
+    elif ufl.rank(tau) > 1 and tau.ufl_shape[0] == 1:
+        return ufl.dot(G.T, tau)
+    elif ufl.rank(tau) == 1:
+        return ufl.dot(G.T, tau)
+    m, d = tau.ufl_shape
+    return ufl.as_matrix([[ufl.inner(G[:, :, i, k], tau) for k in range(d)]
+                          for i in range(m)])
+
+# def G_T(G):
+#     if len(G.ufl_shape) == 0:
+#         return G
+#     return G.T
+#
+#
+# def G_mult(G, v):
+#     if len(v.ufl_shape) == 0:
+#         return G * v
+#     return ufl.dot(G, v)
+
 
 class DivIBP:
 
-    def __init__(self, F, u, v):
+    def __init__(self, F, u, v, G):
         self.F = F
         self.u = u
         self.v = v
+        self.G = G
 
     def interior_residual1(self, alpha, dS=ufl.dS):
         n = ufl.FacetNormal(self.u.function_space)
         u, v = self.u, self.v
         F = self.F
-        R = ufl.inner(ufl.avg(F(u)), ufl.jump(v, n)) * dS \
-            - ufl.inner(alpha * ufl.jump(v, n), ufl.jump(u, n)) * dS
+        G = self.G
+        G_T_v = G_T_mult(G, v)
+        R = ufl.inner(ufl.avg(F(u)), ufl.jump(G_T_v, n)) * dS \
+            - ufl.inner(alpha * ufl.jump(G_T_v, n), ufl.jump(u, n)) * dS
         return R
 
     def exterior_residual1(self, alpha, uD, ds=ufl.ds):
         n = ufl.FacetNormal(self.u.function_space)
         u, v = self.u, self.v
-        F_c = self.F
-        R = ufl.inner(0.5*(F_c(u) + F_c(uD)), v * n) * ds \
-            - ufl.inner(alpha * v * n, (u - uD) * n) * ds
+        F = self.F
+        G = self.G
+        G_gamma = ufl.replace(G, {u: uD})
+        G_gamma_T_v = G_T_mult(G_gamma, v)
+        R = ufl.inner(0.5*(F(u) + F(uD)), G_gamma_T_v * n) * ds \
+            - ufl.inner(alpha * G_gamma_T_v * n, (u - uD) * n) * ds
         return R
 
 
@@ -46,7 +79,8 @@ class GradIBP:
         u, v = self.u, self.v
         F = self.F
         G = self.G
-        R = -ufl.inner(ufl.avg(ufl.dot(G.T, v)), ufl.jump(F(u), n)) * dS
+        G_T_v = G_T_mult(G, v)
+        R = -ufl.inner(ufl.avg(G_T_v), ufl.jump(F(u), n)) * dS
         return R
 
     def exterior_residual2(self, uD, ds=ufl.ds):
@@ -55,9 +89,16 @@ class GradIBP:
         F = self.F
         G = self.G
         G_gamma = ufl.replace(G, {u: uD})
+        G_gamma_T_v = G_T_mult(G_gamma, v)
         # Should this be avg(G)?
-        R = -ufl.inner(ufl.dot(G_gamma.T, v), (F(u) - F(uD)) * n) * ds
+        R = -ufl.inner(G_gamma_T_v, (F(u) - F(uD)) * n) * ds
         return R
+
+
+def homogenize(F, diff_op):
+    diff_op = ufl.variable(diff_op)
+    G = ufl.diff(F(u, diff_op), diff_op)
+    return G
 
 
 run_count = 0
@@ -85,8 +126,8 @@ for ele_n in ele_ns:
     # febug.plot_function(u).show()
 
     x = ufl.SpatialCoordinate(mesh)
-    # u_soln = ufl.exp(x[0] - x[1])
-    u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
+    u_soln = ufl.exp(x[0] - x[1])
+    # u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
 
     problem = 2
     if problem == 1:
@@ -94,8 +135,10 @@ for ele_n in ele_ns:
         b = dolfinx.fem.Constant(mesh, np.array((1, 1), dtype=np.double))
 
         # Convective Operator
-        def F_c(U):
-            return 0.5*b*U**3
+        def F_c(U, flux=None):
+            if flux is None:
+                flux = b*U
+            return flux
 
         f = ufl.div(F_c(u_soln))
 
@@ -106,7 +149,9 @@ for ele_n in ele_ns:
         eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_c(u), u), n)("+"))
         eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_c(u), u), n)("-"))
         alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m) / 2.0
-        divibp = DivIBP(F_c, u, v)
+
+        G = homogenize(F_c, b*u)
+        divibp = DivIBP(F_c, u, v, G)
         F += divibp.interior_residual1(-alpha)
 
         # Exterior
@@ -124,6 +169,11 @@ for ele_n in ele_ns:
                 flux = ufl.grad(F_2(u))
             return (u + 1) * flux
 
+        def F_0(u, flux=None):
+            if flux is None:
+                flux = ufl.div(F_1(u))
+            return flux
+
         f = -ufl.div(F_1(u_soln))
 
         # Domain
@@ -133,13 +183,14 @@ for ele_n in ele_ns:
         # h = ufl.CellVolume(mesh) / ufl.FacetArea(mesh)
         h = ufl.CellDiameter(mesh)
         alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
-        divibp = DivIBP(F_1, u, v)
+
+        G0 = homogenize(F_0, ufl.div(F_1(u)))
+        divibp = DivIBP(F_1, u, v, G0)
         F -= divibp.interior_residual1(alpha("+"))
         F -= divibp.exterior_residual1(alpha, u_soln)
 
-        g_u = ufl.variable(ufl.grad(F_2(u)))
-        G = ufl.diff(F_1(u, g_u), g_u)
-        gradibp = GradIBP(F_2, u, ufl.grad(v), G)
+        G1 = homogenize(F_1, ufl.grad(u))
+        gradibp = GradIBP(F_2, u, ufl.grad(v), G1)
         F += gradibp.interior_residual2()
         F += gradibp.exterior_residual2(u_soln)
 
