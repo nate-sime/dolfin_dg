@@ -178,9 +178,7 @@ class CurlIBP(IBP):
         G_T_v = G_T_mult(G, v)
         print(f"Grad Shape (ufl.avg(F(u)), cross_jump(G_T_v, n)): {ufl.avg(F(u)).ufl_shape, cross_jump(G_T_v, n).ufl_shape}")
         print(f"Grad Shape (G_mult(alpha, cross_jump(u, n)), cross_jump(G_T_v, n)): {G_mult(alpha, cross_jump(u, n)).ufl_shape, cross_jump(G_T_v, n).ufl_shape}")
-        # quit()
-        # R = ufl.inner(ufl.avg(F(u)), tensor_jump(G_T_v, n)) * dS \
-        #     - ufl.inner(tensor_jump(G_T_v, n), G_mult(alpha, tensor_jump(u, n))) * dS
+
         R = - ufl.inner(ufl.avg(F(u)), cross_jump(G_T_v, n)) * dS \
             + ufl.inner(G_mult(alpha, cross_jump(u, n)), cross_jump(G_T_v, n)) * dS
         # Checked
@@ -192,10 +190,7 @@ class CurlIBP(IBP):
         F = self.F
         G = self.G
         G_T_v = G_T_mult(G, v)
-        G_gamma = ufl.replace(G, {u: uD})
-        G_gamma_T_v = G_T_mult(G_gamma, v)
-        # R = ufl.inner(F(uD), ufl.outer(G_gamma_T_v, n)) * ds \
-        #     - ufl.inner(ufl.outer(G_gamma_T_v, n), G_mult(alpha, ufl.outer(u - uD, n))) * ds
+
         R = - ufl.inner(F(uD), dg_cross(n, G_T_v)) * ds \
             + ufl.inner(G_mult(alpha, dg_cross(n, u - uD)), dg_cross(n, G_T_v)) * ds
         #Checked
@@ -210,8 +205,6 @@ class CurlIBP(IBP):
         print(
             f"Grad Shape cross_jump(F(u), n), ufl.avg(G_T_v): {cross_jump(F(u), n).ufl_shape, ufl.avg(G_T_v).ufl_shape})")
 
-        # R = - ufl.inner(ufl.avg(G_T_v), ufl.jump(F(u), n)) * dS
-        print("interior 2", v, F(u))
         R = - ufl.inner(cross_jump(F(u), n), ufl.avg(G_T_v)) * dS
         # Checked
         return R
@@ -224,16 +217,7 @@ class CurlIBP(IBP):
         G_T_v = G_T_mult(G, v)
         print(f"Grad Shape (n, G_T_v) {n.ufl_shape, G_T_v.ufl_shape}")
         print(f"Grad Shape F(u) - F(uD): {(F(u) - F(uD)).ufl_shape}")
-        # print(
-        #     f"Grad Shape F(u) - F(uD), dg_cross(n, G_T_v): {(F(u) - F(uD)).ufl_shape, dg_cross(n, G_T_v).ufl_shape})")
 
-        # G_gamma = ufl.replace(G, {u: uD})
-        # G_gamma_T_v = G_T_mult(G_gamma, v)
-        # Should this be avg(G)?
-        # R = - ufl.inner(ufl.outer(G_T_v, n), F(u) - F(uD)) * ds
-
-        print("exterior 2", v, F(u) - F(uD))
-        # quit()
         #TODO: the cross product acting on scalar G_T_v is problematic, so reform
         # using a . (b x c) = b . (c x a) = c . (a x b)
         # Original from derivation:
@@ -607,6 +591,56 @@ for ele_n in ele_ns:
         curl2ibp = CurlIBP(F_2, u, ufl.curl(v), G1)
         F += curl2ibp.interior_residual2()
         F += curl2ibp.exterior_residual2(u_soln)
+    elif problem == 7:
+        # -- Biharmonic
+        V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+        v = ufl.TestFunction(V)
+
+        u = dolfinx.fem.Function(V, name="u")
+        u.interpolate(lambda x: x[0] + 1)
+
+        u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1]) + 1
+
+        # Convective Operator
+        def F_2(u, flux=None):
+            if flux is None:
+                flux = u
+            return flux
+
+        def F_1(u, flux=None):
+            if flux is None:
+                flux = ufl.grad(F_2(u))
+            return (u + 1) * flux
+
+        def F_0(u, flux=None):
+            if flux is None:
+                flux = ufl.div(F_1(u))
+            return -flux
+
+        # f = F_0(u_soln, F_1(u_soln, F_2(u_soln, u_soln)))
+        f = F_0(u_soln, ufl.div(F_1(u_soln)))
+
+        # Domain
+        F = ufl.inner(F_1(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
+
+        # F0(u, F1(u)) = -div(F1(u))
+        G0 = homogenize(F_0, ufl.div(F_1(u)))
+        G1 = homogenize(F_1, ufl.grad(u))
+
+        # Interior
+        # h = ufl.CellVolume(mesh) / ufl.FacetArea(mesh)
+        h = ufl.CellDiameter(mesh)
+        alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
+
+        divibp = DivIBP(F_1, u, v, G0)
+
+        F += divibp.interior_residual1(alpha("+") * ufl.avg(G1))
+        F += divibp.exterior_residual1(alpha * ufl.replace(G1, {u: u_soln}), u_soln)
+
+        # F1(u) = G1 grad(F2(u))
+        gradibp = GradIBP(F_2, u, ufl.grad(v), G1)
+        F += gradibp.interior_residual2()
+        F += gradibp.exterior_residual2(u_soln)
 
 
     du = ufl.TrialFunction(V)
