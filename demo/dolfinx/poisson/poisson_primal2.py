@@ -235,7 +235,7 @@ def homogenize(F, diff_op):
 
 
 run_count = 0
-ele_ns = [4, 8, 16]
+ele_ns = [8, 16, 32]
 # ele_ns = [16, 32]
 errorl2 = np.zeros(len(ele_ns))
 errorh1 = np.zeros(len(ele_ns))
@@ -245,13 +245,13 @@ p = 2
 for ele_n in ele_ns:
     mesh = dolfinx.mesh.create_unit_square(
         MPI.COMM_WORLD, ele_n, ele_n,
-        cell_type=dolfinx.mesh.CellType.quadrilateral,
+        cell_type=dolfinx.mesh.CellType.triangle,
         ghost_mode=dolfinx.mesh.GhostMode.shared_facet,
-        diagonal=dolfinx.mesh.DiagonalType.right)
+        diagonal=dolfinx.mesh.DiagonalType.left)
     n = ufl.FacetNormal(mesh)
     x = ufl.SpatialCoordinate(mesh)
 
-    problem = 7
+    problem = 6
     print(f"Running problem {problem}")
     if problem == 1:
         # -- Linear advection
@@ -280,6 +280,7 @@ for ele_n in ele_ns:
         eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_c(u), u), n)("+"))
         eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_c(u), u), n)("-"))
         alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m) / 2.0
+        # alpha = ufl.Max(abs(ufl.dot(b, n))("-"), abs(ufl.dot(b, n))("+")) / 2.0
 
         G = ufl.as_ufl(1)
         divibp = DivIBP(F_c, u, v, G)
@@ -307,22 +308,19 @@ for ele_n in ele_ns:
         def F_1(u, flux=None):
             if flux is None:
                 flux = ufl.grad(F_2(u))
-            return (u + 1) * flux
+            return flux
 
         def F_0(u, flux=None):
             if flux is None:
                 flux = ufl.div(F_1(u))
             return -flux
 
-        # f = F_0(u_soln, F_1(u_soln, F_2(u_soln, u_soln)))
-        f = F_0(u_soln, ufl.div(F_1(u_soln)))
-
-        # Domain
-        F = ufl.inner(F_1(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
-
-        # F0(u, F1(u)) = -div(F1(u))
+        f = F_0(u_soln)
         G0 = homogenize(F_0, ufl.div(F_1(u)))
         G1 = homogenize(F_1, ufl.grad(u))
+
+        # Domain
+        F = - ufl.inner(F_1(u), ufl.grad(G_T_mult(G0, v))) * ufl.dx - ufl.inner(f, v) * ufl.dx
 
         # Interior
         # h = ufl.CellVolume(mesh) / ufl.FacetArea(mesh)
@@ -335,9 +333,9 @@ for ele_n in ele_ns:
         F += divibp.exterior_residual1(alpha * ufl.replace(G1, {u: u_soln}), u, u_soln, u_soln)
 
         # F1(u) = G1 grad(F2(u))
-        gradibp = GradIBP(F_2, u, ufl.grad(v), G1)
-        F += gradibp.interior_residual2()
-        F += gradibp.exterior_residual2(u_soln)
+        gradibp = GradIBP(F_2, u, ufl.grad(G_T_mult(G0, v)), G1)
+        F -= gradibp.interior_residual2()
+        F -= gradibp.exterior_residual2(u_soln)
     elif problem == 3:
         # -- Vector Poisson
         V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
@@ -365,14 +363,12 @@ for ele_n in ele_ns:
                 flux = ufl.div(F_1(u))
             return -flux
 
-        # f = F_0(u_soln, F_1(u_soln, F_2(u_soln, u_soln)))
-        f = F_0(u_soln, ufl.div(F_1(u_soln)))
-
-        # Domain
-        F = ufl.inner(F_1(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
-
+        f = F_0(u_soln)
         G0 = homogenize(F_0, ufl.div(F_1(u)))
         G1 = homogenize(F_1, ufl.grad(u))
+
+        # Domain
+        F = -ufl.inner(F_1(u), ufl.grad(G_T_mult(G0, v))) * ufl.dx - ufl.inner(f, v) * ufl.dx
 
         # Interior
         h = ufl.CellDiameter(mesh)
@@ -384,9 +380,9 @@ for ele_n in ele_ns:
         F += divibp.exterior_residual1(alpha * ufl.replace(G1, {u: u_soln}), u, u_soln, u_soln)
 
         # F1(u) = G1 grad(F2(u))
-        gradibp = GradIBP(F_2, u, ufl.grad(v), G1)
-        F += gradibp.interior_residual2()
-        F += gradibp.exterior_residual2(u_soln)
+        gradibp = GradIBP(F_2, u, ufl.grad(G_T_mult(G0, v)), G1)
+        F -= gradibp.interior_residual2()
+        F -= gradibp.exterior_residual2(u_soln)
     elif problem == 4:
         # -- Linear elasticity
         V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
@@ -394,9 +390,6 @@ for ele_n in ele_ns:
 
         u = dolfinx.fem.Function(V, name="u")
         u.interpolate(lambda x: np.stack((x[0] + 1, x[0] + 1.0)))
-        # u_soln = dolfinx.fem.Function(V)
-        # u_soln.interpolate(lambda x: np.stack([np.zeros_like(x[0])]*2))
-        # u_soln = ufl.as_vector((x[0], x[1]))
         u_soln = ufl.as_vector(
             [ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])]*2)
 
@@ -421,18 +414,16 @@ for ele_n in ele_ns:
                 flux = ufl.div(F_1(u))
             return -flux
 
-        # f = F_0(u_soln, F_1(u_soln, F_2(u_soln, u_soln)))
-        f = F_0(u_soln, ufl.div(F_1(u_soln)))
+        f = F_0(u_soln)
+        G0 = homogenize(F_0, ufl.div(F_1(u)))
+        G1 = homogenize(F_1, ufl.grad(u))
 
         # Domain
-        F = ufl.inner(F_1(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
+        F = -ufl.inner(F_1(u), ufl.grad(G_T_mult(G0, v))) * ufl.dx - ufl.inner(f, v) * ufl.dx
 
         # Interior
         h = ufl.CellDiameter(mesh)
         alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
-
-        G0 = homogenize(F_0, ufl.div(F_1(u)))
-        G1 = homogenize(F_1, ufl.grad(u))
 
         # F0(u, F1(u)) = -div(F1(u))
         divibp = DivIBP(F_1, u, v, G0)
@@ -440,9 +431,9 @@ for ele_n in ele_ns:
         F += divibp.exterior_residual1(alpha * ufl.replace(G1, {u: u_soln}), u, u_soln, u_soln)
 
         # F1(u) = G1 grad(F2(u))
-        gradibp = GradIBP(F_2, u, ufl.grad(v), G1)
-        F += gradibp.interior_residual2()
-        F += gradibp.exterior_residual2(u_soln)
+        gradibp = GradIBP(F_2, u, ufl.grad(G_T_mult(G0, v)), G1)
+        F -= gradibp.interior_residual2()
+        F -= gradibp.exterior_residual2(u_soln)
     elif problem == 5:
         # -- Linear elasticity grad div
         V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
@@ -450,9 +441,6 @@ for ele_n in ele_ns:
 
         u = dolfinx.fem.Function(V, name="u")
         u.interpolate(lambda x: np.stack((x[0] + 1, x[0] + 1.0)))
-        # u_soln = dolfinx.fem.Function(V)
-        # u_soln.interpolate(lambda x: np.stack([np.zeros_like(x[0])]*2))
-        # u_soln = ufl.as_vector((x[0], x[1]))
         u_soln = ufl.as_vector(
             [ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])]*2)
 
@@ -478,18 +466,16 @@ for ele_n in ele_ns:
                 flux = ufl.grad(F_1(u))
             return -flux
 
-        # f = F_0(u_soln, F_1(u_soln, F_2(u_soln, u_soln)))
-        f = F_0(u_soln, ufl.grad(F_1(u_soln)))
+        f = F_0(u_soln)
+        G0 = homogenize(F_0, ufl.grad(F_1(u)))
+        G1 = homogenize(F_1, ufl.div(u))
 
         # Domain
-        F = ufl.inner(F_1(u), ufl.div(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
+        F = -ufl.inner(F_1(u), ufl.div(G_T_mult(G0, v))) * ufl.dx - ufl.inner(f, v) * ufl.dx
 
         # Interior
         h = ufl.CellDiameter(mesh)
         alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
-
-        G0 = homogenize(F_0, ufl.grad(F_1(u)))
-        G1 = homogenize(F_1, ufl.div(u))
 
         # F0(u, F1(u)) = -div(F1(u))
         gradibp = GradIBP(F_1, u, v, G0)
@@ -497,9 +483,9 @@ for ele_n in ele_ns:
         F += gradibp.exterior_residual1(alpha * ufl.replace(G1, {u: u_soln}), u, u_soln, u_soln)
 
         # F1(u) = G1 grad(F2(u))
-        divibp = DivIBP(F_2, u, ufl.div(v), G1)
-        F += divibp.interior_residual2()
-        F += divibp.exterior_residual2(u_soln)
+        divibp = DivIBP(F_2, u, ufl.div(G_T_mult(G0, v)), G1)
+        F -= divibp.interior_residual2()
+        F -= divibp.exterior_residual2(u_soln)
 
         # -- Div Grad
         # Convective Operator
@@ -518,18 +504,16 @@ for ele_n in ele_ns:
                 flux = ufl.div(F_1(u))
             return -flux
 
-        # f = F_0(u_soln, F_1(u_soln, F_2(u_soln, u_soln)))
-        f = F_0(u_soln, ufl.div(F_1(u_soln)))
+        f = F_0(u_soln)
+        G0 = homogenize(F_0, ufl.div(F_1(u)))
+        G1 = homogenize(F_1, ufl.grad(u))
 
         # Domain
-        F += ufl.inner(F_1(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
+        F += -ufl.inner(F_1(u), ufl.grad(G_T_mult(G0, v))) * ufl.dx - ufl.inner(f, v) * ufl.dx
 
         # Interior
         h = ufl.CellDiameter(mesh)
         alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
-
-        G0 = homogenize(F_0, ufl.div(F_1(u)))
-        G1 = homogenize(F_1, ufl.grad(u))
 
         # F0(u, F1(u)) = -div(F1(u))
         divibp = DivIBP(F_1, u, v, G0)
@@ -537,9 +521,9 @@ for ele_n in ele_ns:
         F += divibp.exterior_residual1(alpha * ufl.replace(G1, {u: u_soln}), u, u_soln, u_soln)
 
         # F1(u) = G1 grad(F2(u))
-        gradibp = GradIBP(F_2, u, ufl.grad(v), G1)
-        F += gradibp.interior_residual2()
-        F += gradibp.exterior_residual2(u_soln)
+        gradibp = GradIBP(F_2, u, ufl.grad(G_T_mult(G0, v)), G1)
+        F -= gradibp.interior_residual2()
+        F -= gradibp.exterior_residual2(u_soln)
     elif problem == 6:
         # -- Maxwell
         V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
@@ -568,15 +552,12 @@ for ele_n in ele_ns:
                 flux = ufl.curl(F_1(u))
             return flux
 
-        # f = F_0(u_soln, F_1(u_soln, F_2(u_soln, u_soln)))
-        f = F_0(u_soln, ufl.curl(F_1(u_soln)))
-
-        # Domain
-        # F = ufl.inner(F_1(u), ufl.curl(v)) * ufl.dx - k**2 * ufl.inner(u, v) * ufl.dx
-        F = ufl.inner(ufl.curl(u), ufl.curl(v)) * ufl.dx - k**2 * ufl.inner(u, v) * ufl.dx
-
+        f = F_0(u_soln)
         G0 = homogenize(F_0, ufl.curl(F_1(u)))
         G1 = homogenize(F_1, ufl.curl(u))
+
+        # Domain
+        F = ufl.inner(F_1(u), ufl.curl(G_T_mult(G0, v))) * ufl.dx - k**2 * ufl.inner(u, v) * ufl.dx
 
         # Interior
         h = ufl.CellDiameter(mesh)
@@ -588,7 +569,7 @@ for ele_n in ele_ns:
         F += curl1ibp.exterior_residual1(alpha * ufl.replace(G1, {u: u_soln}), u, u_soln)
 
         # F1(u) = G1 curl(F2(u))
-        curl2ibp = CurlIBP(F_2, u, ufl.curl(v), G1)
+        curl2ibp = CurlIBP(F_2, u, ufl.curl(G_T_mult(G0, v)), G1)
         F += curl2ibp.interior_residual2()
         F += curl2ibp.exterior_residual2(u_soln)
     elif problem == 7:
@@ -599,8 +580,10 @@ for ele_n in ele_ns:
         u = dolfinx.fem.Function(V, name="u")
         # u.interpolate(lambda x: x[0] + 1)
 
+        # u_soln = (x[0]*x[1]*(1-x[0])*(1-x[1]))**2
+        u_soln = ufl.sin(ufl.pi*x[0])**2 * ufl.sin(ufl.pi*x[1])**2
         # u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
-        u_soln = ufl.exp(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])**2 + 1.0
+        # u_soln = ufl.exp(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])**2 + 1.0
 
         def F_4(u, flux=None):
             if flux is None:
