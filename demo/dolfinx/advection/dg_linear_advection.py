@@ -44,7 +44,7 @@ for run_no, n_ele in enumerate(n_eles):
     F = ho.generate_fem_formulation(u, v)
 
     # Volume source
-    f = dolfinx.fem.Constant(mesh, 0.0)
+    f = ufl.div(F_c(u_soln))
     F += - f * v * ufl.dx
 
     J = ufl.derivative(F, u)
