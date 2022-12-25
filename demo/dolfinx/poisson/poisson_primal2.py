@@ -251,11 +251,11 @@ for ele_n in ele_ns:
     n = ufl.FacetNormal(mesh)
     x = ufl.SpatialCoordinate(mesh)
 
-    problem = 6
+    problem = 1
     print(f"Running problem {problem}")
     if problem == 1:
         # -- Linear advection
-        V = dolfinx.fem.FunctionSpace(mesh, ('CG', p))
+        V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
         v = ufl.TestFunction(V)
 
         u = dolfinx.fem.Function(V, name="u")
@@ -280,14 +280,16 @@ for ele_n in ele_ns:
         eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_c(u), u), n)("+"))
         eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_c(u), u), n)("-"))
         alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m) / 2.0
-        # alpha = ufl.Max(abs(ufl.dot(b, n))("-"), abs(ufl.dot(b, n))("+")) / 2.0
 
         G = ufl.as_ufl(1)
         divibp = DivIBP(F_c, u, v, G)
         F += divibp.interior_residual1(-alpha, u)
 
         # Exterior
-        alpha = abs(ufl.dot(b, n)) / 2.0
+        eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_c(u), u), n))
+        u_soln_var = ufl.variable(u_soln)
+        eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_c(u_soln_var), u_soln_var), n))
+        alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m) / 2.0
         F += divibp.exterior_residual1(-alpha, u, u_soln, u_soln)
     elif problem == 2:
         # -- Scalar Poisson
