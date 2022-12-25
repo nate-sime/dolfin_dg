@@ -235,7 +235,7 @@ def homogenize(F, diff_op):
 
 
 run_count = 0
-ele_ns = [8, 16, 32]
+ele_ns = [8, 16, 32, 64]
 # ele_ns = [16, 32]
 errorl2 = np.zeros(len(ele_ns))
 errorh1 = np.zeros(len(ele_ns))
@@ -245,13 +245,13 @@ p = 2
 for ele_n in ele_ns:
     mesh = dolfinx.mesh.create_unit_square(
         MPI.COMM_WORLD, ele_n, ele_n,
-        cell_type=dolfinx.mesh.CellType.triangle,
+        cell_type=dolfinx.mesh.CellType.quadrilateral,
         ghost_mode=dolfinx.mesh.GhostMode.shared_facet,
         diagonal=dolfinx.mesh.DiagonalType.left)
     n = ufl.FacetNormal(mesh)
     x = ufl.SpatialCoordinate(mesh)
 
-    problem = 1
+    problem = 2
     print(f"Running problem {problem}")
     if problem == 1:
         # -- Linear advection
@@ -604,7 +604,7 @@ for ele_n in ele_ns:
 
         def F_1(u, flux=None):
             if flux is None:
-                flux = (x[0] + 1.0) * ufl.grad(F_2(u))
+                flux = ufl.grad(F_2(u))
             return flux
 
         def F_0(u, flux=None):
