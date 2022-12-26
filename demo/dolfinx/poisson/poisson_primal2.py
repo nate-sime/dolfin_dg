@@ -251,7 +251,7 @@ for ele_n in ele_ns:
     n = ufl.FacetNormal(mesh)
     x = ufl.SpatialCoordinate(mesh)
 
-    problem = 2
+    problem = 7
     print(f"Running problem {problem}")
     if problem == 1:
         # -- Linear advection
@@ -612,12 +612,7 @@ for ele_n in ele_ns:
                 flux = ufl.div(F_1(u))
             return flux
 
-        # f = F_0(u_soln, ufl.div(F_1(u_soln)))
-        f = ufl.div(ufl.grad(ufl.div(ufl.grad(u_soln))))
-
-        # Domain
-        F = ufl.inner(ufl.div(ufl.grad(u)), ufl.div(ufl.grad(v))) * ufl.dx \
-            - ufl.inner(f, v) * ufl.dx
+        f = F_0(u_soln)
 
         # Homogenisers
         G0 = homogenize(F_0, ufl.div(F_1(u)))
@@ -625,31 +620,36 @@ for ele_n in ele_ns:
         G2 = homogenize(F_2, ufl.div(F_3(u)))
         G3 = homogenize(F_3, ufl.grad(F_4(u)))
 
+        # Domain
+        # F = ufl.inner(ufl.div(ufl.grad(u)), ufl.div(G_T_mult(G1, ufl.grad(G_T_mult(G0, v))))) * ufl.dx \
+        #     - ufl.inner(f, v) * ufl.dx
+        F = ufl.inner(F_2(u), ufl.div(G_T_mult(G1, ufl.grad(G_T_mult(G0, v))))) * ufl.dx \
+            - ufl.inner(f, v) * ufl.dx
+
         # Interior
         # h = ufl.CellVolume(mesh) / ufl.FacetArea(mesh)
         h = ufl.CellDiameter(mesh)
         alpha = dolfinx.fem.Constant(mesh, 10.0 * p**(4 if p <= 2 else 6)) / h**3
         beta = dolfinx.fem.Constant(mesh, 10.0 * p**2) / h
 
-        # F0(u, F1(u)) = div(F1(u))
+        # F0(u, F1(u)) = G0 div(F1(u))
         divibp = DivIBP(F_1, u, v, G0)
-
         F += divibp.interior_residual1(alpha("+") * ufl.avg(G1), u)
         F += divibp.exterior_residual1(alpha * ufl.replace(G1, {u: u_soln}), u, u_soln, u_soln)
 
         # F1(u) = G1 grad(F2(u))
-        gradibp = GradIBP(F_2, u, ufl.grad(v), G1)
+        gradibp = GradIBP(F_2, u, ufl.grad(G_T_mult(G0, v)), G1)
         F -= gradibp.interior_residual1(beta("+") * ufl.avg(G2), ufl.grad(u))
         F -= gradibp.exterior_residual1(
             beta * ufl.replace(G2, {u: u_soln}), ufl.grad(u), ufl.grad(u_soln), u_soln)
 
         # F2(u, F3(u)) = G2 div(F3(u))
-        divibp = DivIBP(F_3, u, ufl.div(ufl.grad(v)), G2)
+        divibp = DivIBP(F_3, u, ufl.div(G_T_mult(G1, ufl.grad(G_T_mult(G0, v)))), G2)
         F += divibp.interior_residual2()
         F += divibp.exterior_residual2(u_soln)
 
-        # F1(u) = G1 grad(F2(u))
-        gradibp = GradIBP(F_4, u, ufl.grad(ufl.div(ufl.grad(v))), G1)
+        # F3(u) = G3 grad(F4(u))
+        gradibp = GradIBP(F_4, u, ufl.grad(G_T_mult(G2, ufl.div(G_T_mult(G1, ufl.grad(G_T_mult(G0, v)))))), G3)
         F -= gradibp.interior_residual2()
         F -= gradibp.exterior_residual2(u_soln)
 
