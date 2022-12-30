@@ -121,8 +121,8 @@ class GradIBP(IBP):
         F = self.F
         G = self.G
         G_T_v = G_T_mult(G, v)
-        # print(f"Grad Shape (ufl.jump(G_T_v, n), ufl.avg(F(u))): {ufl.jump(G_T_v, n).ufl_shape, ufl.avg(F(u)).ufl_shape}")
-        # print(f"Grad Shape ufl.jump(G_T_v, n), alpha * ufl.jump(u_pen, n): {ufl.jump(G_T_v, n).ufl_shape, (alpha * ufl.jump(u_pen, n)).ufl_shape}")
+        print(f"Grad Shape (ufl.jump(G_T_v, n), ufl.avg(F(u))): {ufl.jump(G_T_v, n).ufl_shape, ufl.avg(F(u)).ufl_shape}")
+        print(f"Grad Shape ufl.jump(G_T_v, n), alpha * ufl.jump(u_pen, n): {ufl.jump(G_T_v, n).ufl_shape, (alpha * ufl.jump(u_pen, n)).ufl_shape}")
         R = ufl.inner(ufl.jump(G_T_v, n), ufl.avg(F(u))) * dS \
             - ufl.inner(ufl.jump(G_T_v, n), alpha * ufl.jump(u_pen, n)) * dS
         return R
@@ -184,7 +184,7 @@ class CurlIBP(IBP):
         # Checked
         return R
 
-    def exterior_residual1(self, alpha, u_pen, uD, ds=ufl.ds):
+    def exterior_residual1(self, alpha, u_pen, u_penD, uD, ds=ufl.ds):
         n = ufl.FacetNormal(self.u.function_space)
         u, v = self.u, self.v
         F = self.F
@@ -192,7 +192,7 @@ class CurlIBP(IBP):
         G_T_v = G_T_mult(G, v)
 
         R = - ufl.inner(F(uD), dg_cross(n, G_T_v)) * ds \
-            + ufl.inner(G_mult(alpha, dg_cross(n, u_pen - uD)), dg_cross(n, G_T_v)) * ds
+            + ufl.inner(G_mult(alpha, dg_cross(n, u_pen - u_penD)), dg_cross(n, G_T_v)) * ds
         #Checked
         return R
 
@@ -224,6 +224,7 @@ class CurlIBP(IBP):
         #     R = ufl.inner(F(u) - F(uD), dg_cross(n, G_T_v)) * ds
         # R = ufl.inner(dg_cross(F(u) - F(uD), n), G_T_v) * ds
         R = - ufl.inner(dg_cross(n, F(u) - F(uD)), G_T_v) * ds
+        # R = ufl.inner(F(u) - F(uD), dg_cross(n, G_T_v)) * ds
         #checked
         return R
 
@@ -236,7 +237,7 @@ def homogenize(F, diff_op):
 
 run_count = 0
 ele_ns = [8, 16, 32, 64]
-# ele_ns = [16, 32]
+# ele_ns = [2, 4]
 errorl2 = np.zeros(len(ele_ns))
 errorh1 = np.zeros(len(ele_ns))
 hsizes = np.zeros(len(ele_ns))
@@ -251,7 +252,7 @@ for ele_n in ele_ns:
     n = ufl.FacetNormal(mesh)
     x = ufl.SpatialCoordinate(mesh)
 
-    problem = 7
+    problem = 8
     print(f"Running problem {problem}")
     if problem == 1:
         # -- Linear advection
@@ -271,18 +272,25 @@ for ele_n in ele_ns:
                 flux = b*U
             return flux
 
-        f = ufl.div(F_c(u_soln))
+        def F_0(U, flux=None):
+            if flux is None:
+                flux = ufl.div(F_c(U))
+            return flux
+
+        # f = ufl.div(F_c(u_soln))
+        f = F_0(u_soln)
+
+        G0 = homogenize(F_0, ufl.div(F_c(u)))
 
         # Domain
-        F = - ufl.inner(F_c(u), ufl.grad(v)) * ufl.dx - ufl.inner(f, v) * ufl.dx
+        F = - ufl.inner(F_c(u), ufl.grad(G_T_mult(G0, v))) * ufl.dx - ufl.inner(f, v) * ufl.dx
 
         # Interior
         eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_c(u), u), n)("+"))
         eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_c(u), u), n)("-"))
         alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m) / 2.0
 
-        G = ufl.as_ufl(1)
-        divibp = DivIBP(F_c, u, v, G)
+        divibp = DivIBP(F_c, u, v, G0)
         F += divibp.interior_residual1(-alpha, u)
 
         # Exterior
@@ -568,7 +576,7 @@ for ele_n in ele_ns:
         # F0(u, F1(u)) = curl(F1(u))
         curl1ibp = CurlIBP(F_1, u, v, G0)
         F += curl1ibp.interior_residual1(alpha("+") * ufl.avg(G1), u)
-        F += curl1ibp.exterior_residual1(alpha * ufl.replace(G1, {u: u_soln}), u, u_soln)
+        F += curl1ibp.exterior_residual1(alpha * ufl.replace(G1, {u: u_soln}), u, u_soln, u_soln)
 
         # F1(u) = G1 curl(F2(u))
         curl2ibp = CurlIBP(F_2, u, ufl.curl(G_T_mult(G0, v)), G1)
@@ -621,8 +629,6 @@ for ele_n in ele_ns:
         G3 = homogenize(F_3, ufl.grad(F_4(u)))
 
         # Domain
-        # F = ufl.inner(ufl.div(ufl.grad(u)), ufl.div(G_T_mult(G1, ufl.grad(G_T_mult(G0, v))))) * ufl.dx \
-        #     - ufl.inner(f, v) * ufl.dx
         F = ufl.inner(F_2(u), ufl.div(G_T_mult(G1, ufl.grad(G_T_mult(G0, v))))) * ufl.dx \
             - ufl.inner(f, v) * ufl.dx
 
@@ -652,6 +658,83 @@ for ele_n in ele_ns:
         gradibp = GradIBP(F_4, u, ufl.grad(G_T_mult(G2, ufl.div(G_T_mult(G1, ufl.grad(G_T_mult(G0, v)))))), G3)
         F -= gradibp.interior_residual2()
         F -= gradibp.exterior_residual2(u_soln)
+    elif problem == 8:
+        # -- Biharmonic
+        V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+        v = ufl.TestFunction(V)
+
+        u = dolfinx.fem.Function(V, name="u")
+        # u.interpolate(lambda x: x[0] + 1)
+
+        # u_soln = x[0]**2 + x[1]
+        # u_soln = (x[0]*x[1]*(1-x[0])*(1-x[1]))**2
+        # u_soln = ufl.sin(ufl.pi*x[0])**2 * ufl.sin(ufl.pi*x[1])**2
+        u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
+        # u_soln = ufl.exp(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])**2 + 1.0
+
+        def F_4(u, flux=None):
+            if flux is None:
+                flux = u
+            return flux
+
+        def F_3(u, flux=None):
+            if flux is None:
+                flux = ufl.curl(F_4(u))
+            return flux
+
+        def F_2(u, flux=None):
+            if flux is None:
+                flux = ufl.grad(F_3(u))
+            return flux + flux.T
+
+        def F_1(u, flux=None):
+            if flux is None:
+                flux = ufl.div(F_2(u))
+            return flux
+
+        def F_0(u, flux=None):
+            if flux is None:
+                flux = ufl.curl(F_1(u))
+            return -flux
+
+        f = F_0(u_soln)
+
+        # Homogenisers
+        G0 = homogenize(F_0, ufl.curl(F_1(u)))
+        G1 = homogenize(F_1, ufl.div(F_2(u)))
+        G2 = homogenize(F_2, ufl.grad(F_3(u)))
+        G3 = homogenize(F_3, ufl.curl(F_4(u)))
+
+        # Domain
+        F = - ufl.inner(F_2(u), ufl.grad(G_T_mult(G1, ufl.curl(G_T_mult(G0, v))))) * ufl.dx \
+            - ufl.inner(f, v) * ufl.dx
+
+        # Interior
+        # h = ufl.CellVolume(mesh) / ufl.FacetArea(mesh)
+        h = ufl.CellDiameter(mesh)
+        alpha = dolfinx.fem.Constant(mesh, 10.0 * p**(4 if p <= 2 else 6)) / h**3
+        beta = dolfinx.fem.Constant(mesh, 10.0 * p**2) / h
+
+        # F0(u, F1(u)) = G0 curl(F1(u))
+        curl1ibp = CurlIBP(F_1, u, v, G0)
+        F += curl1ibp.interior_residual1(alpha("+") * ufl.avg(G1), u)
+        F += curl1ibp.exterior_residual1(alpha * ufl.replace(G1, {u: u_soln}), u, u_soln, u_soln)
+
+        # F1(u) = G1 div(F2(u))
+        divibp = DivIBP(F_2, u, ufl.curl(G_T_mult(G0, v)), G1)
+        F += divibp.interior_residual1(beta("+") * ufl.avg(G2), ufl.curl(u))
+        F += divibp.exterior_residual1(
+            beta * ufl.replace(G2, {u: u_soln}), ufl.curl(u), ufl.curl(u_soln), u_soln)
+
+        # F2(u, F3(u)) = G2 grad(F3(u))
+        gradibp = GradIBP(F_3, u, ufl.grad(G_T_mult(G1, ufl.curl(G_T_mult(G0, v)))), G2)
+        F -= gradibp.interior_residual2()
+        F -= gradibp.exterior_residual2(u_soln)
+
+        # F3(u) = G3 curl(F4(u))
+        curl2ibp = CurlIBP(F_4, u, ufl.div(G_T_mult(G2, ufl.grad(G_T_mult(G1, ufl.curl(G_T_mult(G0, v)))))), G3)
+        F += curl2ibp.interior_residual2()
+        F += curl2ibp.exterior_residual2(u_soln)
 
 
     du = ufl.TrialFunction(V)
@@ -675,9 +758,9 @@ for ele_n in ele_ns:
     print(f"SNES converged: {snes.getConvergedReason()}")
     print(f"KSP converged: {snes.getKSP().getConvergedReason()}")
 
-    # from dolfinx.io import VTXWriter
-    # with VTXWriter(mesh.comm, "output.bp", u) as f:
-    #     f.write(0.0)
+    from dolfinx.io import VTXWriter
+    with VTXWriter(mesh.comm, "output.bp", u) as f:
+        f.write(0.0)
     # # u.interpolate(lambda x: np.exp(x[0] - x[1]))
     # u.interpolate(lambda x: np.sin(np.pi*x[0])*np.sin(np.pi*x[1]))
     # with VTXWriter(mesh.comm, "soln.bp", u) as f:
