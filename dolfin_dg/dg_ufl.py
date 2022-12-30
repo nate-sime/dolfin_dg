@@ -11,8 +11,20 @@ from ufl.tensoralgebra import CompoundTensorOperator
 
 
 def dg_cross(u, v):
-    if len(u.ufl_shape) == 0 or len(v.ufl_shape) == 0:
-        raise TypeError("Input argument must be a vector")
+    if len(u.ufl_shape) == 0 and len(v.ufl_shape) == 0:
+        raise TypeError("One input argument must be a vector")
+    if len(u.ufl_shape) == 0 and len(v.ufl_shape) == 1:
+        assert v.ufl_shape[0] == 2
+        u = ufl.as_vector((0, 0, u))
+        v = ufl.as_vector((v[0], v[1], 0))
+        u_cross_v = ufl.cross(u, v)
+        return ufl.as_vector((u_cross_v[0], u_cross_v[1]))
+    if len(v.ufl_shape) == 0 and len(u.ufl_shape) == 1:
+        assert u.ufl_shape[0] == 2
+        u = ufl.as_vector((u[0], u[1], 0))
+        v = ufl.as_vector((0, 0, v))
+        u_cross_v = ufl.cross(u, v)
+        return ufl.as_vector((u_cross_v[0], u_cross_v[1]))
     assert(len(u.ufl_shape) == 1 and len(v.ufl_shape) == 1)
     if u.ufl_shape[0] == 2 and v.ufl_shape[0] == 2:
         return u[0]*v[1] - u[1]*v[0]
