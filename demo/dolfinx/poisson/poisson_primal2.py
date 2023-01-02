@@ -671,6 +671,7 @@ for ele_n in ele_ns:
         # u_soln = ufl.sin(ufl.pi*x[0])**2 * ufl.sin(ufl.pi*x[1])**2
         u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
         # u_soln = ufl.exp(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])**2 + 1.0
+        mu = dolfinx.fem.Constant(mesh, 1.0)
 
         def F_4(u, flux=None):
             if flux is None:
@@ -685,7 +686,7 @@ for ele_n in ele_ns:
         def F_2(u, flux=None):
             if flux is None:
                 flux = ufl.grad(F_3(u))
-            return flux + flux.T
+            return mu * (flux + flux.T)
 
         def F_1(u, flux=None):
             if flux is None:
@@ -743,6 +744,11 @@ for ele_n in ele_ns:
     F, J = dolfinx.fem.form(F), dolfinx.fem.form(J)
     problem = dolfin_dg.dolfinx.nls.NonlinearPDE_SNESProblem(F, J, u, [])
 
+    total_dofs = mesh.comm.allreduce(
+        V.dofmap.index_map.size_local * V.dofmap.index_map_bs, MPI.SUM)
+    if mesh.comm.rank == 0:
+        print(f"Solving problem: Nele={ele_n}, total DoFs = {total_dofs}")
+
     snes = PETSc.SNES().create(MPI.COMM_WORLD)
     opts = PETSc.Options()
     opts["snes_monitor"] = None
@@ -755,12 +761,13 @@ for ele_n in ele_ns:
     snes.setTolerances(rtol=1e-14, atol=1e-14)
 
     snes.solve(None, u.vector)
-    print(f"SNES converged: {snes.getConvergedReason()}")
-    print(f"KSP converged: {snes.getKSP().getConvergedReason()}")
+    if mesh.comm.rank == 0:
+        print(f"SNES converged: {snes.getConvergedReason()}")
+        print(f"KSP converged: {snes.getKSP().getConvergedReason()}")
 
-    from dolfinx.io import VTXWriter
-    with VTXWriter(mesh.comm, "output.bp", u) as f:
-        f.write(0.0)
+    # from dolfinx.io import VTXWriter
+    # with VTXWriter(mesh.comm, "output.bp", u) as f:
+    #     f.write(0.0)
     # # u.interpolate(lambda x: np.exp(x[0] - x[1]))
     # u.interpolate(lambda x: np.sin(np.pi*x[0])*np.sin(np.pi*x[1]))
     # with VTXWriter(mesh.comm, "soln.bp", u) as f:
