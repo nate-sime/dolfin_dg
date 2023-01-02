@@ -27,6 +27,7 @@ import dolfin_dg as dg
 #
 # We weakly enforce the C1 continuity by applying a DG method to the
 # second integration by parts of the biharmonic operator.
+import dolfin_dg.math
 
 ele_ns = [8, 16, 32, 64]
 errorl2 = np.zeros(len(ele_ns))
@@ -83,7 +84,7 @@ for j, n_ele in enumerate(ele_ns):
         return div_grad_u
 
     # Fourth order DG discretisation
-    G = dg.homogeneity_tensor(
+    G = dolfin_dg.math.homogeneity_tensor(
         F_v, psi, differential_operator=lambda u: ufl.div(ufl.grad(u)))
     sigma = dg.generate_default_sipg_penalty_term(
         psi, C_IP=dolfinx.fem.Constant(mesh, 1e1))

@@ -5,7 +5,7 @@ from petsc4py import PETSc
 
 import dolfinx
 
-from dolfin_dg import dg_cross
+from dolfin_dg.math import dg_cross
 import dolfin_dg.dolfinx
 from dolfin_dg import HLLE, HyperbolicOperator, DGDirichletBC
 
@@ -26,8 +26,6 @@ def G_mult(G, tau):
 
 def G_T_mult(G, tau):
     if len(G.ufl_shape) == 0:
-        if not len(tau.ufl_shape) == 0:
-            raise IndexError(f"G^T is scalar, tau has shape: {tau.ufl_shape}")
         return G*tau
     elif ufl.rank(tau) == 0 and ufl.rank(G) == 2:
         return G.T * tau
@@ -241,7 +239,7 @@ ele_ns = [8, 16, 32, 64]
 errorl2 = np.zeros(len(ele_ns))
 errorh1 = np.zeros(len(ele_ns))
 hsizes = np.zeros(len(ele_ns))
-p = 2
+p = 3
 
 for ele_n in ele_ns:
     mesh = dolfinx.mesh.create_unit_square(

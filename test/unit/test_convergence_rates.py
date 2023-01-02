@@ -10,6 +10,7 @@ from ufl import (
     FacetNormal)
 
 import dolfin_dg
+import dolfin_dg.math
 from dolfin_dg import DGDirichletBC, DGNeumannBC
 from dolfin_dg.dg_form import DGFemBO, DGFemNIPG
 from dolfin_dg.nitsche import NitscheBoundary, StokesNitscheBoundary
@@ -585,13 +586,13 @@ class StokesNitscheSlipManualTest(StokesNitscheTest):
             u.ufl_operands[0].ufl_operands[0].function_space().mesh())
 
         def F_v_normal(u, grad_u):
-            return dolfin_dg.normal_proj(F_v(u, grad_u), n)
+            return dolfin_dg.math.normal_proj(F_v(u, grad_u), n)
 
         stokes_nitsche = StokesNitscheBoundary(F_v_normal, u, p, v, q)
         F = stokes_nitsche.nitsche_bc_residual(u_soln, dsD)
-        F -= dot(dolfin_dg.tangential_proj(gN, n), v) * dsD
+        F -= dot(dolfin_dg.math.tangential_proj(gN, n), v) * dsD
         F += stokes_nitsche.nitsche_bc_residual_on_interior(u_soln, dSint)
-        F -= sum(dot(dolfin_dg.tangential_proj(gN, n), v)(side)
+        F -= sum(dot(dolfin_dg.math.tangential_proj(gN, n), v)(side)
                  for side in ("+", "-")) * dSint
         return F
 

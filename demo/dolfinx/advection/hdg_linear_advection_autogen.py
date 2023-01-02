@@ -6,6 +6,7 @@ from petsc4py import PETSc
 
 import dolfin_dg.dolfinx
 import dolfin_dg.hdg_form
+import dolfin_dg.math
 
 comm = MPI.COMM_WORLD
 
@@ -66,7 +67,7 @@ for run_no, n_ele in enumerate(n_eles):
     F = ufl.inner(F_v(u, ufl.grad(u)), ufl.grad(v)) * ufl.dx
 
     sigma = alpha / h
-    G = dolfin_dg.homogeneity_tensor(F_v, u)
+    G = dolfin_dg.math.homogeneity_tensor(F_v, u)
     hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(
         F_v, u, ubar, v, vbar, sigma, G, n)
 

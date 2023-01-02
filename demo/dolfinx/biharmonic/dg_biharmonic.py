@@ -6,6 +6,7 @@ from petsc4py import PETSc
 
 import dolfin_dg.dolfinx
 import dolfin_dg.hdg_form
+import dolfin_dg.math
 
 comm = MPI.COMM_WORLD
 
@@ -38,7 +39,7 @@ for run_no, n_ele in enumerate(n_eles):
         return div_grad_u
 
     # Fourth order DG discretisation
-    G = dolfin_dg.homogeneity_tensor(
+    G = dolfin_dg.math.homogeneity_tensor(
         F_v, v, differential_operator=lambda u: ufl.div(ufl.grad(u)))
     # sigma = dolfin_dg.generate_default_sipg_penalty_term(v, C_IP=dolfinx.fem.Constant(mesh, 1e1))
     C_IP = dolfinx.fem.Constant(mesh, 1e1)
@@ -54,7 +55,7 @@ for run_no, n_ele in enumerate(n_eles):
     # Second order DG discretisation
     def F_v2(u, grad_u):
         return grad_u
-    G2 = dolfin_dg.homogeneity_tensor(F_v2, u)
+    G2 = dolfin_dg.math.homogeneity_tensor(F_v2, u)
     h = ufl.CellDiameter(mesh)
     sigma = C_IP * poly_o ** (4 if poly_o == 2 else 6) / h**3
     so = dolfin_dg.DGClassicalSecondOrderDiscretisation(F_v2, u, v, sigma, G2, n, -1)

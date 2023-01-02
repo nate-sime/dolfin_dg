@@ -6,9 +6,10 @@ from ufl import (
     Measure, FacetNormal
 )
 
-from dolfin_dg import aero, generate_default_sipg_penalty_term
+from dolfin_dg import aero, generate_default_sipg_penalty_term, \
+    homogeneity_tensor
 from dolfin_dg.dg_form import (
-    DGFemTerm, homogeneity_tensor, DGFemCurlTerm, DGFemSIPG, DGFemStokesTerm
+    DGFemTerm, DGFemCurlTerm, DGFemSIPG, DGFemStokesTerm
 )
 from dolfin_dg.fluxes import LocalLaxFriedrichs
 

@@ -14,14 +14,12 @@ from .block import (
     extract_rows, extract_blocks, extract_block_linear_system,
     derivative_block
 )
+from .math import normal_proj, tangential_proj, hyper_tensor_product, \
+    hyper_tensor_T_product, dg_outer, homogeneity_tensor
 from .dg_form import (
     DGFemTerm, DGFemSIPG, DGFemNIPG, DGFemBO,
     DGFemCurlTerm, DGFemStokesTerm,
-    hyper_tensor_product, hyper_tensor_T_product,
-    homogeneity_tensor,
-    dg_cross, dg_outer,
     tensor_jump, tangent_jump,
-    normal_proj, tangential_proj,
     DGClassicalSecondOrderDiscretisation,
     DGClassicalFourthOrderDiscretisation,
     generate_default_sipg_penalty_term

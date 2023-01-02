@@ -28,6 +28,7 @@ import dolfin_dg as dg
 #
 # We weakly enforce the C1 continuity by applying a DG method to the
 # second integration by parts of the biharmonic operator.
+import dolfin_dg.math
 
 parameters["ghost_mode"] = "shared_facet"
 
@@ -66,7 +67,7 @@ for j, n_ele in enumerate(ele_ns):
         return div_grad_u
 
     # Fourth order DG discretisation
-    G = dg.homogeneity_tensor(
+    G = dolfin_dg.math.homogeneity_tensor(
         F_v, psi, differential_operator=lambda u: div(grad(u)))
     sigma = dg.generate_default_sipg_penalty_term(psi, C_IP=Constant(1e1))
     fo = dg.DGClassicalFourthOrderDiscretisation(F_v, psi, phi, sigma, G, n, -1)
