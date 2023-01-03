@@ -25,6 +25,38 @@ def dg_cross(u, v):
     return ufl.cross(u, v)
 
 
+def tensor_jump(u, n):
+    r"""
+    Parameters
+    ----------
+    u
+        Vector expression
+    n
+        Normal vector
+
+    Returns
+    -------
+    Tensor jump employing outer product
+    """
+    return ufl.outer(u, n)("+") + ufl.outer(u, n)("-")
+
+
+def cross_jump(u, n):
+    r"""
+    Parameters
+    ----------
+    u
+        Vector expression
+    n
+        Normal vector
+
+    Returns
+    -------
+    Tangential jump employing cross product
+    """
+    return dg_cross(n, u)("+") + dg_cross(n, u)("-")
+
+
 def normal_proj(u, n):
     r"""
     Parameters
@@ -179,3 +211,43 @@ def homogeneity_tensor(F_v, u, differential_operator=grad):
     diff_op_u = variable(differential_operator(u))
     tau = F_v(u, diff_op_u)
     return diff(tau, diff_op_u)
+
+
+def homogenize(F, u, diff_op):
+    r"""Generate a homogeneity tensor :math:`G(u)` with respect to a linear
+    differential operator :math:`\mathcal{L}(u)` such that
+
+    .. math::
+
+        G = \frac
+        {\partial \mathcal{F}^v(u, \mathcal{L}(u))}
+        {\partial \mathcal{L}(u)}
+
+    For example consider the Poisson problem where :math:`\mathcal{F}^v(u,
+    \nabla u) = \nabla u`. The homogeneity tensor in this case
+    :math:`G_{ij} = \delta_{ij}`
+
+    >>> import ufl, dolfin_dg.math
+    >>> element = ufl.FiniteElement("CG", ufl.triangle, 1)
+    >>> u = ufl.Coefficient(element)
+    >>> G = dolfin_dg.math.homogenize(lambda u, grad_u: grad_u, u, ufl.grad(u))
+    >>> G = ufl.algorithms.apply_derivatives.apply_derivatives(G)
+    >>> assert G == ufl.Identity(2)
+
+    Parameters
+    ----------
+    F
+        Two argument callable function returning flux tensor representing
+         :math:`F(u, \mathcal{L}(u))`
+    u
+        Solution variable :math:`u`
+    diff_op
+        UFL formulation of :math:`\mathcal{L}(u)`
+
+    Returns
+    -------
+    Homogeneity tensor G
+    """
+    diff_op = ufl.variable(diff_op)
+    G = ufl.diff(F(u, diff_op), diff_op)
+    return G

@@ -12,8 +12,6 @@ from dolfin_dg import HLLE, HyperbolicOperator, DGDirichletBC
 
 def G_mult(G, tau):
     if len(G.ufl_shape) == 0:
-        # if not len(tau.ufl_shape) == 0:
-        #     raise IndexError(f"G is scalar, tau has shape: {tau.ufl_shape}")
         return G*tau
     elif ufl.rank(tau) > 1 and tau.ufl_shape[0] == 1:
         return ufl.dot(G, tau.T).T
