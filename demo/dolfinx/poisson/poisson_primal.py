@@ -7,19 +7,14 @@ import dolfinx
 
 import dolfin_dg.dolfinx
 from dolfin_dg.math import hyper_tensor_T_product as G_T_mult
-from dolfin_dg.primal import DivIBP, GradIBP, CurlIBP
+from dolfin_dg.primal.facet_sipg import DivIBP, GradIBP, CurlIBP
 from dolfin_dg.math import homogenize
-
-
-# def homogenize(F, diff_op):
-#     diff_op = ufl.variable(diff_op)
-#     G = ufl.diff(F(u, diff_op), diff_op)
-#     return G
 
 
 def pprint(*msg, verbose=False):
     if verbose:
         print(msg)
+
 
 ele_ns = [8, 16, 32]
 # ele_ns = [2, 4]

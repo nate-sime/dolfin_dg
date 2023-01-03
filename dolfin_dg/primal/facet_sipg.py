@@ -3,23 +3,10 @@ import ufl
 from dolfin_dg.math import tensor_jump, cross_jump, dg_cross
 from dolfin_dg.math import hyper_tensor_product as G_mult
 from dolfin_dg.math import hyper_tensor_T_product as G_T_mult
+import dolfin_dg.primal
 
 
-class IBP:
-
-    def __init__(self, F, u, v, G):
-        self.F = F
-        self.u = u
-        self.v = v
-        self.G = G
-        # print(f"Initialising {self}")
-        # print(f"Shape F(u) = {F(u).ufl_shape}")
-        # print(f"Shape G = {G.ufl_shape}")
-        # print(f"Shape u = {u.ufl_shape}")
-        # print(f"Shape v = {v.ufl_shape}")
-
-
-class DivIBP(IBP):
+class DivIBP(dolfin_dg.primal.IBP):
 
     def interior_residual1(self, alpha, u_pen, dS=ufl.dS):
         n = ufl.FacetNormal(self.u.function_space)
@@ -70,7 +57,7 @@ class DivIBP(IBP):
         return R
 
 
-class GradIBP(IBP):
+class GradIBP(dolfin_dg.primal.IBP):
 
     def interior_residual1(self, alpha, u_pen, dS=ufl.dS):
         n = ufl.FacetNormal(self.u.function_space)
@@ -125,7 +112,7 @@ class GradIBP(IBP):
         return R
 
 
-class CurlIBP(IBP):
+class CurlIBP(dolfin_dg.primal.IBP):
 
     def interior_residual1(self, alpha, u_pen, dS=ufl.dS):
         n = ufl.FacetNormal(self.u.function_space)
