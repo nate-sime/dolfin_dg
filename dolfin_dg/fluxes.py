@@ -1,5 +1,5 @@
 import ufl
-from ufl import dot, Max, Min
+from dolfin_dg.math import max_value as Max, min_value as Min
 
 
 def max_abs_of_sequence(a):
@@ -168,7 +168,7 @@ class LocalLaxFriedrichs(ConvectiveFlux):
         self.alpha = Max(eigen_vals_max_p, eigen_vals_max_m)
 
     def interior(self, F_c, u_p, u_m, n):
-        return 0.5*(dot(F_c(u_p), n) + dot(F_c(u_m), n)
+        return 0.5*(ufl.dot(F_c(u_p), n) + ufl.dot(F_c(u_m), n)
                     + self.alpha*(u_p - u_m))
 
     exterior = interior
@@ -197,8 +197,8 @@ class HLLE(ConvectiveFlux):
         lam_p, lam_m = self.lam_p, self.lam_m
         guard = ufl.conditional(
             abs(lam_p - lam_m) < HLLE.TOL, 0, 1/(lam_p - lam_m))
-        return guard*(lam_p*dot(F_c(u_p), n)
-                      - lam_m*dot(F_c(u_m), n)
+        return guard*(lam_p*ufl.dot(F_c(u_p), n)
+                      - lam_m*ufl.dot(F_c(u_m), n)
                       - lam_p*lam_m*(u_p - u_m))
 
     exterior = interior

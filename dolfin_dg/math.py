@@ -1,7 +1,16 @@
 import inspect
+import packaging.version
 
 import ufl
-from ufl import dot, as_matrix, inner, outer, grad, variable, diff
+
+
+if packaging.version.parse(ufl.__version__)\
+        <= packaging.version.parse("2022.2.0"):
+    max_value = ufl.Max
+    min_value = ufl.Min
+else:
+    max_value = ufl.max_value
+    min_value = ufl.min_value
 
 
 def dg_cross(u, v):
@@ -167,10 +176,10 @@ def hyper_tensor_T_product(G, tau):
 def dg_outer(*args):
     # TODO: ufl treats this as (u ⊗ v*). If dolfin_dg goes complex need to
     #  fix this
-    return outer(*args)
+    return ufl.outer(*args)
 
 
-def homogeneity_tensor(F_v, u, differential_operator=grad):
+def homogeneity_tensor(F_v, u, differential_operator=ufl.grad):
     r"""Generate a homogeneity tensor :math:`G(u)` with respect to a linear
     differential operator :math:`\mathcal{L}(u)` such that
 
@@ -208,9 +217,9 @@ def homogeneity_tensor(F_v, u, differential_operator=grad):
         raise TypeError("Function F_v must have at least 2 arguments, "
                         "(u, grad_u, *args, **kwargs)")
 
-    diff_op_u = variable(differential_operator(u))
+    diff_op_u = ufl.variable(differential_operator(u))
     tau = F_v(u, diff_op_u)
-    return diff(tau, diff_op_u)
+    return ufl.diff(tau, diff_op_u)
 
 
 def homogenize(F, u, diff_op):

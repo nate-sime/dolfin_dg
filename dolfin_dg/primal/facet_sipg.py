@@ -9,7 +9,7 @@ import dolfin_dg.primal
 class DivIBP(dolfin_dg.primal.IBP):
 
     def interior_residual1(self, alpha, u_pen, dS=ufl.dS):
-        n = ufl.FacetNormal(self.u.function_space)
+        n = ufl.FacetNormal(self.u.ufl_domain())
         u, v = self.u, self.v
         F = self.F
         G = self.G
@@ -22,7 +22,7 @@ class DivIBP(dolfin_dg.primal.IBP):
         return R
 
     def exterior_residual1(self, alpha, u_pen, u_penD, uD, ds=ufl.ds):
-        n = ufl.FacetNormal(self.u.function_space)
+        n = ufl.FacetNormal(self.u.ufl_domain())
         u, v = self.u, self.v
         F = self.F
         G = self.G
@@ -33,7 +33,7 @@ class DivIBP(dolfin_dg.primal.IBP):
         return R
 
     def interior_residual2(self, dS=ufl.dS):
-        n = ufl.FacetNormal(self.u.function_space)
+        n = ufl.FacetNormal(self.u.ufl_domain())
         u, v = self.u, self.v
         F = self.F
         G = self.G
@@ -45,7 +45,7 @@ class DivIBP(dolfin_dg.primal.IBP):
         return R
 
     def exterior_residual2(self, uD, ds=ufl.ds):
-        n = ufl.FacetNormal(self.u.function_space)
+        n = ufl.FacetNormal(self.u.ufl_domain())
         u, v = self.u, self.v
         F = self.F
         G = self.G
@@ -60,7 +60,7 @@ class DivIBP(dolfin_dg.primal.IBP):
 class GradIBP(dolfin_dg.primal.IBP):
 
     def interior_residual1(self, alpha, u_pen, dS=ufl.dS):
-        n = ufl.FacetNormal(self.u.function_space)
+        n = ufl.FacetNormal(self.u.ufl_domain())
         u, v = self.u, self.v
         F = self.F
         G = self.G
@@ -72,7 +72,7 @@ class GradIBP(dolfin_dg.primal.IBP):
         return R
 
     def exterior_residual1(self, alpha, u_pen, u_penD, uD, ds=ufl.ds):
-        n = ufl.FacetNormal(self.u.function_space)
+        n = ufl.FacetNormal(self.u.ufl_domain())
         u, v = self.u, self.v
         F = self.F
         G = self.G
@@ -89,7 +89,7 @@ class GradIBP(dolfin_dg.primal.IBP):
         return R
 
     def interior_residual2(self, dS=ufl.dS):
-        n = ufl.FacetNormal(self.u.function_space)
+        n = ufl.FacetNormal(self.u.ufl_domain())
         u, v = self.u, self.v
         F = self.F
         G = self.G
@@ -101,7 +101,7 @@ class GradIBP(dolfin_dg.primal.IBP):
         return R
 
     def exterior_residual2(self, uD, ds=ufl.ds):
-        n = ufl.FacetNormal(self.u.function_space)
+        n = ufl.FacetNormal(self.u.ufl_domain())
         u, v = self.u, self.v
         F = self.F
         G = self.G
@@ -115,7 +115,7 @@ class GradIBP(dolfin_dg.primal.IBP):
 class CurlIBP(dolfin_dg.primal.IBP):
 
     def interior_residual1(self, alpha, u_pen, dS=ufl.dS):
-        n = ufl.FacetNormal(self.u.function_space)
+        n = ufl.FacetNormal(self.u.ufl_domain())
         u, v = self.u, self.v
         F = self.F
         G = self.G
@@ -129,7 +129,7 @@ class CurlIBP(dolfin_dg.primal.IBP):
         return R
 
     def exterior_residual1(self, alpha, u_pen, u_penD, uD, ds=ufl.ds):
-        n = ufl.FacetNormal(self.u.function_space)
+        n = ufl.FacetNormal(self.u.ufl_domain())
         u, v = self.u, self.v
         F = self.F
         G = self.G
@@ -141,7 +141,7 @@ class CurlIBP(dolfin_dg.primal.IBP):
         return R
 
     def interior_residual2(self, dS=ufl.dS):
-        n = ufl.FacetNormal(self.u.function_space)
+        n = ufl.FacetNormal(self.u.ufl_domain())
         u, v = self.u, self.v
         F = self.F
         G = self.G
@@ -154,7 +154,7 @@ class CurlIBP(dolfin_dg.primal.IBP):
         return R
 
     def exterior_residual2(self, uD, ds=ufl.ds):
-        n = ufl.FacetNormal(self.u.function_space)
+        n = ufl.FacetNormal(self.u.ufl_domain())
         u, v = self.u, self.v
         F = self.F
         G = self.G

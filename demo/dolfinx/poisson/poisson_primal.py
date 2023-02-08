@@ -69,7 +69,7 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7, 8]:
             # Interior
             eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_c(u), u), n)("+"))
             eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_c(u), u), n)("-"))
-            alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m) / 2.0
+            alpha = dolfin_dg.math.max_value(eigen_vals_max_p, eigen_vals_max_m) / 2.0
 
             divibp = DivIBP(F_c, u, v, G0)
             F += divibp.interior_residual1(-alpha, u)
@@ -78,7 +78,7 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7, 8]:
             eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_c(u), u), n))
             u_soln_var = ufl.variable(u_soln)
             eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_c(u_soln_var), u_soln_var), n))
-            alpha = ufl.Max(eigen_vals_max_p, eigen_vals_max_m) / 2.0
+            alpha = dolfin_dg.math.max_value(eigen_vals_max_p, eigen_vals_max_m) / 2.0
             F += divibp.exterior_residual1(-alpha, u, u_soln, u_soln)
         elif problem_id == 2:
             # -- Scalar Poisson
@@ -559,8 +559,8 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7, 8]:
         errorh1[run_count] = h1error_u
 
         h_measure = dolfinx.cpp.mesh.h(
-            mesh, 2, np.arange(mesh.topology.connectivity(2, 0).num_nodes,
-                               dtype=np.int32))
+            mesh._cpp_object, 2,
+            np.arange(mesh.topology.index_map(2).size_local, dtype=np.int32))
         hmin = mesh.comm.allreduce(h_measure.min(), op=MPI.MIN)
         hsizes[run_count] = hmin
 
