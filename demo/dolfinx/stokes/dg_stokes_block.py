@@ -43,8 +43,8 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
             ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
 
         h_measure = dolfinx.cpp.mesh.h(
-            mesh, 2, np.arange(mesh.topology.connectivity(2, 0).num_nodes,
-                               dtype=np.int32))
+            mesh._cpp_object, 2, np.arange(
+                mesh.topology.index_map(2).size_local, dtype=np.int32))
         hmin = comm.allreduce(h_measure.min(), op=MPI.MIN)
 
         # Higher order FE spaces for interpolation of the true solution
