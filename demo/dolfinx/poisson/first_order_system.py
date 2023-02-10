@@ -6,9 +6,7 @@ from petsc4py import PETSc
 import dolfinx
 
 import dolfin_dg.dolfinx
-from dolfin_dg.math import hyper_tensor_T_product as G_T_mult
-from dolfin_dg.primal.facet_sipg import DivIBP, GradIBP, CurlIBP
-from dolfin_dg.math import homogenize
+import dolfin_dg.primal
 
 
 def pprint(*msg, verbose=False):
@@ -23,7 +21,7 @@ errorh1 = np.zeros(len(ele_ns))
 hsizes = np.zeros(len(ele_ns))
 p = 3
 
-for problem_id in [4]:
+for problem_id in [1, 2, 3, 4, 5]:
     run_count = 0
     print(f"Running problem ID: {problem_id}")
     for ele_n in ele_ns:
@@ -34,6 +32,8 @@ for problem_id in [4]:
             diagonal=dolfinx.mesh.DiagonalType.left)
         n = ufl.FacetNormal(mesh)
         x = ufl.SpatialCoordinate(mesh)
+        h = ufl.CellDiameter(mesh)
+        alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
 
         if problem_id == 1:
             # -- Scalar Poisson
@@ -65,21 +65,12 @@ for problem_id in [4]:
 
             F_vec = [F_0, F_1, F_2]
             L_vec = [ufl.div, ufl.grad]
-            G_vec = [homogenize(F_vec[i], u, L_vec[i](F_vec[i+1](u)))
-                     for i in range(len(F_vec) - 1)]
-            v_vec = [v, *(
-                dolfin_dg.primal.green_transpose(L_vec[i])(G_T_mult(G_vec[i], v))
-                for i in range(len(F_vec) - 1))]
-            n_ibps = [1, 2]
-
-            h = ufl.CellDiameter(mesh)
-            alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
-
-            # Domain
-            F = - ufl.inner(F_1(u), v_vec[1]) * ufl.dx - ufl.inner(f, v) * ufl.dx
 
             fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
-            F += fos.interior([alpha], n_ibps, dolfin_dg.primal.facet_sipg, u_soln)
+            F = - ufl.inner(f, v) * ufl.dx
+            F += fos.domain()
+            F += fos.interior([alpha])
+            F += fos.exterior([alpha], u_soln)
         elif problem_id == 2:
             # -- Vector Poisson
             V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
@@ -111,22 +102,12 @@ for problem_id in [4]:
 
             F_vec = [F_0, F_1, F_2]
             L_vec = [ufl.div, ufl.grad]
-            G_vec = [homogenize(F_vec[i], u, L_vec[i](F_vec[i+1](u)))
-                     for i in range(len(F_vec) - 1)]
-            v_vec = [v]
-            for i in range(len(F_vec)-2):
-                vj = dolfin_dg.primal.green_transpose(L_vec[i])(G_T_mult(G_vec[i], v_vec[i]))
-                v_vec.append(vj)
-            n_ibps = [1, 2]
-
-            h = ufl.CellDiameter(mesh)
-            alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
-
-            # Domain
-            F = - ufl.inner(F_1(u), v_vec[1]) * ufl.dx - ufl.inner(f, v) * ufl.dx
 
             fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
-            F += fos.interior([alpha], n_ibps, dolfin_dg.primal.facet_sipg, u_soln)
+            F = -ufl.inner(f, v) * ufl.dx
+            F += fos.domain()
+            F += fos.interior([alpha])
+            F += fos.exterior([alpha], u_soln)
         elif problem_id == 3:
             # -- Maxwell
             V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
@@ -159,22 +140,12 @@ for problem_id in [4]:
 
             F_vec = [F_0, F_1, F_2]
             L_vec = [ufl.curl, ufl.curl]
-            G_vec = [homogenize(F_vec[i], u, L_vec[i](F_vec[i+1](u)))
-                     for i in range(len(F_vec) - 1)]
-            v_vec = [v]
-            for i in range(len(F_vec)-2):
-                vj = dolfin_dg.primal.green_transpose(L_vec[i])(G_T_mult(G_vec[i], v_vec[i]))
-                v_vec.append(vj)
-            n_ibps = [1, 2]
-
-            h = ufl.CellDiameter(mesh)
-            alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
-
-            # Domain
-            F = ufl.inner(F_1(u), v_vec[1]) * ufl.dx - k**2 * ufl.inner(u, v) * ufl.dx
 
             fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
-            F += fos.interior([alpha], n_ibps, dolfin_dg.primal.facet_sipg, u_soln)
+            F = - k**2 * ufl.inner(u, v) * ufl.dx
+            F += fos.domain()
+            F += fos.interior([alpha])
+            F += fos.exterior([alpha], u_soln)
         elif problem_id == 4:
             # -- Biharmonic
             V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
@@ -183,10 +154,7 @@ for problem_id in [4]:
             u = dolfinx.fem.Function(V, name="u")
             # u.interpolate(lambda x: x[0] + 1)
 
-            # u_soln = (x[0]*x[1]*(1-x[0])*(1-x[1]))**2
             u_soln = ufl.sin(ufl.pi*x[0])**2 * ufl.sin(ufl.pi*x[1])**2
-            # u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
-            # u_soln = ufl.exp(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])**2 + 1.0
 
             def F_4(u, flux=None):
                 if flux is None:
@@ -217,25 +185,66 @@ for problem_id in [4]:
 
             F_vec = [F_0, F_1, F_2, F_3, F_4]
             L_vec = [ufl.div, ufl.grad, ufl.div, ufl.grad]
-            G_vec = [homogenize(F_vec[i], u, L_vec[i](F_vec[i+1](u)))
-                     for i in range(len(F_vec) - 1)]
-            v_vec = [v]
-            for i in range(len(F_vec)-2):
-                vj = dolfin_dg.primal.green_transpose(L_vec[i])(G_T_mult(G_vec[i], v_vec[i]))
-                v_vec.append(vj)
-            n_ibps = [1, 1, 2, 2]
 
             h = ufl.CellDiameter(mesh)
             alpha = dolfinx.fem.Constant(mesh, 10.0 * p**(4 if p <= 2 else 6)) / h**3
             beta = dolfinx.fem.Constant(mesh, 10.0 * p**2) / h
 
-            # Domain
-            F = ufl.inner(F_2(u), v_vec[2]) * ufl.dx \
-                - ufl.inner(f, v) * ufl.dx
+            fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
+            F = - ufl.inner(f, v) * ufl.dx
+            F += fos.domain()
+            F += fos.interior([alpha, beta])
+            F += fos.exterior([alpha, beta], u_soln)
+        elif problem_id == 5:
+            # -- Biharmonic
+            V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+            v = ufl.TestFunction(V)
+
+            u = dolfinx.fem.Function(V, name="u")
+            # u.interpolate(lambda x: x[0] + 1)
+
+            u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
+            mu = dolfinx.fem.Constant(mesh, 1.0)
+
+            def F_4(u, flux=None):
+                if flux is None:
+                    flux = u
+                return flux
+
+            def F_3(u, flux=None):
+                if flux is None:
+                    flux = ufl.curl(F_4(u))
+                return flux
+
+            def F_2(u, flux=None):
+                if flux is None:
+                    flux = ufl.grad(F_3(u))
+                return mu * (flux + flux.T)
+
+            def F_1(u, flux=None):
+                if flux is None:
+                    flux = ufl.div(F_2(u))
+                return flux
+
+            def F_0(u, flux=None):
+                if flux is None:
+                    flux = ufl.curl(F_1(u))
+                return -flux
+
+            f = F_0(u_soln)
+
+            F_vec = [F_0, F_1, F_2, F_3, F_4]
+            L_vec = [ufl.curl, ufl.div, ufl.grad, ufl.curl]
+
+            h = ufl.CellDiameter(mesh)
+            alpha = dolfinx.fem.Constant(mesh, 10.0 * p**(4 if p <= 2 else 6)) / h**3
+            beta = dolfinx.fem.Constant(mesh, 10.0 * p**2) / h
 
             fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
-            F += fos.interior([alpha, beta, None, None],
-                              n_ibps, dolfin_dg.primal.facet_sipg, u_soln)
+            F = - ufl.inner(f, v) * ufl.dx
+            F += fos.domain()
+            F += fos.interior([alpha, beta])
+            F += fos.exterior([alpha, beta], u_soln)
 
         du = ufl.TrialFunction(V)
         J = ufl.derivative(F, u, du)

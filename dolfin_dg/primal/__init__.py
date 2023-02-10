@@ -48,36 +48,75 @@ class FirstOrderSystem:
             v_vec.append(vj)
         self.v_vec = v_vec
 
-    # Domain
-    # F = - ufl.inner(F_1(u), v_vec[1]) * ufl.dx - ufl.inner(f, v) * ufl.dx
+        self.L_ops = [*(L_vec[j] for j in range(len(F_vec)-1)), lambda x: x]
 
-    def interior(self, alpha, n_ibps, flux_type, u_soln):
+        self.sign_tracker = np.ones(len(F_vec)-1, dtype=np.int8)
+        self.n_ibps = np.ones(len(F_vec) - 1, dtype=np.int8)
+        self.n_ibps[self.n_ibps.shape[0]//2:] = 2
+
+    def domain(self):
         F_vec = self.F_vec
         G_vec = self.G_vec
         L_vec = self.L_vec
+        L_ops = self.L_ops
         u, v_vec = self.u, self.v_vec
 
-        sign_tracker = np.ones(len(F_vec)-1, dtype=np.int8)
+        sign = 1
+        for j in range(len(L_vec)):
+            if L_vec[j] in (ufl.div, ufl.grad) and self.n_ibps[j] == 1:
+                sign *= -1
+
+        mid_idx = len(F_vec) // 2
+        F = sign * ufl.inner(F_vec[mid_idx](u), v_vec[mid_idx]) * ufl.dx
+        return F
+
+    def interior(self, alpha, flux_type=None, dS=ufl.dS):
+        if flux_type is None:
+            import dolfin_dg.primal.facet_sipg
+            flux_type = dolfin_dg.primal.facet_sipg
+        u_soln = None
+        return self._formulate(alpha, flux_type, u_soln, interior=True, dI=dS)
+
+    def exterior(self, alpha, u_soln, flux_type=None, ds=ufl.ds):
+        if flux_type is None:
+            import dolfin_dg.primal.facet_sipg
+            flux_type = dolfin_dg.primal.facet_sipg
+        return self._formulate(alpha, flux_type, u_soln, interior=False, dI=ds)
+
+    def _formulate(self, alpha, flux_type, u_soln, interior, dI):
+        F_vec = self.F_vec
+        G_vec = self.G_vec
+        L_vec = self.L_vec
+        L_ops = self.L_ops
+        u, v_vec = self.u, self.v_vec
+
+        IBP = {ufl.div: flux_type.DivIBP,
+               ufl.grad: flux_type.GradIBP,
+               ufl.curl: flux_type.CurlIBP}
+        ibps = [IBP[L_vec[j]](F_vec[j + 1], u, v_vec[j], G_vec[j])
+                for j in range(len(F_vec) - 1)]
+
+        self.sign_tracker[:] = 1
         F_sub = 0
         for j in range(len(F_vec) - 1)[::-1]:
+            ibp = ibps[j]
+            L_op = L_ops[-(j+1)]
+
             if L_vec[j] in (ufl.div, ufl.grad):
                 F_sub = -1 * F_sub
-                sign_tracker[j+1:] *= -1
-                print("j", j, "sign tracker", sign_tracker)
+                self.sign_tracker[j+1:] *= -1
 
-            IBP = {ufl.div: flux_type.DivIBP,
-                   ufl.grad: flux_type.GradIBP,
-                   ufl.curl: flux_type.CurlIBP}
-            ibp = IBP[L_vec[j]](F_vec[j + 1], u, v_vec[j], G_vec[j])
+            if self.n_ibps[j] == 1:
+                if interior:
+                    F = ibp.interior_residual1(alpha[j]("+") * ufl.avg(G_vec[j + 1]), L_op(u), dS=dI)
+                else:
+                    F = ibp.exterior_residual1(
+                        alpha[j] * ufl.replace(G_vec[j + 1], {u: u_soln}), L_op(u), L_op(u_soln), u_soln, ds=dI)
+            elif self.n_ibps[j] == 2:
+                if interior:
+                    F = ibp.interior_residual2(dS=dI)
+                else:
+                    F = ibp.exterior_residual2(u_soln, ds=dI)
+            F_sub += F
 
-            if n_ibps[j] == 1:
-                L_op = L_vec[-j] if j > 0 else lambda x: x
-                interior = ibp.interior_residual1(alpha[j]("+") * ufl.avg(G_vec[j + 1]), L_op(u))
-                exterior = ibp.exterior_residual1(
-                    alpha[j] * ufl.replace(G_vec[j + 1], {u: u_soln}), L_op(u), L_op(u_soln), u_soln)
-            elif n_ibps[j] == 2:
-                interior = ibp.interior_residual2()
-                exterior = ibp.exterior_residual2(u_soln)
-            F_sub += interior + exterior
-        print("sign tracker", sign_tracker)
         return F_sub
