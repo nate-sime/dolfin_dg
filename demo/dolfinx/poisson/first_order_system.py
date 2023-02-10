@@ -45,20 +45,16 @@ for problem_id in [1, 2, 3, 4, 5]:
 
             u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1]) + 1
 
-            # Convective Operator
-            def F_2(u, flux=None):
-                if flux is None:
-                    flux = u
+            @dolfin_dg.primal.first_order_flux(lambda x: x)
+            def F_2(u, flux):
                 return flux
 
-            def F_1(u, flux=None):
-                if flux is None:
-                    flux = ufl.grad(F_2(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.grad(F_2(x)))
+            def F_1(u, flux):
                 return flux
 
-            def F_0(u, flux=None):
-                if flux is None:
-                    flux = ufl.div(F_1(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_1(x)))
+            def F_0(u, flux):
                 return -flux
 
             f = F_0(u_soln)
@@ -82,20 +78,16 @@ for problem_id in [1, 2, 3, 4, 5]:
             u_soln = ufl.as_vector(
                 [ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1]) + 1]*2)
 
-            # Convective Operator
-            def F_2(u, flux=None):
-                if flux is None:
-                    flux = u
+            @dolfin_dg.primal.first_order_flux(lambda x: x)
+            def F_2(u, flux):
                 return flux
 
-            def F_1(u, flux=None):
-                if flux is None:
-                    flux = ufl.grad(F_2(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.grad(F_2(x)))
+            def F_1(u, flux):
                 return flux
 
-            def F_0(u, flux=None):
-                if flux is None:
-                    flux = ufl.div(F_1(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_1(x)))
+            def F_0(u, flux):
                 return -flux
 
             f = F_0(u_soln)
@@ -120,20 +112,16 @@ for problem_id in [1, 2, 3, 4, 5]:
             u_soln = ufl.as_vector(
                 [ufl.sin(k*x[1]), ufl.sin(k*x[0])])
 
-            # Convective Operator
-            def F_2(u, flux=None):
-                if flux is None:
-                    flux = u
+            @dolfin_dg.primal.first_order_flux(lambda x: x)
+            def F_2(u, flux):
                 return flux
 
-            def F_1(u, flux=None):
-                if flux is None:
-                    flux = ufl.curl(F_2(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.curl(F_2(x)))
+            def F_1(u, flux):
                 return flux
 
-            def F_0(u, flux=None):
-                if flux is None:
-                    flux = ufl.curl(F_1(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.curl(F_1(x)))
+            def F_0(u, flux):
                 return flux
 
             f = F_0(u_soln)
@@ -156,29 +144,24 @@ for problem_id in [1, 2, 3, 4, 5]:
 
             u_soln = ufl.sin(ufl.pi*x[0])**2 * ufl.sin(ufl.pi*x[1])**2
 
-            def F_4(u, flux=None):
-                if flux is None:
-                    flux = u
+            @dolfin_dg.primal.first_order_flux(lambda x: x)
+            def F_4(u, flux):
                 return flux
 
-            def F_3(u, flux=None):
-                if flux is None:
-                    flux = ufl.grad(F_4(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.grad(F_4(x)))
+            def F_3(u, flux):
                 return flux
 
-            def F_2(u, flux=None):
-                if flux is None:
-                    flux = ufl.div(F_3(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_3(x)))
+            def F_2(u, flux):
                 return flux
 
-            def F_1(u, flux=None):
-                if flux is None:
-                    flux = ufl.grad(F_2(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.grad(F_2(x)))
+            def F_1(u, flux):
                 return flux
 
-            def F_0(u, flux=None):
-                if flux is None:
-                    flux = ufl.div(F_1(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_1(x)))
+            def F_0(u, flux):
                 return flux
 
             f = F_0(u_soln)
@@ -206,29 +189,24 @@ for problem_id in [1, 2, 3, 4, 5]:
             u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
             mu = dolfinx.fem.Constant(mesh, 1.0)
 
-            def F_4(u, flux=None):
-                if flux is None:
-                    flux = u
+            @dolfin_dg.primal.first_order_flux(lambda x: x)
+            def F_4(u, flux):
                 return flux
 
-            def F_3(u, flux=None):
-                if flux is None:
-                    flux = ufl.curl(F_4(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.curl(F_4(x)))
+            def F_3(u, flux):
                 return flux
 
-            def F_2(u, flux=None):
-                if flux is None:
-                    flux = ufl.grad(F_3(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.grad(F_3(x)))
+            def F_2(u, flux):
                 return mu * (flux + flux.T)
 
-            def F_1(u, flux=None):
-                if flux is None:
-                    flux = ufl.div(F_2(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_2(x)))
+            def F_1(u, flux):
                 return flux
 
-            def F_0(u, flux=None):
-                if flux is None:
-                    flux = ufl.curl(F_1(u))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.curl(F_1(x)))
+            def F_0(u, flux):
                 return -flux
 
             f = F_0(u_soln)

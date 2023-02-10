@@ -30,6 +30,16 @@ class IBP:
         # print(f"Shape v = {v.ufl_shape}")
 
 
+def first_order_flux(flux_func):
+    def flux_wrapper(func):
+        def flux_guard(u, flux=None):
+            if flux is None:
+                flux = flux_func(u)
+            return func(u, flux)
+        return flux_guard
+    return flux_wrapper
+
+
 class FirstOrderSystem:
 
     def __init__(self, F_vec, L_vec, u, v):
