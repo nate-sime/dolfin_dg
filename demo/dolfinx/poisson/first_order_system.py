@@ -62,186 +62,6 @@ for problem_id in [4]:
                 return -flux
 
             f = F_0(u_soln)
-            G1 = homogenize(F_0, u, ufl.div(F_1(u)))
-            G2 = homogenize(F_1, u, ufl.grad(u))
-
-            # Domain
-            F = - ufl.inner(F_1(u), ufl.grad(G_T_mult(G1, v))) * ufl.dx - ufl.inner(f, v) * ufl.dx
-
-            # Interior
-            # h = ufl.CellVolume(mesh) / ufl.FacetArea(mesh)
-            h = ufl.CellDiameter(mesh)
-            alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
-
-            divibp = DivIBP(F_1, u, v, G1)
-
-            F += divibp.interior_residual1(alpha("+") * ufl.avg(G2), u)
-            F += divibp.exterior_residual1(alpha * ufl.replace(G2, {u: u_soln}), u, u_soln, u_soln)
-
-            # F1(u) = G1 grad(F2(u))
-            gradibp = GradIBP(F_2, u, ufl.grad(G_T_mult(G1, v)), G2)
-            F -= gradibp.interior_residual2()
-            F -= gradibp.exterior_residual2(u_soln)
-        elif problem_id == 2:
-            # -- Scalar Poisson
-            V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
-            v = ufl.TestFunction(V)
-
-            u = dolfinx.fem.Function(V, name="u")
-            u.interpolate(lambda x: x[0] + 1)
-
-            u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1]) + 1
-
-            # Convective Operator
-            def F_2(u, flux=None):
-                if flux is None:
-                    flux = u
-                return flux
-
-            def F_1(u, flux=None):
-                if flux is None:
-                    flux = ufl.grad(F_2(u))
-                return flux
-
-            def F_0(u, flux=None):
-                if flux is None:
-                    flux = ufl.div(F_1(u))
-                return -flux
-
-            f = F_0(u_soln)
-            G1 = homogenize(F_0, u, ufl.div(F_1(u)))
-            G2 = homogenize(F_1, u, ufl.grad(u))
-
-            # Domain
-            F = - ufl.inner(F_1(u), ufl.grad(G_T_mult(G1, v))) * ufl.dx - ufl.inner(f, v) * ufl.dx
-
-            # Interior
-            # h = ufl.CellVolume(mesh) / ufl.FacetArea(mesh)
-            h = ufl.CellDiameter(mesh)
-            alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
-
-            v1 = v
-            divibp = DivIBP(F_1, u, v1, G1)
-
-            v2 = divibp.green_transpose(G_T_mult(G1, v1))
-            gradibp = GradIBP(F_2, u, v2, G2)
-
-            F_vec = [divibp, gradibp]
-            # fos = dolfin_dg.primal.FirstOrderSystem(F_vec)
-            # v3 = gradibp.greens_transpose(G_T_mult(gradibp.G, v2))
-
-            f1 = divibp.interior_residual1(alpha("+") * ufl.avg(G2), u) + \
-                 divibp.exterior_residual1(alpha * ufl.replace(G2, {u: u_soln}), u, u_soln, u_soln)
-            f2 = gradibp.exterior_residual2(u_soln) + gradibp.interior_residual2()
-
-            n_ibps = [1, 2]
-            divgradcurls = [divibp, gradibp]
-
-            m_sign = 1
-            F_vec = [f1, f2]
-
-            F_sub = 0
-            for j in range(len(F_vec))[::-1]:
-                if j < len(F_vec) - 1:
-                    if n_ibps[j] == 1 and isinstance(divgradcurls[j], (DivIBP, GradIBP)):
-                        F_sub = -1 * F_sub
-                F_sub += F_vec[j]
-            F += F_sub
-        elif problem_id == 3:
-            # -- Scalar Poisson
-            V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
-            v = ufl.TestFunction(V)
-
-            u = dolfinx.fem.Function(V, name="u")
-            u.interpolate(lambda x: x[0] + 1)
-
-            u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1]) + 1
-
-            # Convective Operator
-            def F_2(u, flux=None):
-                if flux is None:
-                    flux = u
-                return flux
-
-            def F_1(u, flux=None):
-                if flux is None:
-                    flux = ufl.grad(F_2(u))
-                return flux
-
-            def F_0(u, flux=None):
-                if flux is None:
-                    flux = ufl.div(F_1(u))
-                return -flux
-
-            f = F_0(u_soln)
-
-            F_vec = [F_0, F_1, F_2]
-            L_vec = [ufl.div, ufl.grad]
-            G_vec = [homogenize(F_vec[i], u, L_vec[i](F_vec[i+1](u)))
-                     for i in range(len(F_vec) - 1)]
-            v_vec = [v, *(
-                dolfin_dg.primal.green_transpose(L_vec[i])(G_T_mult(G_vec[i], v))
-                for i in range(len(F_vec) - 1))]
-            n_ibps = [1, 2]
-
-            h = ufl.CellDiameter(mesh)
-            alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
-
-            # Domain
-            F = - ufl.inner(F_1(u), v_vec[1]) * ufl.dx - ufl.inner(f, v) * ufl.dx
-
-            F_sub = 0
-            for j in range(len(F_vec) - 1)[::-1]:
-                if j < len(F_vec) - 2:
-                    if n_ibps[j] == 1 and L_vec[j] not in (ufl.div, ufl.grad):
-                        F_sub = -1 * F_sub
-
-                IBP = {ufl.div: DivIBP, ufl.grad: GradIBP, ufl.curl: CurlIBP}
-                ibp = IBP[L_vec[j]](F_vec[j+1], u, v_vec[j], G_vec[j])
-                # print(j, v_vec[j], G_vec[j])
-                # quit()
-
-                # print(j, n_ibps[j])
-                if n_ibps[j] == 1:
-                    # print(j, u, L_vec[j], v_vec[j], G_vec[j])
-                    # print(j, ibp, ibp.v, ibp.G, ibp.F)
-                    interior = ibp.interior_residual1(alpha("+") * ufl.avg(G_vec[j+1]), u)
-                    exterior = ibp.exterior_residual1(alpha * ufl.replace(G_vec[j+1], {u: u_soln}), u, u_soln, u_soln)
-                elif n_ibps[j] == 2:
-                    # print(j, u, L_vec[j], v_vec[j], G_vec[j])
-                    # print(j, ibp, ibp.v, ibp.G, ibp.F)
-                    interior = ibp.interior_residual2()
-                    exterior = ibp.exterior_residual2(u_soln)
-                F_sub += interior + exterior
-
-            F += F_sub
-        elif problem_id == 4:
-            # -- Scalar Poisson
-            V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
-            v = ufl.TestFunction(V)
-
-            u = dolfinx.fem.Function(V, name="u")
-            u.interpolate(lambda x: x[0] + 1)
-
-            u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1]) + 1
-
-            # Convective Operator
-            def F_2(u, flux=None):
-                if flux is None:
-                    flux = u
-                return flux
-
-            def F_1(u, flux=None):
-                if flux is None:
-                    flux = ufl.grad(F_2(u))
-                return flux
-
-            def F_0(u, flux=None):
-                if flux is None:
-                    flux = ufl.div(F_1(u))
-                return -flux
-
-            f = F_0(u_soln)
 
             F_vec = [F_0, F_1, F_2]
             L_vec = [ufl.div, ufl.grad]
@@ -259,7 +79,163 @@ for problem_id in [4]:
             F = - ufl.inner(F_1(u), v_vec[1]) * ufl.dx - ufl.inner(f, v) * ufl.dx
 
             fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
-            F += fos.interior(alpha, n_ibps, dolfin_dg.primal.facet_sipg, u_soln)
+            F += fos.interior([alpha], n_ibps, dolfin_dg.primal.facet_sipg, u_soln)
+        elif problem_id == 2:
+            # -- Vector Poisson
+            V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
+            v = ufl.TestFunction(V)
+
+            u = dolfinx.fem.Function(V, name="u")
+            u.interpolate(lambda x: np.stack((x[0] + 1, x[0] + 1)))
+
+            u_soln = ufl.as_vector(
+                [ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1]) + 1]*2)
+
+            # Convective Operator
+            def F_2(u, flux=None):
+                if flux is None:
+                    flux = u
+                return flux
+
+            def F_1(u, flux=None):
+                if flux is None:
+                    flux = ufl.grad(F_2(u))
+                return flux
+
+            def F_0(u, flux=None):
+                if flux is None:
+                    flux = ufl.div(F_1(u))
+                return -flux
+
+            f = F_0(u_soln)
+
+            F_vec = [F_0, F_1, F_2]
+            L_vec = [ufl.div, ufl.grad]
+            G_vec = [homogenize(F_vec[i], u, L_vec[i](F_vec[i+1](u)))
+                     for i in range(len(F_vec) - 1)]
+            v_vec = [v]
+            for i in range(len(F_vec)-2):
+                vj = dolfin_dg.primal.green_transpose(L_vec[i])(G_T_mult(G_vec[i], v_vec[i]))
+                v_vec.append(vj)
+            n_ibps = [1, 2]
+
+            h = ufl.CellDiameter(mesh)
+            alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
+
+            # Domain
+            F = - ufl.inner(F_1(u), v_vec[1]) * ufl.dx - ufl.inner(f, v) * ufl.dx
+
+            fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
+            F += fos.interior([alpha], n_ibps, dolfin_dg.primal.facet_sipg, u_soln)
+        elif problem_id == 3:
+            # -- Maxwell
+            V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
+            v = ufl.TestFunction(V)
+
+            u = dolfinx.fem.Function(V, name="u")
+            u.interpolate(lambda x: np.stack((x[0] + 1, x[0] + 1)))
+
+            k = dolfinx.fem.Constant(mesh, 1.0)
+            u_soln = ufl.as_vector(
+                [ufl.sin(k*x[1]), ufl.sin(k*x[0])])
+
+            # Convective Operator
+            def F_2(u, flux=None):
+                if flux is None:
+                    flux = u
+                return flux
+
+            def F_1(u, flux=None):
+                if flux is None:
+                    flux = ufl.curl(F_2(u))
+                return flux
+
+            def F_0(u, flux=None):
+                if flux is None:
+                    flux = ufl.curl(F_1(u))
+                return flux
+
+            f = F_0(u_soln)
+
+            F_vec = [F_0, F_1, F_2]
+            L_vec = [ufl.curl, ufl.curl]
+            G_vec = [homogenize(F_vec[i], u, L_vec[i](F_vec[i+1](u)))
+                     for i in range(len(F_vec) - 1)]
+            v_vec = [v]
+            for i in range(len(F_vec)-2):
+                vj = dolfin_dg.primal.green_transpose(L_vec[i])(G_T_mult(G_vec[i], v_vec[i]))
+                v_vec.append(vj)
+            n_ibps = [1, 2]
+
+            h = ufl.CellDiameter(mesh)
+            alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
+
+            # Domain
+            F = ufl.inner(F_1(u), v_vec[1]) * ufl.dx - k**2 * ufl.inner(u, v) * ufl.dx
+
+            fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
+            F += fos.interior([alpha], n_ibps, dolfin_dg.primal.facet_sipg, u_soln)
+        elif problem_id == 4:
+            # -- Biharmonic
+            V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+            v = ufl.TestFunction(V)
+
+            u = dolfinx.fem.Function(V, name="u")
+            # u.interpolate(lambda x: x[0] + 1)
+
+            # u_soln = (x[0]*x[1]*(1-x[0])*(1-x[1]))**2
+            u_soln = ufl.sin(ufl.pi*x[0])**2 * ufl.sin(ufl.pi*x[1])**2
+            # u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
+            # u_soln = ufl.exp(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])**2 + 1.0
+
+            def F_4(u, flux=None):
+                if flux is None:
+                    flux = u
+                return flux
+
+            def F_3(u, flux=None):
+                if flux is None:
+                    flux = ufl.grad(F_4(u))
+                return flux
+
+            def F_2(u, flux=None):
+                if flux is None:
+                    flux = ufl.div(F_3(u))
+                return flux
+
+            def F_1(u, flux=None):
+                if flux is None:
+                    flux = ufl.grad(F_2(u))
+                return flux
+
+            def F_0(u, flux=None):
+                if flux is None:
+                    flux = ufl.div(F_1(u))
+                return flux
+
+            f = F_0(u_soln)
+
+            F_vec = [F_0, F_1, F_2, F_3, F_4]
+            L_vec = [ufl.div, ufl.grad, ufl.div, ufl.grad]
+            G_vec = [homogenize(F_vec[i], u, L_vec[i](F_vec[i+1](u)))
+                     for i in range(len(F_vec) - 1)]
+            v_vec = [v]
+            for i in range(len(F_vec)-2):
+                vj = dolfin_dg.primal.green_transpose(L_vec[i])(G_T_mult(G_vec[i], v_vec[i]))
+                v_vec.append(vj)
+            n_ibps = [1, 1, 2, 2]
+
+            h = ufl.CellDiameter(mesh)
+            alpha = dolfinx.fem.Constant(mesh, 10.0 * p**(4 if p <= 2 else 6)) / h**3
+            beta = dolfinx.fem.Constant(mesh, 10.0 * p**2) / h
+
+            # Domain
+            F = ufl.inner(F_2(u), v_vec[2]) * ufl.dx \
+                - ufl.inner(f, v) * ufl.dx
+
+            fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
+            F += fos.interior([alpha, beta, None, None],
+                              n_ibps, dolfin_dg.primal.facet_sipg, u_soln)
 
         du = ufl.TrialFunction(V)
         J = ufl.derivative(F, u, du)
