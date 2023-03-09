@@ -30,6 +30,14 @@ class IBP:
         # print(f"Shape v = {v.ufl_shape}")
 
 
+def first_order_flux2(F, flux):
+    def flux_wrapper(u, sigma=None):
+        if sigma is None:
+            sigma = flux(u)
+        return F(u, sigma)
+    return flux_wrapper
+
+
 def first_order_flux(flux_func):
     def flux_wrapper(func):
         def flux_guard(u, flux=None):
@@ -110,13 +118,19 @@ class FirstOrderSystem:
         F_sub = 0
         for j in range(len(F_vec) - 1)[::-1]:
             ibp = ibps[j]
-            L_op = L_ops[-(j+1)]
 
             if L_vec[j] in (ufl.div, ufl.grad):
                 F_sub = -1 * F_sub
                 self.sign_tracker[j+1:] *= -1
 
             if self.n_ibps[j] == 1:
+                def L_op(x):
+                    # Construct L_{i-2}(L_{i-1}(L_{i}(x)))...
+                    L_op = x
+                    for L_op_sub in L_ops[-(j+1):][::-1]:
+                        L_op = L_op_sub(L_op)
+                    return L_op
+
                 if interior:
                     F = ibp.interior_residual1(alpha[j]("+") * ufl.avg(G_vec[j + 1]), L_op(u), dS=dI)
                 else:
