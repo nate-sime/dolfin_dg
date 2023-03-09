@@ -28,7 +28,8 @@ class DivIBP(dolfin_dg.primal.IBP):
         G = self.G
         G_gamma = ufl.replace(G, {u: uD})
         G_gamma_T_v = G_T_mult(G_gamma, v)
-        R = ufl.inner(F(uD), ufl.outer(G_gamma_T_v, n)) * ds \
+        # TODO: Cleanup
+        R = ufl.inner(F(u), ufl.outer(G_gamma_T_v, n)) * ds \
             - ufl.inner(ufl.outer(G_gamma_T_v, n), G_mult(alpha, ufl.outer(u_pen - u_penD, n))) * ds
         return R
 
@@ -77,15 +78,16 @@ class GradIBP(dolfin_dg.primal.IBP):
         F = self.F
         G = self.G
         G_T_v = G_T_mult(G, v)
-        # G_gamma = ufl.replace(G, {u: uD})
-        # G_gamma_T_v = G_T_mult(G_gamma, v)
+        G_gamma = ufl.replace(G, {u: uD})
+        G_gamma_T_v = G_T_mult(G_gamma, v)
 
         # print(f"Grad Shape G_T_v, ufl.outer(F(uD), n)): {G_T_v.ufl_shape, ufl.outer(F(uD), n).ufl_shape}")
         # print(f"Grad Shape G_T_v, (alpha * (u_pen - u_penD)): {G_T_v.ufl_shape, (alpha * (u_pen - u_penD)).ufl_shape}")
         # quit()
         # TODO: Not sure about this (u - uD) with an n...
-        R = ufl.inner(G_T_v, ufl.outer(F(uD), n)) * ds \
-            - ufl.inner(G_T_v, alpha * (u_pen - u_penD)) * ds
+        # TODO: cleanup
+        R = ufl.inner(G_gamma_T_v, ufl.outer(F(u), n)) * ds \
+            - ufl.inner(G_gamma_T_v, alpha * (u_pen - u_penD)) * ds
         return R
 
     def interior_residual2(self, dS=ufl.dS):
@@ -134,9 +136,12 @@ class CurlIBP(dolfin_dg.primal.IBP):
         F = self.F
         G = self.G
         G_T_v = G_T_mult(G, v)
+        G_gamma = ufl.replace(G, {u: uD})
+        G_gamma_T_v = G_T_mult(G_gamma, v)
 
-        R = - ufl.inner(F(uD), dg_cross(n, G_T_v)) * ds \
-            + ufl.inner(G_mult(alpha, dg_cross(n, u_pen - u_penD)), dg_cross(n, G_T_v)) * ds
+        # TODO: cleanup this
+        R = - ufl.inner(F(u), dg_cross(n, G_gamma_T_v)) * ds \
+            + ufl.inner(G_mult(alpha, dg_cross(n, u_pen - u_penD)), dg_cross(n, G_gamma_T_v)) * ds
         #Checked
         return R
 

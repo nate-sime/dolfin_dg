@@ -27,7 +27,7 @@ class DivIBP(dolfin_dg.primal.IBP):
         G_gamma = ufl.replace(G, {u: uD})
         G_gamma_T_v = G_T_mult(G_gamma, v)
 
-        F_hat = F(uD) - G_mult(alpha, ufl.outer(u_pen - u_penD, n))
+        F_hat = F(u) - G_mult(alpha, ufl.outer(u_pen - u_penD, n))
         R = ufl.inner(F_hat, ufl.outer(G_gamma_T_v, n)) * ds
         return R
 
@@ -74,8 +74,10 @@ class GradIBP(dolfin_dg.primal.IBP):
         G = self.G
         G_T_v = G_T_mult(G, v)
 
-        # TODO: Not sure about this (u - uD) with an n...
-        F_hat = ufl.outer(F(uD), n) - alpha * (u_pen - u_penD)
+        # FIXME: Workaround for UFL by reformulating:
+        # size(F) = m, size(G_T_v) = m x d, size(n) = d
+        # <F, G_T_v . n> = F{i} G_T_v{ij} n{j} = <F otimes n, G_T_V>
+        F_hat = ufl.outer(F(u), n) - alpha * (u_pen - u_penD)
         R = ufl.inner(G_T_v, F_hat) * ds
         return R
 
@@ -130,7 +132,7 @@ class CurlIBP(dolfin_dg.primal.IBP):
         G = self.G
         G_T_v = G_T_mult(G, v)
 
-        F_hat = F(uD) - G_mult(alpha, dg_cross(n, u_pen - u_penD))
+        F_hat = F(u) - G_mult(alpha, dg_cross(n, u_pen - u_penD))
         R = - ufl.inner(F_hat, dg_cross(n, G_T_v)) * ds
         return R
 
