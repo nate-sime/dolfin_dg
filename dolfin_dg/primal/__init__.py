@@ -1,4 +1,5 @@
 import typing
+import math
 
 import numpy as np
 import ufl
@@ -60,7 +61,7 @@ class FirstOrderSystem:
             for i in range(len(F_vec) - 1)]
 
         v_vec = [v]
-        for i in range(len(F_vec) - 2):
+        for i in range(len(F_vec) - 1):
             vj = dolfin_dg.primal.green_transpose(L_vec[i])(
                 G_T_mult(self.G_vec[i], v_vec[i]))
             v_vec.append(vj)
@@ -70,7 +71,12 @@ class FirstOrderSystem:
 
         self.sign_tracker = np.ones(len(F_vec)-1, dtype=np.int8)
         self.n_ibps = np.ones(len(F_vec) - 1, dtype=np.int8)
-        self.n_ibps[self.n_ibps.shape[0]//2:] = 2
+        self.ibp_2ce_point = math.ceil(self.n_ibps.shape[0]/2.0)
+        self.n_ibps[self.ibp_2ce_point:] = 2
+
+    @property
+    def G(self):
+        return self.G_vec
 
     def domain(self):
         F_vec = self.F_vec
@@ -84,7 +90,7 @@ class FirstOrderSystem:
             if L_vec[j] in (ufl.div, ufl.grad) and self.n_ibps[j] == 1:
                 sign *= -1
 
-        mid_idx = len(F_vec) // 2
+        mid_idx = self.ibp_2ce_point
         F = sign * ufl.inner(F_vec[mid_idx](u), v_vec[mid_idx]) * ufl.dx
         return F
 
@@ -132,10 +138,10 @@ class FirstOrderSystem:
                     return L_op
 
                 if interior:
-                    F = ibp.interior_residual1(alpha[j]("+") * ufl.avg(G_vec[j + 1]), L_op(u), dS=dI)
+                    F = ibp.interior_residual1(alpha[j], L_op(u), dS=dI)
                 else:
                     F = ibp.exterior_residual1(
-                        alpha[j] * ufl.replace(G_vec[j + 1], {u: u_soln}), L_op(u), L_op(u_soln), u_soln, ds=dI)
+                        alpha[j], L_op(u), L_op(u_soln), u_soln, ds=dI)
             elif self.n_ibps[j] == 2:
                 if interior:
                     F = ibp.interior_residual2(dS=dI)
