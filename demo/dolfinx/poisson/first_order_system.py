@@ -21,7 +21,7 @@ errorh1 = np.zeros(len(ele_ns))
 hsizes = np.zeros(len(ele_ns))
 p = 3
 
-for problem_id in [1, 2, 3, 4, 5]:
+for problem_id in [1, 2, 3, 4, 5, 6]:
     run_count = 0
     print(f"Running problem ID: {problem_id}")
     for ele_n in ele_ns:
@@ -65,8 +65,9 @@ for problem_id in [1, 2, 3, 4, 5]:
             fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
             F = - ufl.inner(f, v) * ufl.dx
             F += fos.domain()
-            F += fos.interior([alpha])
-            F += fos.exterior([alpha], u_soln)
+            F += fos.interior([alpha("+") * ufl.avg(fos.G[1])])
+            F += fos.exterior([alpha * ufl.replace(fos.G[1], {u: u_soln})],
+                              u_soln)
         elif problem_id == 2:
             # -- Vector Poisson
             V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
@@ -98,8 +99,9 @@ for problem_id in [1, 2, 3, 4, 5]:
             fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
             F = -ufl.inner(f, v) * ufl.dx
             F += fos.domain()
-            F += fos.interior([alpha])
-            F += fos.exterior([alpha], u_soln)
+            F += fos.interior([alpha("+") * ufl.avg(fos.G[1])])
+            F += fos.exterior([alpha * ufl.replace(fos.G[1], {u: u_soln})],
+                              u_soln)
         elif problem_id == 3:
             # -- Maxwell
             V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
@@ -132,8 +134,9 @@ for problem_id in [1, 2, 3, 4, 5]:
             fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
             F = - k**2 * ufl.inner(u, v) * ufl.dx
             F += fos.domain()
-            F += fos.interior([alpha])
-            F += fos.exterior([alpha], u_soln)
+            F += fos.interior([alpha("+") * ufl.avg(fos.G[1])])
+            F += fos.exterior([alpha * ufl.replace(fos.G[1], {u: u_soln})],
+                              u_soln)
         elif problem_id == 4:
             # -- Biharmonic
             V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
@@ -176,8 +179,11 @@ for problem_id in [1, 2, 3, 4, 5]:
             fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
             F = - ufl.inner(f, v) * ufl.dx
             F += fos.domain()
-            F += fos.interior([alpha, beta])
-            F += fos.exterior([alpha, beta], u_soln)
+            F += fos.interior([alpha("+") * ufl.avg(fos.G[1]),
+                               beta("+") * ufl.avg(fos.G[2])])
+            F += fos.exterior([alpha * ufl.replace(fos.G[1], {u: u_soln}),
+                               beta * ufl.replace(fos.G[2], {u: u_soln})],
+                              u_soln)
         elif problem_id == 5:
             # -- Biharmonic
             V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
@@ -221,8 +227,70 @@ for problem_id in [1, 2, 3, 4, 5]:
             fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
             F = - ufl.inner(f, v) * ufl.dx
             F += fos.domain()
-            F += fos.interior([alpha, beta])
-            F += fos.exterior([alpha, beta], u_soln)
+            F += fos.interior([alpha("+") * ufl.avg(fos.G[1]),
+                               beta("+") * ufl.avg(fos.G[2])])
+            F += fos.exterior([alpha * ufl.replace(fos.G[1], {u: u_soln}),
+                               beta * ufl.replace(fos.G[2], {u: u_soln})],
+                              u_soln)
+        elif problem_id == 6:
+            # -- Triharmonic
+            V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+            v = ufl.TestFunction(V)
+
+            u = dolfinx.fem.Function(V, name="u")
+            # u.interpolate(lambda x: x[0] + 1)
+
+            u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
+            mu = dolfinx.fem.Constant(mesh, 1.0)
+
+            @dolfin_dg.primal.first_order_flux(lambda x: x)
+            def F_6(u, flux):
+                return flux
+
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.grad(F_6(x)))
+            def F_5(u, flux):
+                return flux
+
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_5(x)))
+            def F_4(u, flux):
+                return flux
+
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.grad(F_4(x)))
+            def F_3(u, flux):
+                return flux
+
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_3(x)))
+            def F_2(u, flux):
+                return flux
+
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.grad(F_2(x)))
+            def F_1(u, flux):
+                return flux
+
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_1(x)))
+            def F_0(u, flux):
+                return flux
+
+            f = F_0(u_soln)
+
+            F_vec = [F_0, F_1, F_2, F_3, F_4, F_5, F_6]
+            L_vec = [ufl.div, ufl.grad, ufl.div, ufl.grad, ufl.div, ufl.grad]
+
+            h = ufl.CellDiameter(mesh)
+            alpha = dolfinx.fem.Constant(mesh, 10.0 * p**(8 if p <= 2 else 12)) / h**6
+            beta = dolfinx.fem.Constant(mesh, 10.0 * p**(4 if p <= 2 else 6)) / h**3
+            gamma = dolfinx.fem.Constant(mesh, 10.0 * p**2) / h
+
+            fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
+            F = - ufl.inner(f, v) * ufl.dx
+            F += fos.domain()
+            F += fos.interior([alpha("+") * ufl.avg(fos.G[1]),
+                               beta("+") * ufl.avg(fos.G[2]),
+                               gamma("+") * ufl.avg(fos.G[3])])
+            F += fos.exterior([alpha * ufl.replace(fos.G[1], {u: u_soln}),
+                               beta * ufl.replace(fos.G[2], {u: u_soln}),
+                               gamma * ufl.replace(fos.G[3], {u: u_soln})],
+                              u_soln)
 
         du = ufl.TrialFunction(V)
         J = ufl.derivative(F, u, du)
