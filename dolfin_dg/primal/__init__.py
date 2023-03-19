@@ -59,6 +59,9 @@ class FirstOrderSystem:
         self.G_vec = [
             dolfin_dg.math.homogenize(F_vec[i], u, L_vec[i](F_vec[i + 1](u)))
             for i in range(len(F_vec) - 1)]
+        self.G_vec.append(
+            dolfin_dg.math.homogenize(F_vec[-1], u, u)
+        )
 
         v_vec = [v]
         for i in range(len(F_vec) - 1):
