@@ -14,16 +14,16 @@ def pprint(*msg, verbose=False):
         print(msg)
 
 
-ele_ns = [8, 16, 32]
+ele_ns = [8, 16, 32, 64]
 # ele_ns = [2, 4]
 errorl2 = np.zeros(len(ele_ns))
 errorh1 = np.zeros(len(ele_ns))
 hsizes = np.zeros(len(ele_ns))
-p = 3
+p = 2
 
-for problem_id in [1, 2, 3, 4, 5, 6]:
+for problem_id in [1, 2, 3, 4, 5, 6, 7]:
     run_count = 0
-    print(f"Running problem ID: {problem_id}")
+    print(f"Running problem ID: {problem_id}, p={p}")
     for ele_n in ele_ns:
         mesh = dolfinx.mesh.create_unit_square(
             MPI.COMM_WORLD, ele_n, ele_n,
@@ -291,6 +291,83 @@ for problem_id in [1, 2, 3, 4, 5, 6]:
                                beta * ufl.replace(fos.G[2], {u: u_soln}),
                                gamma * ufl.replace(fos.G[3], {u: u_soln})],
                               u_soln)
+        elif problem_id == 7:
+            # -- Advection diffusion
+            V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+            v = ufl.TestFunction(V)
+
+            u = dolfinx.fem.Function(V, name="u")
+            u_soln = ufl.sin(ufl.pi*x[0])**2 * ufl.sin(ufl.pi*x[1])**2 + 1
+
+            F, f = 0, 0
+            # -- Diffusion
+            @dolfin_dg.primal.first_order_flux(lambda x: x)
+            def F_2(u, flux):
+                return flux
+
+            Ax = dolfinx.fem.Constant(mesh, ((1.0, 0.0),
+                                             (0.0, 1.0)))
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.grad(F_2(x)))
+            def F_1(u, flux):
+                return Ax * flux
+
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_1(x)))
+            def F_0(u, flux):
+                return -flux
+
+            f += F_0(u_soln)
+
+            F_vec = [F_0, F_1, F_2]
+            L_vec = [ufl.div, ufl.grad]
+
+            fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
+            F += fos.domain()
+            alpha = dolfinx.fem.Constant(mesh, 20.0) * p ** 2 / h
+            F += fos.interior([alpha("+") * ufl.avg(fos.G[1])])
+            F += fos.exterior([alpha * ufl.replace(fos.G[1], {u: u_soln})],
+                              u_soln)
+
+            # -- Advection
+            b = dolfinx.fem.Constant(mesh, (1.0, 1.0))
+            @dolfin_dg.primal.first_order_flux(lambda x: x)
+            def F_1(u, flux):
+                return b * flux
+
+            @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_1(x)))
+            def F_0(u, flux):
+                return flux
+
+            f += F_0(u_soln)
+
+            F_vec = [F_0, F_1]
+            L_vec = [ufl.div]
+
+            fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
+            F += fos.domain()
+
+            eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_1(u), u), n)("+"))
+            eigen_vals_max_m = abs(ufl.dot(ufl.diff(F_1(u), u), n)("-"))
+            alpha = dolfin_dg.math.max_value(eigen_vals_max_p,
+                                             eigen_vals_max_m) / 2.0
+            F += fos.interior([-alpha])
+
+            eigen_vals_max_p = abs(ufl.dot(ufl.diff(F_1(u), u), n))
+            u_soln_var = ufl.variable(u_soln)
+            eigen_vals_max_m = abs(
+                ufl.dot(ufl.diff(F_1(u_soln_var), u_soln_var), n))
+            alpha = dolfin_dg.math.max_value(eigen_vals_max_p,
+                                             eigen_vals_max_m) / 2.0
+            F += fos.exterior([-alpha], u_soln)
+
+            # -- Reaction
+            c = dolfinx.fem.Constant(mesh, 1.0)
+            def reaction(u):
+                return c * u
+
+            F += ufl.inner(reaction(u), v) * ufl.dx
+            f += reaction(u_soln)
+
+            F -= ufl.inner(f, v) * ufl.dx
 
         du = ufl.TrialFunction(V)
         J = ufl.derivative(F, u, du)
