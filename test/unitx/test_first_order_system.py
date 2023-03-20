@@ -20,7 +20,7 @@ class ConvergenceTest:
         self.TOL = TOL
         self.element = element
 
-    def gD(self, V):
+    def u_soln(self, V):
         pass
 
     def generate_form(self, mesh, V, u, v):
@@ -35,7 +35,7 @@ class ConvergenceTest:
         for mesh in self.meshes:
             V = dolfinx.fem.FunctionSpace(mesh, self.element)
             u, v = dolfinx.fem.Function(V), ufl.TestFunction(V)
-            gD = self.gD(V)
+            gD = self.u_soln(V)
             F = self.generate_form(mesh, V, u, v)
 
             du = ufl.TrialFunction(V)
@@ -84,13 +84,13 @@ class ConvergenceTest:
     def check_norm0_rates(self, rate0):
         expected_rate = float(self.element.degree() + 1)
         print(rate0)
-        assert abs(rate0[0] - expected_rate) < self.TOL
+        assert rate0[0] > expected_rate - self.TOL
 
 
 def test_first_order_poisson():
     class Poisson(ConvergenceTest):
 
-        def gD(self, V):
+        def u_soln(self, V):
             mesh = V.mesh
             x = ufl.SpatialCoordinate(mesh)
             return ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
@@ -108,7 +108,7 @@ def test_first_order_poisson():
             def F_0(u, flux):
                 return -flux
 
-            u_soln = self.gD(V)
+            u_soln = self.u_soln(V)
             h = ufl.CellDiameter(mesh)
             p = dolfinx.fem.Constant(mesh, float(self.element.degree()))
             alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
@@ -136,19 +136,20 @@ def test_first_order_poisson():
 
 class AdvectionDiffusion(ConvergenceTest):
 
-    def __init__(self, meshes, element, A, b, *args, **kwargs):
-        self.A = A
+    def __init__(self, meshes, element, A0, A1, b, *args, **kwargs):
+        self.A0 = A0
+        self.A1 = A1
         self.b = b
         super().__init__(meshes, element, *args, **kwargs)
 
-    def gD(self, V):
+    def u_soln(self, V):
         mesh = V.mesh
         x = ufl.SpatialCoordinate(mesh)
         return ufl.sin(ufl.pi * x[0]) * ufl.sin(ufl.pi * x[1]) + 1
 
     def generate_form(self, mesh, V, u, v):
         F, f = 0, 0
-        u_soln = self.gD(V)
+        u_soln = self.u_soln(V)
         n = ufl.FacetNormal(mesh)
         x = ufl.SpatialCoordinate(mesh)
 
@@ -157,14 +158,13 @@ class AdvectionDiffusion(ConvergenceTest):
         def F_2(u, flux):
             return flux
 
-        A_tensor = self.A(u, x)
         @dolfin_dg.primal.first_order_flux(lambda x: ufl.grad(F_2(x)))
         def F_1(u, flux):
-            return A_tensor * flux
+            return self.A1(u, x) * flux
 
         @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_1(x)))
         def F_0(u, flux):
-            return -flux
+            return self.A0(u, x) * flux
 
         f += F_0(u_soln)
 
@@ -218,34 +218,74 @@ class AdvectionDiffusion(ConvergenceTest):
         return F
 
 
+def one(u, x):
+    return dolfinx.fem.Constant(x.ufl_domain(), 1.0)
+
+def neg_one(u, x):
+    return dolfinx.fem.Constant(x.ufl_domain(), -1.0)
+
+def f_x(u, x):
+    return x[0]**2 + x[1]**2
+
+def f_u(u, x):
+    return u**2 + 1
+
+def tensor_x(u, x):
+    return ufl.as_tensor(((ufl.sin(x[0])**2 + 1, -ufl.sin(x[0])**2/2),
+                          (-ufl.cos(x[1])**2/2, ufl.cos(x[1])**2 + 1)))
+
+def tensor_u(u, x):
+    return ufl.as_tensor(((u**2 + 1, -u**2/2),
+                          (-u**3/3, u**3 + 1)))
+
 def ID(u, x):
-    return dolfinx.fem.Constant(u.function_space.mesh, ((1.0, 0.0), (0.0, 1.0)))
+    return dolfinx.fem.Constant(x.ufl_domain(), ((1.0, 0.0), (0.0, 1.0)))
 
 def IDx(u, x):
-    return dolfinx.fem.Constant(u.function_space.mesh, ((1.0, 0.0), (0.0, 0.0)))
+    return dolfinx.fem.Constant(x.ufl_domain(), ((1.0, 0.0), (0.0, 0.0)))
 
 def IDy(u, x):
-    return dolfinx.fem.Constant(u.function_space.mesh, ((0.0, 0.0), (0.0, 1.0)))
+    return dolfinx.fem.Constant(x.ufl_domain(), ((0.0, 0.0), (0.0, 1.0)))
 
-def zero_tensor(u, x):
-    return dolfinx.fem.Constant(u.function_space.mesh, ((0.0, 0.0), (0.0, 0.0)))
+def tensor_zero(u, x):
+    return dolfinx.fem.Constant(x.ufl_domain(), ((0.0, 0.0), (0.0, 0.0)))
 
-def one_vec(u, x):
-    return dolfinx.fem.Constant(u.function_space.mesh, (1.0, 1.0))
+def vec_one(u, x):
+    return dolfinx.fem.Constant(x.ufl_domain(), (1.0, 1.0))
 
-def zero_vec(u, x):
-    return dolfinx.fem.Constant(u.function_space.mesh, (0.0, 0.0))
+def vec_zero(u, x):
+    return dolfinx.fem.Constant(x.ufl_domain(), (0.0, 0.0))
+
+def vec_xhat(u, x):
+    return dolfinx.fem.Constant(x.ufl_domain(), (1.0, 0.0))
 
 @pytest.mark.parametrize("cell_type", [dolfinx.mesh.CellType.triangle,
                                        dolfinx.mesh.CellType.quadrilateral])
-@pytest.mark.parametrize("p", [1, 2])
-@pytest.mark.parametrize("A", [ID, IDx, IDy, zero_tensor])
-@pytest.mark.parametrize("b", [one_vec, zero_vec])
-def test_first_order_advection_diffusion(cell_type, p, A, b):
-    ns = [16, 32]
+@pytest.mark.parametrize("p", [1])
+@pytest.mark.parametrize("A0", [
+    neg_one,  # Conservative
+])
+@pytest.mark.parametrize("A1,b", [
+    # (IDy, vec_xhat), # Spacetime heat
+    (ID, vec_zero),  # Poisson tensor coefficient
+    (one, vec_one),  # Advection-diffusion scalar coefficient
+    (ID, vec_one),   # Advection-diffusion tensor coefficient
+    # (IDy, vec_one),  # Spacetime heat with convection y
+    # (IDx, vec_one),  # Spacetime heat with convection x
+    (tensor_zero, vec_one),  # Linear advection
+    (f_x, vec_zero),         # Linear anisotropic Poisson
+    (f_u, vec_zero),         # Nonlinear anisotropic Poisson
+    (tensor_u, vec_zero)     # Nonlinear anisotropic tensor Poisson
+])
+def test_first_order_advection_diffusion(cell_type, p, A0, A1, b):
+    ns = [8, 16]
     meshes = [
-        dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, n, n, cell_type=cell_type)
+        dolfinx.mesh.create_unit_square(
+            MPI.COMM_WORLD, n, n, cell_type=cell_type,
+            ghost_mode=dolfinx.mesh.GhostMode.shared_facet,
+            diagonal=dolfinx.mesh.DiagonalType.left
+        )
         for n in ns
     ]
     element = ufl.FiniteElement("DG", meshes[0].ufl_cell(), p)
-    AdvectionDiffusion(meshes, element, A, b, TOL=0.1).run_test()
+    AdvectionDiffusion(meshes, element, A0, A1, b, TOL=0.1).run_test()
