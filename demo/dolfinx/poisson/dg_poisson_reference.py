@@ -72,10 +72,10 @@ for ele_n in ele_ns:
     errorh1[run_count] = h1error_u
 
     h_measure = dolfinx.cpp.mesh.h(
-        mesh, 2, np.arange(mesh.topology.connectivity(2, 0).num_nodes,
-                           dtype=np.int32))
-    hmin = mesh.comm.allreduce(h_measure.min(), op=MPI.MIN)
-    hsizes[run_count] = hmin
+        mesh._cpp_object, 2, np.arange(mesh.topology.index_map(2).size_local,
+                                       dtype=np.int32))
+    hmax = mesh.comm.allreduce(h_measure.max(), op=MPI.MIN)
+    hsizes[run_count] = hmax
 
     run_count += 1
 
