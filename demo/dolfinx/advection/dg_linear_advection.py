@@ -68,8 +68,8 @@ for run_no, n_ele in enumerate(n_eles):
         op=MPI.SUM)
 
     h_measure = dolfinx.cpp.mesh.h(
-        mesh, 2, np.arange(mesh.topology.connectivity(2, 0).num_nodes,
-                           dtype=np.int32))
+        mesh._cpp_object, 2, np.arange(mesh.topology.index_map(2).size_local,
+                                       dtype=np.int32))
     hmin = mesh.comm.allreduce(h_measure.min(), op=MPI.MIN)
     hs[run_no] = hmin
     l2errors_u[run_no] = l2error_u
