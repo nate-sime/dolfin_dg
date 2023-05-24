@@ -45,7 +45,7 @@ for ele_n in ele_ns:
     vel_soln = ufl.as_vector((
         2*x[1]*(1.0 - x[0]*x[0]),
         -2*x[0]*(1.0 - x[1]*x[1])))
-    Vs = dolfinx.fem.FunctionSpace(mesh, ("DG", p + 1))
+    Vs = dolfinx.fem.FunctionSpace(mesh, ("CG", p + 1))
     dofs_counter[run_count] = mesh.comm.allreduce(Vs.dofmap.index_map.size_local, MPI.SUM)
 
     # Compute the approximation of the true solution of u
@@ -165,13 +165,13 @@ for ele_n in ele_ns:
         def F_1(u, flux=None):
             if flux is None:
                 flux = ufl.div(F_2(u))
-            return flux
+            return -flux
 
 
         def F_0(u, flux=None):
             if flux is None:
                 flux = ufl.curl(F_1(u))
-            return -flux
+            return flux
 
 
         # f = F_0(u_soln)
@@ -262,8 +262,8 @@ for ele_n in ele_ns:
     errorh1_u[run_count] = h1error_u
 
     h_measure = dolfinx.cpp.mesh.h(
-        mesh, 2, np.arange(mesh.topology.connectivity(2, 0).num_nodes,
-                           dtype=np.int32))
+        mesh._cpp_object, 2,
+        np.arange(mesh.topology.index_map(2).size_local, dtype=np.int32))
     hmin = mesh.comm.allreduce(h_measure.min(), op=MPI.MIN)
     hsizes[run_count] = hmin
 
