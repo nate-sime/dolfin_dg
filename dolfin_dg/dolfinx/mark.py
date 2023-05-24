@@ -14,8 +14,8 @@ class FixedFractionMarker(Marker):
         self.frac = frac
 
     def mark(self, ind):
-        assert(ind.dim == ind.mesh.topology.dim)
         assert(isinstance(ind, dolfinx.mesh.MeshTags))
+        assert(ind.dim == ind.topology.dim)  # Is this silly?
 
         # Sort the numpy array of cell function indicators
         idx = np.argsort(-ind.values)
@@ -31,17 +31,16 @@ class FixedFractionMarkerParallel(Marker):
     def __init__(self, frac=0.1):
         self.frac = frac
 
-    def mark(self, ind):
-        assert(ind.dim() == ind.mesh().topology().dim())
-        assert(isinstance(ind, dolfin.cpp.mesh.MeshFunctionDouble))
+    def mark(self, ind: dolfinx.mesh.MeshTags):
+        assert(ind.dim == ind.topology.dim)
 
-        # Communicate all of the indicator values to process 0
+        # Communicate all the indicator values to process 0
         # It is important to preserve their order
-        comm = ind.mesh().mpi_comm()
-        ind_array = comm.gather(ind.array(), 0)
+        comm = ind.topology.comm
+        ind_array = comm.gather(ind.values, 0)
 
         if comm.rank == 0:
-            # On process 0 we argument sort the indicators to find
+            # On process 0 we argsort the indicators to find
             # the indices of the cells with the `frac' largest
             # error estimates.
 
@@ -57,7 +56,7 @@ class FixedFractionMarkerParallel(Marker):
             # Choose only the largest fraction requested
             idx = idx[0:int(max(self.frac*len(idx), 1))]
 
-            # Utiltiy functino to find which process owns a global cell index
+            # Utility function to find which process owns a global cell index
             def owning_process(idx):
                 for p in range(comm.size):
                     if idx < offsets[p]:
@@ -75,9 +74,13 @@ class FixedFractionMarkerParallel(Marker):
         idx = comm.scatter(comm_back)
 
         # Populate cell markers
-        markers = dolfin.MeshFunction("bool", ind.mesh(),
-                                      ind.mesh().topology().dim(), False)
-        for i in idx:
-            markers[int(i)] = True
+        # markers = dolfin.MeshFunction("bool", ind.mesh(),
+        #                               ind.mesh().topology().dim(), False)
+        # for i in idx:
+        #     markers[int(i)] = True
+        # idx_argsorted = np.argsort(idx)
+        #
+        # markers = dolfinx.mesh.meshtags(
+        #     ind.mesh, ind.mesh.topology.dim)
 
-        return markers
+        return ind.indices[idx]
