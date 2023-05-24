@@ -382,8 +382,6 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
 
         snes = PETSc.SNES().create(MPI.COMM_WORLD)
         opts = PETSc.Options()
-        # opts["snes_monitor"] = None
-        # opts["snes_max_it"] = 1
         snes.setFromOptions()
         snes.getKSP().getPC().setType("lu")
         snes.getKSP().getPC().setFactorSolverType("mumps")
