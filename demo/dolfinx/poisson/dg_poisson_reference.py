@@ -74,7 +74,7 @@ for ele_n in ele_ns:
     h_measure = dolfinx.cpp.mesh.h(
         mesh._cpp_object, 2, np.arange(mesh.topology.index_map(2).size_local,
                                        dtype=np.int32))
-    hmax = mesh.comm.allreduce(h_measure.max(), op=MPI.MIN)
+    hmax = mesh.comm.allreduce(h_measure.max(), op=MPI.MAX)
     hsizes[run_count] = hmax
 
     run_count += 1
