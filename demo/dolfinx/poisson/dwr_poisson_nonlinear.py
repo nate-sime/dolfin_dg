@@ -83,11 +83,12 @@ for it in range(10):
     bc_star = create_bc(V_star)
     lape = dolfin_dg.dolfinx.dwr.NonlinearAPosterioriEstimator(
         J, F, jh(u), u, V_star, bc_star)
-    markers = lape.compute_cell_markers(
-        dolfin_dg.dolfinx.mark.FixedFractionMarkerParallel(frac=0.2))
+    indicators = lape.compute_indicators()
+    cell_markers = dolfin_dg.dolfinx.mark.maximal_indices_fraction(
+        indicators, 0.2)
 
     edges_to_ref = dolfinx.mesh.compute_incident_entities(
-            mesh.topology, markers, mesh.topology.dim, 1)
+            mesh.topology, cell_markers, mesh.topology.dim, 1)
 
     mesh = dolfinx.mesh.refine(mesh, edges_to_ref, redistribute=True)
 

@@ -3,8 +3,6 @@ import numpy as np
 import ufl
 import dolfinx
 
-from dolfin_dg.dolfinx.mark import Marker
-
 
 def dual(form, w, z=None):
     if z is not None:
@@ -33,11 +31,6 @@ class NonlinearAPosterioriEstimator:
         self.u_h = u_h
         self.V_star = V_star
         self.bcs_star = bcs_star
-
-    def compute_cell_markers(self, marker):
-        assert(isinstance(marker, Marker))
-        eta_k = self.compute_indicators()
-        return marker.mark(eta_k)
 
     def compute_indicators(self):
         z = self.compute_dual_solution()
