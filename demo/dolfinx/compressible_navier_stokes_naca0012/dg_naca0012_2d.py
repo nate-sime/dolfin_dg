@@ -7,6 +7,8 @@ import dolfin_dg
 import dolfin_dg.dolfinx.dwr
 import dolfin_dg.dolfinx.mark
 
+import generate_mesh
+
 # In this example we use dual weighted residual based error estimates
 # to compute the drag coefficient of compressible flow around a NACA0012
 # airfoil.
@@ -14,11 +16,8 @@ import dolfin_dg.dolfinx.mark
 def info(*msg):
     PETSc.Sys.Print(", ".join(map(str, msg)))
 
-
-with dolfinx.io.XDMFFile(
-        MPI.COMM_WORLD, "/home/nsime/bb/meshes/naca0012.xdmf", "r") as fi:
-    mesh = fi.read_mesh()
-    mesh.topology.create_entities(mesh.topology.dim-1)
+mesh = generate_mesh.generate_naca_4digit(
+    MPI.COMM_WORLD, 0.12, n_pts=100, rounded=False)
 
 # Polynomial order
 poly_o = 1
@@ -190,9 +189,8 @@ for ref_level in range(n_ref_max):
         fi.write_mesh(mesh)
         fi.write_function(u_vec.sub(0))
 
-    # If we're not on the last refinement level, apply dual-weighted-residual
-    # error
-    # estimation refinement.
+    # If we're not on the last refinement level, apply goal oriented
+    # dual-weighted-residual error estimation refinement.
     if ref_level < n_ref_max - 1:
         V_star = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', poly_o+1), dim=4)
 
