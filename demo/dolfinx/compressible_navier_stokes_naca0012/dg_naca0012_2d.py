@@ -17,7 +17,7 @@ def info(*msg):
     PETSc.Sys.Print(", ".join(map(str, msg)))
 
 mesh = generate_mesh.generate_naca_4digit(
-    MPI.COMM_WORLD, 0.12, n_pts=100, rounded=False)
+    MPI.COMM_WORLD, 0.12)
 
 # Polynomial order
 poly_o = 1
@@ -87,17 +87,18 @@ for ref_level in range(n_ref_max):
         V.dofmap.index_map.size_local * V.dofmap.index_map_bs, MPI.SUM)
     info(f"Problem size: {n_dofs} degrees of freedom")
 
-    # Use the initial guess.
     u_vec = dolfinx.fem.Function(V, name="u")
     if ref_level == 0:
+        # Use the initial guess.
         u_vec.interpolate(
             dolfinx.fem.Expression(gD_guess, V.element.interpolation_points()))
     else:
-        u_vec.interpolate(u_vec_old, nmm_interpolation_data=
-        dolfinx.fem.create_nonmatching_meshes_interpolation_data(
+        # Initial guess by interpolating from old mesh to new mesh
+        interp_data = dolfinx.fem.create_nonmatching_meshes_interpolation_data(
             u_vec.function_space.mesh._cpp_object,
             u_vec.function_space.element,
-            u_vec_old.function_space.mesh._cpp_object))
+            u_vec_old.function_space.mesh._cpp_object)
+        u_vec.interpolate(u_vec_old, nmm_interpolation_data=interp_data)
     u_vec.x.scatter_forward()
     v_vec = ufl.TestFunction(V)
 
@@ -133,7 +134,6 @@ for ref_level in range(n_ref_max):
         x.axpy(-theta, dx)
 
     solver.set_update(updater)
-
 
     ksp = solver.krylov_solver
     opts = PETSc.Options()

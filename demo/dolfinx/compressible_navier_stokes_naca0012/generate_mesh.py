@@ -6,7 +6,7 @@ import dolfinx
 
 
 def generate_naca_4digit(comm: MPI.Intracomm, t: float, model_rank: int = 0,
-                         n_pts: int = 65, rounded: bool = False,
+                         n_pts: int = 1000, rounded: bool = False,
                          lc: float = 0.01, m: float | None = None,
                          p: float | None = None,
                          r_farfield: float = 50.0) -> dolfinx.mesh.Mesh:
