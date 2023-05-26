@@ -76,11 +76,17 @@ class DGFemFormulation:
 
     @staticmethod
     def mesh_dimension(mesh):
-        # the DUNE way
         if hasattr(mesh, "dimension"):
+            # the DUNE way
             return mesh.dimension
+        elif hasattr(mesh, "ufl_domain"):
+            # the dolfin/dolfinx way
+            return mesh.ufl_domain().geometric_dimension()
+        elif hasattr(mesh, "geometric_dimension"):
+            # the UFL way
+            return mesh.geometric_dimension()
         else:
-        # the Fenics/Dolfin way
+            # the firedrake & legacy fenics/dolfin way
             try:
                 return mesh.geometry().dim()
             except AttributeError:
@@ -497,7 +503,7 @@ class CompressibleNavierStokesOperator(EllipticOperator,
 
             grad_rho = grad_U[0, :]
             grad_rhou = ufl.as_tensor([grad_U[j, :] for j in range(1, dim + 1)])
-            grad_rhoE = grad_U[-1, :]
+            grad_rhoE = grad_U[dim+1, :]
 
             # Quotient rule to find grad(u) and grad(E)
             grad_u = (grad_rhou*rho - ufl.outer(rhou, grad_rho))/rho**2
