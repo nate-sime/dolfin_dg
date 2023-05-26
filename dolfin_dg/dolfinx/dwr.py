@@ -32,8 +32,8 @@ class NonlinearAPosterioriEstimator:
         self.V_star = V_star
         self.bcs_star = bcs_star
 
-    def compute_indicators(self):
-        z = self.compute_dual_solution()
+    def compute_indicators(self, petsc_options=None):
+        z = self.compute_dual_solution(petsc_options=petsc_options)
         eta = self.compute_error_indicators(z)
         eta_cf = self.compute_cell_indicators(eta)
         return eta_cf
@@ -76,10 +76,7 @@ class NonlinearAPosterioriEstimator:
     def compute_cell_indicators(self, eta):
         mesh = self.V_star.mesh
 
-        # Put the values of the projection into a cell function
-        # cf = MeshFunction("double", mesh, mesh.topology().dim(), 0.0)
-        # for c in cells(mesh):
-        #     cf[c] = eta.vector()[c.index()]
+        # Put the values of the projection into cell tags
         cf = dolfinx.mesh.meshtags(
             mesh, mesh.topology.dim,
             np.arange(mesh.topology.index_map(
