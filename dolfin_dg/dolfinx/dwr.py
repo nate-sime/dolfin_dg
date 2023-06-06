@@ -1,4 +1,5 @@
 import numpy as np
+from petsc4py import PETSc
 
 import ufl
 import dolfinx
@@ -70,6 +71,7 @@ class NonlinearAPosterioriEstimator:
 
         dwr_vec = dolfinx.fem.petsc.assemble_vector(
             dolfinx.fem.form(dwr))
+        dwr_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         dwr_vec.abs()
         return dwr_vec
 
