@@ -1,21 +1,56 @@
 import gmsh
 import numpy as np
+import scipy.integrate
 from mpi4py import MPI
 
 import dolfinx
 
 
-def generate_naca_4digit(comm: MPI.Intracomm, t: float, model_rank: int = 0,
-                         n_pts: int = 1000, rounded: bool = False,
-                         lc: float = 0.01, m: float | None = None,
-                         p: float | None = None,
-                         r_farfield: float = 50.0) -> dolfinx.mesh.Mesh:
+def parse_naca_digits(digits: str):
+    """
+    Given the NACA designation digits, return parameters of camber, location
+    and chord thickness.
+
+    Parameters
+    ----------
+    digits
+        String representation of digits
+
+    Returns
+    -------
+    NACA parameters
+
+    Examples
+    --------
+    NACA0012:
+    >>> parse_naca_digits("0012")
+
+    NACA2412:
+    >>> parse_naca_digits("2412")
+    """
+    digits = str(digits)
+    if len(digits) == 4:
+        m = float(digits[0]) / 100.0
+        p = float(digits[1]) / 10.0
+        t = float(digits[2:]) / 100.0
+        return m, p, t
+
+
+def generate_naca_4digit(comm: MPI.Intracomm, m: float, p: float, t: float,
+                         model_rank: int = 0, rounded: bool = False,
+                         lc: float = 0.01, r_farfield: float = 50.0,
+                         gmsh_options: dict[str, int] = None
+                         ) -> dolfinx.mesh.Mesh:
     """
 
     Parameters
     ----------
     comm
         MPI communicator
+    m
+        Maximum camber
+    p
+        Location of maximum camber
     t
         Chord thickness
     model_rank
@@ -26,24 +61,21 @@ def generate_naca_4digit(comm: MPI.Intracomm, t: float, model_rank: int = 0,
         If true, add rounded trailing edge
     lc
         Characteristic length at surface
-    m
-        Maximum camber
-    p
-        Location of maximum camber
     r_farfield
         Far field distance (radius of disk enveloping aerofoil)
+
+    Returns
+    -------
+        dolfinx mesh
 
     Example
     -------
     NACA0012:
-    >>> generate_naca_4digit(comm, t=0.12, p=None, m=None)
-    
-    NACA2412:
-    >>> generate_naca_4digit(comm, t=0.12, p=0.4, m=0.02)
+    >>> generate_naca_4digit(comm, 0.0, 0.0, 0.12)
 
-    Returns
-        dolfinx mesh
-    -------
+    NACA2412:
+    >>> generate_naca_4digit(comm, 0.02, 0.4, 0.12)
+
 
     """
     gmsh.initialize()
@@ -63,11 +95,47 @@ def generate_naca_4digit(comm: MPI.Intracomm, t: float, model_rank: int = 0,
         else:
             x_r = 1.0
 
-        x = np.linspace(0.0, x_r, n_pts)[::-1]
-        coords_top = np.vstack((x, y_t(x))).T
-        coords_bot = np.vstack((x, -y_t(x))).T
+        def create_edge_function(start, end, TOL=1e-12):
+            dx = end[0] - start[0]
+            if abs(dx) < TOL:
+                c = end[0]
+                f = lambda x: x - c
+            else:
+                m = (end[1] - start[1])/(end[0] - start[0])
+                c = end[1] - m*end[0]
+                f = lambda x: m*x + c
+            return f
 
-        if m is not None and p is not None:
+        def compute_edge_error_h1(x_top, f_aerofoil, fprime_airfoil):
+            err_a = []
+            for j in range(len(x_top)-1):
+                a, b = x_top[j:j+2]
+                edge_f = create_edge_function([a, f_aerofoil(a)], [b, f_aerofoil(b)])
+                gradient = (f_aerofoil(b) - f_aerofoil(a)) / (b - a)
+                error_func = lambda x: (f_aerofoil(x) - edge_f(x))**2 + (fprime_airfoil(x) - gradient)**2
+                err = scipy.integrate.quad(error_func, a, b)[0]**0.5
+                err_a.append(err)
+            return np.array(err_a, dtype=np.double)
+
+
+        def generate_x_points_h1(f_aerofoil, x0, eps=1e-3, max_it=20):
+            import sympy
+            xsym = sympy.Symbol("x", real=True)
+            fprime_airfoil = sympy.lambdify(xsym, f_aerofoil(xsym).diff(xsym))
+            x = np.array(x0, dtype=np.double)
+            for j in range(max_it):
+                err = compute_edge_error_h1(x, f_aerofoil, fprime_airfoil)
+                err_condition = err < eps
+                if np.all(err_condition):
+                    break
+                new_idxs = np.where(~err_condition)[0]
+                x = np.insert(x, new_idxs+1, (x[new_idxs] + x[new_idxs+1])/2.0)
+            return x
+
+        x = generate_x_points_h1(y_t, [1e-8, x_r])
+        x = np.insert(x, [0], 0.0)
+
+        if abs(m) > 1e-12 and abs(p) > 1e-12:
             def y_c(x):
                 return np.where(
                     x <= p,
@@ -86,9 +154,20 @@ def generate_naca_4digit(comm: MPI.Intracomm, t: float, model_rank: int = 0,
 
             y_top = y_c(x) + y_t(x) * np.cos(theta)
             y_bot = y_c(x) - y_t(x) * np.cos(theta)
+        else:
+            x_top, x_bot = x, x
+            y_top, y_bot = y_t(x), -y_t(x)
 
-            coords_top = np.vstack((x_top, y_top)).T
-            coords_bot = np.vstack((x_bot, y_bot)).T
+        coords_top = np.vstack((x_top, y_top)).T
+        coords_bot = np.vstack((x_bot, y_bot)).T
+
+        # import matplotlib.pyplot as plt
+        # plt.plot(coords_bot[:,0], coords_bot[:,1], "-x")
+        # plt.plot(coords_top[:,0], coords_top[:,1], "-x")
+        # plt.gca().axis("equal")
+        # plt.grid()
+        # plt.show()
+        # quit()
 
         pts_top = [gmsh.model.occ.addPoint(*coord, 0, lc) for coord in
                    coords_top]
@@ -100,7 +179,7 @@ def generate_naca_4digit(comm: MPI.Intracomm, t: float, model_rank: int = 0,
 
         if rounded:
             c = gmsh.model.occ.addPoint(x_r - (1.0 - x_r) * 1e-1, 0.0, 0, lc)
-            curv += [gmsh.model.occ.addCircleArc(pts_bot[0], c, pts_top[0])]
+            curv += [gmsh.model.occ.addCircleArc(pts_bot[-1], c, pts_top[-1])]
 
         aerofoil = gmsh.model.occ.addCurveLoop(curv)
         aerofoil = gmsh.model.occ.addPlaneSurface([aerofoil])
@@ -114,6 +193,9 @@ def generate_naca_4digit(comm: MPI.Intracomm, t: float, model_rank: int = 0,
         gmsh.model.addPhysicalGroup(2, [domain[0][1]], 1)
 
         # TODO: Fix the labelling of facets
+        if gmsh_options:
+            for k, v in gmsh_options.items():
+                gmsh.option.setNumber(k, v)
         gmsh.model.mesh.generate(2)
 
     mesh, cell_tags, facet_tags = dolfinx.io.gmshio.model_to_mesh(

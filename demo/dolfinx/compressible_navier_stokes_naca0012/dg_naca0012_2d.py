@@ -17,7 +17,8 @@ def info(*msg):
     PETSc.Sys.Print(", ".join(map(str, msg)))
 
 mesh = generate_mesh.generate_naca_4digit(
-    MPI.COMM_WORLD, 0.12)
+    MPI.COMM_WORLD, *generate_mesh.parse_naca_digits("0012"), rounded=False,
+    gmsh_options={"Mesh.MeshSizeFromCurvature": 80})
 
 # Polynomial order
 poly_o = 1
@@ -183,7 +184,13 @@ for ref_level in range(n_ref_max):
     info(f"DoFs: {n_dofs}, Drag: {drag_val:.5e}, Lift: {lift_val:.5e}")
     results += [(n_dofs, drag_val, lift_val)]
 
-
+    cidxs = np.arange(mesh.topology.index_map(mesh.topology.dim).size_local)
+    vals = np.full_like(cidxs, mesh.comm.rank, dtype=np.int32)
+    cf = dolfinx.mesh.meshtags(mesh, mesh.topology.dim, cidxs, vals)
+    with dolfinx.io.XDMFFile(
+            mesh.comm, f"procs_{ref_level}.xdmf", "w") as fi:
+        fi.write_mesh(mesh)
+        fi.write_meshtags(cf, mesh.geometry)
     with dolfinx.io.XDMFFile(
             mesh.comm, f"adapted_naca0012_meshes_{ref_level}.xdmf", "w") as fi:
         fi.write_mesh(mesh)
