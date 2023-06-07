@@ -11,7 +11,7 @@ import generate_mesh
 
 # In this example we use dual weighted residual based error estimates
 # to compute the drag coefficient of compressible flow around a NACA0012
-# airfoil.
+# aerofoil.
 
 def info(*msg):
     PETSc.Sys.Print(", ".join(map(str, msg)))
@@ -60,7 +60,7 @@ for ref_level in range(n_ref_max):
 
     # Label the boundary components of the mesh. Initially label all exterior
     # facets as the adiabatic wall, then label the exterior facets far from
-    # the airfoil as the inlet and outlet based on the angle of attack.
+    # the aerofoil as the inlet and outlet based on the angle of attack.
     bdry_facets = dolfinx.mesh.locate_entities_boundary(
         mesh, mesh.topology.dim-1,
         lambda x: np.full_like(x[0], 1, dtype=np.int8))
@@ -206,7 +206,7 @@ for ref_level in range(n_ref_max):
             "pc_type": "lu",
             "pc_factor_mat_solver_type": "mumps"})
         cell_markers = dolfin_dg.dolfinx.mark.maximal_indices_fraction(
-            indicators, 0.2)
+            indicators, 0.1)
 
         info("Refining mesh")
         edges_to_ref = dolfinx.mesh.compute_incident_entities(

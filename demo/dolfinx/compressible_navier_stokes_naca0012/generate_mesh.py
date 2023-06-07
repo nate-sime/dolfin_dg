@@ -6,6 +6,141 @@ from mpi4py import MPI
 import dolfinx
 
 
+def _create_edge_function(start, end, TOL=1e-12):
+    """
+    Generate a callable function
+        f(x) = m x + c
+    which represents the linear element between the start and end points. A
+    tolerance is provided for lines parallel with the y-axis.
+    """
+    dx = end[0] - start[0]
+    if abs(dx) < TOL:
+        c = end[0]
+        f = lambda x: x - c
+    else:
+        m = (end[1] - start[1]) / (end[0] - start[0])
+        c = end[1] - m * end[0]
+        f = lambda x: m * x + c
+    return f
+
+
+def _compute_edge_error_h1(x, f_aerofoil, fprime_aerofoil):
+    """
+    Given a function f_aerofoil and its derivative fprime_aerofoil,
+    compute the H^1 error of the piecewise linear interpolation at points
+    x.
+    """
+    err_a = []
+    for j in range(len(x) - 1):
+        a, b = x[j:j + 2]
+        edge_f = _create_edge_function([a, f_aerofoil(a)], [b, f_aerofoil(b)])
+        gradient = (f_aerofoil(b) - f_aerofoil(a)) / (b - a)
+        error_func = lambda x: (f_aerofoil(x) - edge_f(x)) ** 2 + (
+                    fprime_aerofoil(x) - gradient) ** 2
+        err = scipy.integrate.quad(error_func, a, b)[0] ** 0.5
+        err_a.append(err)
+    return np.array(err_a, dtype=np.double)
+
+
+def _generate_x_points_h1(f_aerofoil, x0, eps=1e-3, max_it=20):
+    """
+    Given a function f_aerofoil, compute the points which minimise its
+    piecewise linear interpolation error as measured in the H^1 norm using
+    bisection refinement.
+    """
+    import sympy
+    xsym = sympy.Symbol("x", real=True)
+    fprime_aerofoil = sympy.lambdify(xsym, f_aerofoil(xsym).diff(xsym))
+    x = np.array(x0, dtype=np.double)
+    for j in range(max_it):
+        err = _compute_edge_error_h1(x, f_aerofoil, fprime_aerofoil)
+        err_condition = err < eps
+        if np.all(err_condition):
+            break
+        new_idxs = np.where(~err_condition)[0]
+        x = np.insert(x, new_idxs + 1, (x[new_idxs] + x[new_idxs + 1]) / 2.0)
+    return x
+
+
+def y_t(xi, t, rounded):
+    """
+    Symmetric part of NACA00xx aerofoil
+
+    Parameters
+    ----------
+    xi
+        Reference coordinates
+    t
+        Chord thickness
+    rounded
+        If true, add rounded trailing edge
+
+    Returns
+    -------
+        Top part of aerofoil y-coordinates
+    """
+    c = [0.2969, -0.1260, -0.3516, 0.2843,
+         -0.1015 if rounded else -0.1036]
+    y = 5.0 * t * (c[0] * xi ** 0.5 + c[1] * xi + c[2] * xi ** 2
+                   + c[3] * xi ** 3 + c[4] * xi ** 4)
+    return y
+
+
+def naca_4digit_coordinates(xi: np.ndarray, m: float, p: float, t: float,
+                            rounded: bool) -> tuple[np.ndarray]:
+    """
+    Given reference coordinates, compute on the bottom and top
+    coordinates of a 4digit NACA aerofoil
+
+    Parameters
+    ----------
+    xi
+        Reference coordinates
+    m
+        Maximum camber
+    p
+        Location of maximum camber
+    t
+        Chord thickness
+    rounded
+        If true, add rounded trailing edge
+
+    Returns
+    -------
+        list of bottom and top coordinate sets
+    """
+    # Symmetric part
+    y_sym = lambda x: y_t(x, t, rounded)
+
+    if abs(m) > 1e-12 and abs(p) > 1e-12:
+        def y_c(x):
+            return np.where(
+                x <= p,
+                m / p ** 2 * (2 * p * x - x ** 2),
+                m / (1 - p) ** 2 * ((1 - 2 * p) + 2 * p * x - x ** 2))
+
+        def dy_c_dx(x):
+            return np.where(
+                x <= p,
+                2 * m / p ** 2 * (p - x), 2 * m / (1 - p) ** 2 * (p - x))
+
+        theta = np.arctan(dy_c_dx(xi))
+
+        x_top = xi - y_sym(xi) * np.sin(theta)
+        x_bot = xi + y_sym(xi) * np.sin(theta)
+
+        y_top = y_c(xi) + y_sym(xi) * np.cos(theta)
+        y_bot = y_c(xi) - y_sym(xi) * np.cos(theta)
+    else:
+        x_top, x_bot = xi, xi
+        y_top, y_bot = y_sym(xi), -y_sym(xi)
+
+    coords_top = np.vstack((x_top, y_top)).T
+    coords_bot = np.vstack((x_bot, y_bot)).T
+
+    return coords_bot, coords_top
+
+
 def parse_naca_digits(digits: str):
     """
     Given the NACA designation digits, return parameters of camber, location
@@ -42,6 +177,7 @@ def generate_naca_4digit(comm: MPI.Intracomm, m: float, p: float, t: float,
                          gmsh_options: dict[str, int] = None
                          ) -> dolfinx.mesh.Mesh:
     """
+    Generate a mesh of NACA 4 digit aerofoil.
 
     Parameters
     ----------
@@ -62,7 +198,7 @@ def generate_naca_4digit(comm: MPI.Intracomm, m: float, p: float, t: float,
     lc
         Characteristic length at surface
     r_farfield
-        Far field distance (radius of disk enveloping aerofoil)
+        Far field distance (distance from enveloping rectangle to aerofoil)
 
     Returns
     -------
@@ -83,91 +219,16 @@ def generate_naca_4digit(comm: MPI.Intracomm, m: float, p: float, t: float,
     if comm.rank == model_rank:
         gmsh.clear()
 
-        c = [0.2969, -0.1260, -0.3516, 0.2843]
-        c += [-0.1015] if rounded else [-0.1036]
-
-        def y_t(x):
-            return 5.0 * t * (c[0] * x ** 0.5 + c[1] * x + c[2] * x ** 2
-                              + c[3] * x ** 3 + c[4] * x ** 4)
-
         if rounded:
             x_r = 0.995
         else:
             x_r = 1.0
 
-        def create_edge_function(start, end, TOL=1e-12):
-            dx = end[0] - start[0]
-            if abs(dx) < TOL:
-                c = end[0]
-                f = lambda x: x - c
-            else:
-                m = (end[1] - start[1])/(end[0] - start[0])
-                c = end[1] - m*end[0]
-                f = lambda x: m*x + c
-            return f
+        y_sym = lambda xi: y_t(xi, t, rounded)
+        xi = _generate_x_points_h1(y_sym, [1e-8, x_r])
+        xi = np.insert(xi, [0], 0.0)
 
-        def compute_edge_error_h1(x_top, f_aerofoil, fprime_airfoil):
-            err_a = []
-            for j in range(len(x_top)-1):
-                a, b = x_top[j:j+2]
-                edge_f = create_edge_function([a, f_aerofoil(a)], [b, f_aerofoil(b)])
-                gradient = (f_aerofoil(b) - f_aerofoil(a)) / (b - a)
-                error_func = lambda x: (f_aerofoil(x) - edge_f(x))**2 + (fprime_airfoil(x) - gradient)**2
-                err = scipy.integrate.quad(error_func, a, b)[0]**0.5
-                err_a.append(err)
-            return np.array(err_a, dtype=np.double)
-
-
-        def generate_x_points_h1(f_aerofoil, x0, eps=1e-3, max_it=20):
-            import sympy
-            xsym = sympy.Symbol("x", real=True)
-            fprime_airfoil = sympy.lambdify(xsym, f_aerofoil(xsym).diff(xsym))
-            x = np.array(x0, dtype=np.double)
-            for j in range(max_it):
-                err = compute_edge_error_h1(x, f_aerofoil, fprime_airfoil)
-                err_condition = err < eps
-                if np.all(err_condition):
-                    break
-                new_idxs = np.where(~err_condition)[0]
-                x = np.insert(x, new_idxs+1, (x[new_idxs] + x[new_idxs+1])/2.0)
-            return x
-
-        x = generate_x_points_h1(y_t, [1e-8, x_r])
-        x = np.insert(x, [0], 0.0)
-
-        if abs(m) > 1e-12 and abs(p) > 1e-12:
-            def y_c(x):
-                return np.where(
-                    x <= p,
-                    m / p ** 2 * (2 * p * x - x ** 2),
-                    m / (1 - p) ** 2 * ((1 - 2 * p) + 2 * p * x - x ** 2))
-
-            def dy_c_dx(x):
-                return np.where(
-                    x <= p,
-                    2 * m / p ** 2 * (p - x), 2 * m / (1 - p) ** 2 * (p - x))
-
-            theta = np.arctan(dy_c_dx(x))
-
-            x_top = x - y_t(x) * np.sin(theta)
-            x_bot = x + y_t(x) * np.sin(theta)
-
-            y_top = y_c(x) + y_t(x) * np.cos(theta)
-            y_bot = y_c(x) - y_t(x) * np.cos(theta)
-        else:
-            x_top, x_bot = x, x
-            y_top, y_bot = y_t(x), -y_t(x)
-
-        coords_top = np.vstack((x_top, y_top)).T
-        coords_bot = np.vstack((x_bot, y_bot)).T
-
-        # import matplotlib.pyplot as plt
-        # plt.plot(coords_bot[:,0], coords_bot[:,1], "-x")
-        # plt.plot(coords_top[:,0], coords_top[:,1], "-x")
-        # plt.gca().axis("equal")
-        # plt.grid()
-        # plt.show()
-        # quit()
+        coords_top, coords_bot = naca_4digit_coordinates(xi, m, p, t, rounded)
 
         pts_top = [gmsh.model.occ.addPoint(*coord, 0, lc) for coord in
                    coords_top]
@@ -184,7 +245,10 @@ def generate_naca_4digit(comm: MPI.Intracomm, m: float, p: float, t: float,
         aerofoil = gmsh.model.occ.addCurveLoop(curv)
         aerofoil = gmsh.model.occ.addPlaneSurface([aerofoil])
 
-        disk = gmsh.model.occ.addDisk(0, 0, 0, r_farfield, r_farfield)
+        # Using disc interferes with gmsh's refinement by curvature
+        # disk = gmsh.model.occ.addDisk(0, 0, 0, r_farfield, r_farfield)
+        disk = gmsh.model.occ.addRectangle(
+            -r_farfield, -r_farfield, 0.0, 2*r_farfield, 2*r_farfield)
 
         domain, _ = gmsh.model.occ.cut(
             [(2, disk)], [(2, aerofoil)], removeObject=True, removeTool=True)
@@ -192,7 +256,6 @@ def generate_naca_4digit(comm: MPI.Intracomm, m: float, p: float, t: float,
         gmsh.model.occ.synchronize()
         gmsh.model.addPhysicalGroup(2, [domain[0][1]], 1)
 
-        # TODO: Fix the labelling of facets
         if gmsh_options:
             for k, v in gmsh_options.items():
                 gmsh.option.setNumber(k, v)
