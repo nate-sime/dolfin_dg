@@ -7,6 +7,7 @@ from dolfin import (
 
 import dolfin_dg.dolfin.hdg_newton
 import dolfin_dg.hdg_form
+import dolfin_dg.math
 
 
 def test_hdg_newton_solver_static_condensation():
@@ -62,7 +63,7 @@ def test_hdg_newton_solver_static_condensation():
         F = inner(F_v(u, grad(u)), grad(v)) * dx
 
         sigma = alpha / h
-        G = dolfin_dg.homogeneity_tensor(F_v, u)
+        G = dolfin_dg.math.homogeneity_tensor(F_v, u)
         hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(
             F_v, u, ubar, v, vbar, sigma, G, n)
 

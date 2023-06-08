@@ -1,0 +1,155 @@
+import typing
+import math
+
+import numpy as np
+import ufl
+
+import dolfin_dg
+from dolfin_dg.math import hyper_tensor_T_product as G_T_mult
+
+
+def green_transpose(
+        ufl_op: typing.Union[ufl.div, ufl.grad, ufl.curl, ufl.Identity]):
+    if ufl_op is ufl.div:
+        return ufl.grad
+    if ufl_op is ufl.grad:
+        return ufl.div
+    return ufl_op
+
+
+class IBP:
+
+    def __init__(self, F, u, v, G):
+        self.F = F
+        self.u = u
+        self.v = v
+        self.G = G
+        # print(f"Initialising {self}")
+        # print(f"Shape F(u) = {F(u).ufl_shape}")
+        # print(f"Shape G = {G.ufl_shape}")
+        # print(f"Shape u = {u.ufl_shape}")
+        # print(f"Shape v = {v.ufl_shape}")
+
+
+def first_order_flux2(F, flux):
+    def flux_wrapper(u, sigma=None):
+        if sigma is None:
+            sigma = flux(u)
+        return F(u, sigma)
+    return flux_wrapper
+
+
+def first_order_flux(flux_func):
+    def flux_wrapper(func):
+        def flux_guard(u, flux=None):
+            if flux is None:
+                flux = flux_func(u)
+            return func(u, flux)
+        return flux_guard
+    return flux_wrapper
+
+
+class FirstOrderSystem:
+
+    def __init__(self, F_vec, L_vec, u, v):
+        self.u = u
+        self.v = v
+        self.L_vec = L_vec
+        self.F_vec = F_vec
+        self.G_vec = [
+            dolfin_dg.math.homogenize(F_vec[i], u, L_vec[i](F_vec[i + 1](u)))
+            for i in range(len(F_vec) - 1)]
+        self.G_vec.append(
+            dolfin_dg.math.homogenize(F_vec[-1], u, u)
+        )
+
+        v_vec = [v]
+        for i in range(len(F_vec) - 1):
+            vj = dolfin_dg.primal.green_transpose(L_vec[i])(
+                G_T_mult(self.G_vec[i], v_vec[i]))
+            v_vec.append(vj)
+        self.v_vec = v_vec
+
+        self.L_ops = [*(L_vec[j] for j in range(len(F_vec)-1)), lambda x: x]
+
+        self.sign_tracker = np.ones(len(F_vec)-1, dtype=np.int8)
+        self.n_ibps = np.ones(len(F_vec) - 1, dtype=np.int8)
+        self.ibp_2ce_point = math.ceil(self.n_ibps.shape[0]/2.0)
+        self.n_ibps[self.ibp_2ce_point:] = 2
+
+    @property
+    def G(self):
+        return self.G_vec
+
+    def domain(self):
+        F_vec = self.F_vec
+        G_vec = self.G_vec
+        L_vec = self.L_vec
+        L_ops = self.L_ops
+        u, v_vec = self.u, self.v_vec
+
+        sign = 1
+        for j in range(len(L_vec)):
+            if L_vec[j] in (ufl.div, ufl.grad) and self.n_ibps[j] == 1:
+                sign *= -1
+
+        mid_idx = self.ibp_2ce_point
+        F = sign * ufl.inner(F_vec[mid_idx](u), v_vec[mid_idx]) * ufl.dx
+        return F
+
+    def interior(self, alpha, flux_type=None, dS=ufl.dS):
+        if flux_type is None:
+            import dolfin_dg.primal.facet_sipg
+            flux_type = dolfin_dg.primal.facet_sipg
+        u_soln = None
+        return self._formulate(alpha, flux_type, u_soln, interior=True, dI=dS)
+
+    def exterior(self, alpha, u_soln, flux_type=None, ds=ufl.ds):
+        if flux_type is None:
+            import dolfin_dg.primal.facet_sipg
+            flux_type = dolfin_dg.primal.facet_sipg
+        return self._formulate(alpha, flux_type, u_soln, interior=False, dI=ds)
+
+    def _formulate(self, alpha, flux_type, u_soln, interior, dI):
+        F_vec = self.F_vec
+        G_vec = self.G_vec
+        L_vec = self.L_vec
+        L_ops = self.L_ops
+        u, v_vec = self.u, self.v_vec
+
+        IBP = {ufl.div: flux_type.DivIBP,
+               ufl.grad: flux_type.GradIBP,
+               ufl.curl: flux_type.CurlIBP}
+        ibps = [IBP[L_vec[j]](F_vec[j + 1], u, v_vec[j], G_vec[j])
+                for j in range(len(F_vec) - 1)]
+
+        self.sign_tracker[:] = 1
+        F_sub = 0
+        for j in range(len(F_vec) - 1)[::-1]:
+            ibp = ibps[j]
+
+            if L_vec[j] in (ufl.div, ufl.grad):
+                F_sub = -1 * F_sub
+                self.sign_tracker[j+1:] *= -1
+
+            if self.n_ibps[j] == 1:
+                def L_op(x):
+                    # Construct L_{i-2}(L_{i-1}(L_{i}(x)))...
+                    L_op = x
+                    for L_op_sub in L_ops[-(j+1):][::-1]:
+                        L_op = L_op_sub(L_op)
+                    return L_op
+
+                if interior:
+                    F = ibp.interior_residual1(alpha[j], L_op(u), dS=dI)
+                else:
+                    F = ibp.exterior_residual1(
+                        alpha[j], L_op(u), L_op(u_soln), u_soln, ds=dI)
+            elif self.n_ibps[j] == 2:
+                if interior:
+                    F = ibp.interior_residual2(dS=dI)
+                else:
+                    F = ibp.exterior_residual2(u_soln, ds=dI)
+            F_sub += F
+
+        return F_sub

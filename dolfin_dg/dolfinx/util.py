@@ -9,7 +9,7 @@ def _form_with_estimated_quad_degree(mesh, form, quadrature_degree):
             mesh.ufl_domain().ufl_coordinate_element().degree() + 1
 
     dolfinx_form = dolfinx.fem.form(
-        form, form_compiler_params={
+        form, form_compiler_options={
             "quadrature_degree": quadrature_degree})
 
     return dolfinx_form

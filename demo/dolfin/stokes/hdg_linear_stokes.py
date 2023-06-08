@@ -8,6 +8,7 @@ from dolfin import (
     Form, MPI)
 
 import dolfin_dg.hdg_form
+import dolfin_dg.math
 
 k = 2
 n_eles = [8, 16, 32]
@@ -74,7 +75,7 @@ for run_no, n_ele in enumerate(n_eles):
     F = inner(F_v(u, grad(u), p), grad(v)) * dx - dot(gN, vbar)*dsN
 
     penalty = alpha / h
-    G = dolfin_dg.homogeneity_tensor(F_v, u)
+    G = dolfin_dg.math.homogeneity_tensor(F_v, u)
     hdg_term = dolfin_dg.hdg_form.HDGClassicalSecondOrder(
         F_v, u, ubar, v, vbar, penalty, G, n)
 

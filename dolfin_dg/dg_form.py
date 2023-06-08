@@ -1,170 +1,13 @@
 import abc
-import inspect
 
 import ufl
 from ufl import (
-    as_matrix, outer, inner, replace, grad, variable, diff, dot, curl, div)
+    inner, replace, grad, dot, curl, div)
 
 from dolfin_dg.dg_ufl import (
-    apply_dg_operators, avg, tensor_jump, jump, tangent_jump, dg_cross)
-
-
-def normal_proj(u, n):
-    r"""
-    Parameters
-    ----------
-    u
-        Vector expression
-    n
-        Normal vector
-
-    Returns
-    -------
-    Normal projection of the vector expression :math:`(n \otimes n) u`
-    """
-    return ufl.outer(n, n) * u
-
-
-def tangential_proj(u, n):
-    r"""
-
-    Parameters
-    ----------
-    u
-        Vector expression
-    n
-        Normal vector
-
-    Returns
-    -------
-    Tangential projection of the vector expression :math:`(I - n \otimes n) u`
-    """
-    return (ufl.Identity(u.ufl_shape[0]) - ufl.outer(n, n)) * u
-
-
-def hyper_tensor_product(G, tau):
-    r"""
-    Computes the product
-
-    .. math::
-
-        (G \tau)_{ik} = \sum_{j=1}^m \sum_{l=1}^d (G_{kl})_{ij} \tau_{jl}
-
-    where :math:`m` and :math:`d` are the number of rows and columns in
-    :math:`\tau`, respectively. Typically :math:`d` is the spatial dimension
-    and :math:`m` is the dimension of the solution vector when used in the
-    automatic generation of DG FE formulations by homogenisation.
-
-    Parameters
-    ----------
-    G
-        Homogeneity tensor
-    tau
-        Tensor to be multiplied
-
-    Returns
-    -------
-    G * tau
-    """
-    if len(G.ufl_shape) == 0:
-        if not len(tau.ufl_shape) == 0:
-            raise IndexError("G is scalar, tau has shape: %s"
-                             + str(tau.ufl_shape))
-        return G*tau
-    elif ufl.rank(tau) > 1 and tau.ufl_shape[0] == 1:
-        return dot(G, tau.T).T
-    elif ufl.rank(tau) == 1:
-        return dot(G, tau)
-    m, d = tau.ufl_shape
-    return as_matrix([[inner(G[i, k, :, :], tau) for k in range(d)]
-                      for i in range(m)])
-
-
-def hyper_tensor_T_product(G, tau):
-    r"""
-    Computes the transpose product
-
-    .. math::
-
-        (G^\top \tau)_{jl} = \sum_{i=1}^m \sum_{k=1}^d (G_{kl})_{ij} \tau_{ik}
-
-    where :math:`m` and :math:`d` are the number of rows and columns in
-    :math:`\tau`, respectively. Typically :math:`d` is the spatial dimension
-    and :math:`m` is the dimension of the solution vector when used in the
-    automatic generation of DG FE formulations by homogenisation.
-
-    Parameters
-    ----------
-    G
-        Homogeneity tensor
-    tau
-        Tensor to be multiplied
-
-    Returns
-    -------
-    G^T * tau
-    """
-    if len(G.ufl_shape) == 0:
-        if not len(tau.ufl_shape) == 0:
-            raise IndexError("G^T is scalar, tau has shape: %s"
-                             + str(tau.ufl_shape))
-        return G*tau
-    elif ufl.rank(tau) > 1 and tau.ufl_shape[0] == 1:
-        return dot(G.T, tau)
-    elif ufl.rank(tau) == 1:
-        return dot(G.T, tau)
-    m, d = tau.ufl_shape
-    return as_matrix([[inner(G[:, :, i, k], tau) for k in range(d)]
-                      for i in range(m)])
-
-
-def dg_outer(*args):
-    # TODO: ufl treats this as (u ⊗ v*). If dolfin_dg goes complex need to
-    #  fix this
-    return outer(*args)
-
-
-def homogeneity_tensor(F_v, u, differential_operator=grad):
-    r"""Generate a homogeneity tensor :math:`G(u)` with respect to a linear
-    differential operator :math:`\mathcal{L}(u)` such that
-
-    .. math::
-
-        G = \frac
-        {\partial \mathcal{F}^v(u, \mathcal{L}(u))}
-        {\partial \mathcal{L}(u)}
-
-    For example consider the Poisson problem where :math:`\mathcal{F}^v(u,
-    \nabla u) = \nabla u`. The homogeneity tensor in this case
-    :math:`G_{ij} = \delta_{ij}`
-
-    >>> import dolfin_dg, ufl
-    >>> element = ufl.FiniteElement("CG", ufl.triangle, 1)
-    >>> u = ufl.Coefficient(element)
-    >>> G = dolfin_dg.homogeneity_tensor(lambda u, grad_u: grad_u, u)
-    >>> G = ufl.algorithms.apply_derivatives.apply_derivatives(G)
-    >>> assert G == ufl.Identity(2)
-
-    Parameters
-    ----------
-    F_v
-        Two argument callable function returning flux tensor
-    u
-        Solution variable
-    differential_operator
-        Single argument callable returning formulation of :math:`\mathcal{L}(u)`
-
-    Returns
-    -------
-    Homogeneity tensor G
-    """
-    if len(inspect.getfullargspec(F_v).args) < 2:
-        raise TypeError("Function F_v must have at least 2 arguments, "
-                        "(u, grad_u, *args, **kwargs)")
-
-    diff_op_u = variable(differential_operator(u))
-    tau = F_v(u, diff_op_u)
-    return diff(tau, diff_op_u)
+    apply_dg_operators, avg, tensor_jump, jump, tangent_jump)
+from dolfin_dg import normal_proj, tangential_proj, \
+    hyper_tensor_product, hyper_tensor_T_product, dg_outer
 
 
 def _get_terminal_operand_coefficient(u):
@@ -422,7 +265,7 @@ class DGClassicalSecondOrderDiscretisation(DGFemTerm):
 
         residual = delta * inner(
             tensor_jump(u, n), avg(hyper_tensor_T_product(G, grad_v))) * dInt \
-            - inner(avg(self.F_v(u, grad_u)), tensor_jump(v, n)) * dInt
+                   - inner(avg(self.F_v(u, grad_u)), tensor_jump(v, n)) * dInt
         if sigma is not None:
             residual += inner(
                 sigma('+') * hyper_tensor_product(avg(G), tensor_jump(u, n)),
@@ -496,10 +339,10 @@ class DGFemCurlTerm(DGFemTerm):
         sigma, n = self.sigma, self.n
 
         residual = - inner(tangent_jump(u, n),
-                           avg(hyper_tensor_T_product(G, curl_v)))*dInt \
-            - inner(tangent_jump(v, n), avg(self.F_v(u, curl_u)))*dInt \
-            + sigma('+')*inner(hyper_tensor_product(avg(G), tangent_jump(u, n)),
-                               tangent_jump(v, n))*dInt
+                           avg(hyper_tensor_T_product(G, curl_v))) * dInt \
+                   - inner(tangent_jump(v, n), avg(self.F_v(u, curl_u))) * dInt \
+                   + sigma('+') * inner(hyper_tensor_product(avg(G), tangent_jump(u, n)),
+                               tangent_jump(v, n)) * dInt
 
         residual = apply_dg_operators(residual)
         return residual
@@ -511,11 +354,12 @@ class DGFemCurlTerm(DGFemTerm):
         sigma, n = self.sigma, self.n
 
         residual = - inner(dg_cross(n, u - u_gamma),
-                           hyper_tensor_T_product(G, curl_v))*dExt \
-            - inner(dg_cross(n, v),
-                    hyper_tensor_product(G, curl_u))*dExt \
-            + sigma*inner(hyper_tensor_product(G, dg_cross(n, u - u_gamma)),
-                          dg_cross(n, v))*dExt
+                           hyper_tensor_T_product(G, curl_v)) * dExt \
+                   - inner(dg_cross(n, v),
+                           hyper_tensor_product(G, curl_u)) * dExt \
+                   + sigma * inner(
+            hyper_tensor_product(G, dg_cross(n, u - u_gamma)),
+            dg_cross(n, v)) * dExt
         return residual
 
     def exterior_residual_on_interior(self, u_gamma, dExt):
@@ -644,8 +488,8 @@ class DGClassicalFourthOrderDiscretisation(DGFemTerm):
         delta = self.delta
 
         residual = delta * inner(
-            jump(grad_u, n), avg(hyper_tensor_T_product(G, div_grad_v))) * dInt\
-            - inner(avg(self.F_v(u, div_grad_u)), jump(grad_v, n)) * dInt
+            jump(grad_u, n), avg(hyper_tensor_T_product(G, div_grad_v))) * dInt \
+                   - inner(avg(self.F_v(u, div_grad_u)), jump(grad_v, n)) * dInt
         if sigma is not None:
             residual += inner(
                 sigma('+') * hyper_tensor_product(avg(G), jump(grad_u, n)),

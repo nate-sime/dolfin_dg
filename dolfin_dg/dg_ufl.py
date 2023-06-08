@@ -9,14 +9,7 @@ from ufl.measure import integral_type_to_measure_name
 from ufl.precedence import parstr
 from ufl.tensoralgebra import CompoundTensorOperator
 
-
-def dg_cross(u, v):
-    if len(u.ufl_shape) == 0 or len(v.ufl_shape) == 0:
-        raise TypeError("Input argument must be a vector")
-    assert(len(u.ufl_shape) == 1 and len(v.ufl_shape) == 1)
-    if u.ufl_shape[0] == 2 and v.ufl_shape[0] == 2:
-        return u[0]*v[1] - u[1]*v[0]
-    return ufl.cross(u, v)
+import dolfin_dg.math
 
 
 def avg(u):
@@ -142,7 +135,8 @@ class TangentJump(Jump):
 
     @property
     def ufl_shape(self):
-        return dg_cross(self.ufl_operands[0], self.ufl_operands[1]).ufl_shape
+        return dolfin_dg.math.dg_cross(
+            self.ufl_operands[0], self.ufl_operands[1]).ufl_shape
 
 
 class DGOperatorLowering(MultiFunction):

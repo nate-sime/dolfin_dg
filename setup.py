@@ -23,5 +23,6 @@ setup(name="dolfin_dg",
       license="",
       package_dir={"dolfin_dg": "dolfin_dg"},
       packages=["dolfin_dg",
+                "dolfin_dg.primal",
                 "dolfin_dg.dolfin",
                 "dolfin_dg.dolfinx"])

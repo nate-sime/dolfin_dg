@@ -2,7 +2,7 @@ import pytest
 import ufl
 from ufl.algorithms.apply_derivatives import apply_derivatives
 
-from dolfin_dg.dg_form import homogeneity_tensor, hyper_tensor_product
+from dolfin_dg import hyper_tensor_product, homogeneity_tensor
 
 cells = [ufl.interval, ufl.triangle, ufl.tetrahedron]
 families = ["CG", "DG"]
