@@ -21,5 +21,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install dependencies
+        rune: python3 -m pip install packaging
+
       - name: Run unit tests
         run: python3 -m pytest test/unit
