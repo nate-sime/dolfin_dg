@@ -175,7 +175,8 @@ class DGOperatorLowering(MultiFunction):
     def tangent_jump(self, o):
         n = o.ufl_operands[1]
         v = apply_jump_lowering(o.ufl_operands[0])
-        return dg_cross(n("+"), v("+")) + dg_cross(n("-"), v("-"))
+        return dolfin_dg.math.dg_cross(n("+"), v("+")) \
+            + dolfin_dg.math.dg_cross(n("-"), v("-"))
 
 
 def apply_dg_operators(expression):

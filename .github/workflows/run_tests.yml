@@ -1,0 +1,28 @@
+name: dolfin_dg unit tests
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  Run-Tests-dolfinx:
+    runs-on: ubuntu-latest
+    container: dolfinx/dolfinx:nightly
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run unit tests
+        run: python3 -m pytest test/unitx
+
+  Run-Tests-dolfin:
+    runs-on: ubuntu-latest
+    container: quay.io/natesime/dolfin_dg:master
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: python3 -m pip install packaging
+
+      - name: Run unit tests
+        run: python3 -m pytest test/unit

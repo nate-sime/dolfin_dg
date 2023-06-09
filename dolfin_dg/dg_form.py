@@ -8,6 +8,7 @@ from dolfin_dg.dg_ufl import (
     apply_dg_operators, avg, tensor_jump, jump, tangent_jump)
 from dolfin_dg import normal_proj, tangential_proj, \
     hyper_tensor_product, hyper_tensor_T_product, dg_outer
+import dolfin_dg
 
 
 def _get_terminal_operand_coefficient(u):
@@ -353,13 +354,13 @@ class DGFemCurlTerm(DGFemTerm):
         curl_u, curl_v = curl(u), curl(v)
         sigma, n = self.sigma, self.n
 
-        residual = - inner(dg_cross(n, u - u_gamma),
+        residual = - inner(dolfin_dg.math.dg_cross(n, u - u_gamma),
                            hyper_tensor_T_product(G, curl_v)) * dExt \
-                   - inner(dg_cross(n, v),
+                   - inner(dolfin_dg.math.dg_cross(n, v),
                            hyper_tensor_product(G, curl_u)) * dExt \
                    + sigma * inner(
-            hyper_tensor_product(G, dg_cross(n, u - u_gamma)),
-            dg_cross(n, v)) * dExt
+            hyper_tensor_product(G, dolfin_dg.math.dg_cross(n, u - u_gamma)),
+            dolfin_dg.math.dg_cross(n, v)) * dExt
         return residual
 
     def exterior_residual_on_interior(self, u_gamma, dExt):

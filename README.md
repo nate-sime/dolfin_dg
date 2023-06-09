@@ -1,5 +1,8 @@
 # dolfin_dg
 
+![unit tests badge](https://github.com/nate-sime/dolfin_dg/actions/workflows/run_tests.yml/badge.svg
+)
+
 `dolfin_dg` provides utility functions for the automatic generation of nonlinear
 DG FEM formulations using [UFL](https://github.com/FEniCS/ufl).
 
@@ -68,17 +71,9 @@ nonlinear problems in geodynamics*
   project](https://www.firedrakeproject.org/)
 
 
-## Automated testing
-
-[![Pipelines Build Status](https://img.shields.io/bitbucket/pipelines/nate-sime/dolfin_dg)](https://bitbucket.org/nate-sime/dolfin_dg/addon/pipelines/home)
-
-Unit tests are provided in ``test/unit/test_*.py``.
-
-
 ## Installation
 
 #### Docker image
-
 
 ![](https://quay.io/repository/natesime/dolfin_dg/status)
 
