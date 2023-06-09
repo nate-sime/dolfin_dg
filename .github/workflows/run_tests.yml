@@ -3,7 +3,7 @@ name: dolfin_dg unit tests
 on:
   pull_request:
     branches:
-      - main
+      - master
 
 jobs:
   Run-Tests-dolfinx:
