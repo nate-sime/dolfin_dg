@@ -11,7 +11,7 @@ if sys.version_info < (3, 6):
     print("Python 3.6 or higher required.")
     sys.exit(1)
 
-version = '2020.1.0'
+version = '2.0.0.dev'
 
 setup(name="dolfin_dg",
       description="Utility module for automatic generation of DG FE "
