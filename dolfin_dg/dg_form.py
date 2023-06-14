@@ -2,12 +2,11 @@ import abc
 
 import ufl
 from ufl import (
-    inner, replace, grad, dot, curl, div)
+    inner, replace, grad, dot, curl, div, avg, jump)
 
-from dolfin_dg.dg_ufl import (
-    apply_dg_operators, avg, tensor_jump, jump, tangent_jump)
 from dolfin_dg import normal_proj, tangential_proj, \
     hyper_tensor_product, hyper_tensor_T_product, dg_outer
+from dolfin_dg.math import tensor_jump, cross_jump
 import dolfin_dg
 
 
@@ -272,7 +271,7 @@ class DGClassicalSecondOrderDiscretisation(DGFemTerm):
                 sigma('+') * hyper_tensor_product(avg(G), tensor_jump(u, n)),
                 tensor_jump(v, n)) * dInt
 
-        residual = apply_dg_operators(residual)
+        # residual = apply_dg_operators(residual)
         return residual
 
     def _exterior_residual_no_integral(self, u_gamma):
@@ -339,13 +338,13 @@ class DGFemCurlTerm(DGFemTerm):
         curl_u, curl_v = curl(u), curl(v)
         sigma, n = self.sigma, self.n
 
-        residual = - inner(tangent_jump(u, n),
+        residual = - inner(cross_jump(u, n),
                            avg(hyper_tensor_T_product(G, curl_v))) * dInt \
-                   - inner(tangent_jump(v, n), avg(self.F_v(u, curl_u))) * dInt \
-                   + sigma('+') * inner(hyper_tensor_product(avg(G), tangent_jump(u, n)),
-                               tangent_jump(v, n)) * dInt
+                   - inner(cross_jump(v, n), avg(self.F_v(u, curl_u))) * dInt \
+                   + sigma('+') * inner(hyper_tensor_product(avg(G), cross_jump(u, n)),
+                               cross_jump(v, n)) * dInt
 
-        residual = apply_dg_operators(residual)
+        # residual = apply_dg_operators(residual)
         return residual
 
     def exterior_residual(self, u_gamma, dExt):
@@ -394,7 +393,7 @@ class DGFemStokesTerm(DGClassicalSecondOrderDiscretisation):
 
         residual = [super().interior_residual(dInt),
                     -ufl.jump(u, n) * avg(q) * dInt]
-        residual = list(map(apply_dg_operators, residual))
+        # residual = list(map(apply_dg_operators, residual))
         if not self.block_form:
             residual = sum(residual)
         return residual
@@ -496,7 +495,7 @@ class DGClassicalFourthOrderDiscretisation(DGFemTerm):
                 sigma('+') * hyper_tensor_product(avg(G), jump(grad_u, n)),
                 jump(grad_v, n)) * dInt
 
-        residual = apply_dg_operators(residual)
+        # residual = apply_dg_operators(residual)
         return residual
 
     def _exterior_residual_no_integral(self, u_gamma):
