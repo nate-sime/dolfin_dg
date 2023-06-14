@@ -36,7 +36,43 @@ class GenericProblem(convergence.ConvergenceTest):
         return F
 
 
-class Poisson(GenericProblem):
+class Advection(GenericProblem):
+
+    def u_soln(self, V):
+        mesh = V.mesh
+        x = ufl.SpatialCoordinate(mesh)
+        return ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
+
+    def generate_fos(self, u, v):
+        return dolfin_dg.primal.simple.advection(u, v, b=ufl.as_vector((1, 1)))
+
+    def generate_form(self, mesh, V, u, v):
+        u_soln = self.u_soln(V)
+        fos = self.generate_fos(u, v)
+        n = ufl.FacetNormal(mesh)
+
+        F = fos.domain()
+        eigen_vals_max_p = abs(
+            ufl.dot(ufl.diff(fos.F_vec[1](u), u), n)("+"))
+        eigen_vals_max_m = abs(
+            ufl.dot(ufl.diff(fos.F_vec[1](u), u), n)("-"))
+        alpha = dolfin_dg.math.max_value(eigen_vals_max_p,
+                                         eigen_vals_max_m) / 2.0
+        F += fos.interior([-alpha])
+
+        eigen_vals_max_p = abs(ufl.dot(ufl.diff(fos.F_vec[1](u), u), n))
+        u_soln_var = ufl.variable(u_soln)
+        eigen_vals_max_m = abs(
+            ufl.dot(ufl.diff(fos.F_vec[1](u_soln_var), u_soln_var), n))
+        alpha = dolfin_dg.math.max_value(eigen_vals_max_p,
+                                         eigen_vals_max_m) / 2.0
+        F += fos.exterior([-alpha], u_soln)
+
+        F -= ufl.inner(fos.F_vec[0](u_soln), v) * ufl.dx
+        return F
+
+
+class Diffusion(GenericProblem):
 
     def u_soln(self, V):
         mesh = V.mesh
@@ -47,7 +83,7 @@ class Poisson(GenericProblem):
         return dolfin_dg.primal.simple.diffusion(u, v, A=1)
 
 
-class VectorPoisson(Poisson):
+class VectorDiffusion(Diffusion):
 
     def u_soln(self, V):
         mesh = V.mesh
@@ -155,8 +191,9 @@ class Triharmonic(GenericProblem):
 
 
 @pytest.mark.parametrize("problem,element,p,cell_type", [
-    (Poisson, ufl.FiniteElement, 1, dolfinx.mesh.CellType.triangle),
-    (VectorPoisson, ufl.VectorElement, 1, dolfinx.mesh.CellType.triangle),
+    (Advection, ufl.FiniteElement, 1, dolfinx.mesh.CellType.triangle),
+    (Diffusion, ufl.FiniteElement, 1, dolfinx.mesh.CellType.triangle),
+    (VectorDiffusion, ufl.VectorElement, 1, dolfinx.mesh.CellType.triangle),
     (Maxwell, ufl.VectorElement, 1, dolfinx.mesh.CellType.triangle),
     (StreamFunction, ufl.FiniteElement, 3, dolfinx.mesh.CellType.triangle),
     (Biharmonic, ufl.FiniteElement, 3, dolfinx.mesh.CellType.quadrilateral),
