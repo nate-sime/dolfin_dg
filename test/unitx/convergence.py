@@ -10,10 +10,8 @@ import dolfin_dg
 
 class ConvergenceTest:
 
-    def __init__(self, meshes, element, norm0="l2", norm1="h1", TOL=0.1):
+    def __init__(self, meshes, element, TOL=0.1):
         self.meshes = meshes
-        self.norm0 = norm0
-        self.norm1 = norm1
         self.TOL = TOL
         self.element = element
 
@@ -58,7 +56,7 @@ class ConvergenceTest:
                 mesh._cpp_object, mesh.topology.dim,
                 np.arange(mesh.topology.index_map(mesh.topology.dim).size_local,
                           dtype=np.int32))
-            hmax = mesh.comm.allreduce(h_measure.max(), op=MPI.MIN)
+            hmax = mesh.comm.allreduce(h_measure.max(), op=MPI.MAX)
             hsizes[run_count] = hmax
             run_count += 1
 
