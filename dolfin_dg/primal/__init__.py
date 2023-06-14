@@ -24,11 +24,14 @@ class IBP:
         self.u = u
         self.v = v
         self.G = G
-        # print(f"Initialising {self}")
-        # print(f"Shape F(u) = {F(u).ufl_shape}")
-        # print(f"Shape G = {G.ufl_shape}")
-        # print(f"Shape u = {u.ufl_shape}")
-        # print(f"Shape v = {v.ufl_shape}")
+
+    def __repr__(self):
+        msg = f"IBP: {self.__class__}, " \
+              f"Shape F(u) = {self.F(self.u).ufl_shape}, " \
+              f"Shape G = {self.G.ufl_shape}, " \
+              f"Shape u = {self.u.ufl_shape}, " \
+              f"Shape v = {self.v.ufl_shape}, "
+        return msg
 
 
 def first_order_flux2(F, flux):
