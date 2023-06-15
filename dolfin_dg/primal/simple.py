@@ -1,7 +1,6 @@
 import ufl
 
 import dolfin_dg.primal
-from dolfin_dg.math import hyper_tensor_T_product as G_T_mult
 
 
 def advection(u, v, b):
