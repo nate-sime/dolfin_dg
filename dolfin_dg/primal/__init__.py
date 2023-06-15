@@ -1,5 +1,6 @@
 import typing
 import math
+import types
 
 import numpy as np
 import ufl
@@ -54,7 +55,13 @@ def first_order_flux(flux_func):
 
 class FirstOrderSystem:
 
-    def __init__(self, F_vec, L_vec, u, v):
+    def __init__(self,
+                 F_vec: list[typing.Callable[
+                     [ufl.core.expr.Expr, ufl.core.expr.Expr],
+                     ufl.core.expr.Expr]],
+                 L_vec: list[typing.Union[ufl.div, ufl.grad, ufl.curl]],
+                 u: ufl.coefficient.Coefficient,
+                 v: ufl.argument.Argument):
         self.u = u
         self.v = v
         self.L_vec = L_vec
@@ -81,10 +88,10 @@ class FirstOrderSystem:
         self.n_ibps[self.ibp_2ce_point:] = 2
 
     @property
-    def G(self):
+    def G(self) -> ufl.core.expr.Expr:
         return self.G_vec
 
-    def domain(self):
+    def domain(self) -> ufl.form.Form:
         F_vec = self.F_vec
         G_vec = self.G_vec
         L_vec = self.L_vec
@@ -100,20 +107,29 @@ class FirstOrderSystem:
         F = sign * ufl.inner(F_vec[mid_idx](u), v_vec[mid_idx]) * ufl.dx
         return F
 
-    def interior(self, alpha, flux_type=None, dS=ufl.dS):
+    def interior(self, alpha: list[ufl.core.expr.Expr],
+                 flux_type: types.ModuleType | None = None,
+                 dS: ufl.measure.Measure = ufl.dS) -> ufl.form.Form:
         if flux_type is None:
             import dolfin_dg.primal.facet_sipg
             flux_type = dolfin_dg.primal.facet_sipg
         u_soln = None
         return self._formulate(alpha, flux_type, u_soln, interior=True, dI=dS)
 
-    def exterior(self, alpha, u_soln, flux_type=None, ds=ufl.ds):
+    def exterior(self, alpha: list[ufl.core.expr.Expr],
+                 u_soln: ufl.core.expr.Expr,
+                 flux_type: types.ModuleType | None = None,
+                 ds: ufl.measure.Measure = ufl.ds) -> ufl.form.Form:
         if flux_type is None:
             import dolfin_dg.primal.facet_sipg
             flux_type = dolfin_dg.primal.facet_sipg
         return self._formulate(alpha, flux_type, u_soln, interior=False, dI=ds)
 
-    def _formulate(self, alpha, flux_type, u_soln, interior, dI):
+    def _formulate(self, alpha: list[ufl.core.expr.Expr],
+                   flux_type: types.ModuleType,
+                   u_soln: ufl.core.expr.Expr,
+                   interior: bool,
+                   dI: ufl.measure.Measure):
         F_vec = self.F_vec
         G_vec = self.G_vec
         L_vec = self.L_vec
