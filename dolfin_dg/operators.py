@@ -11,7 +11,7 @@ from dolfin_dg import aero, generate_default_sipg_penalty_term, \
 from dolfin_dg.dg_form import (
     DGFemTerm, DGFemCurlTerm, DGFemSIPG, DGFemStokesTerm
 )
-from dolfin_dg.fluxes import LocalLaxFriedrichs
+from dolfin_dg.fluxes import LocalLaxFriedrichs, ModifiedLocalLaxFriedrichs
 
 
 class DGBC:
@@ -445,6 +445,80 @@ class CompressibleEulerOperator(HyperbolicOperator):
                                     LocalLaxFriedrichs(alpha))
 
 
+
+class SpaceTimeCompressibleEulerOperator(HyperbolicOperator):
+    r"""Specific implementation of
+    :class:`dolfin_dg.operators.HyperbolicOperator` for the space-time compressible Euler
+    operator (t is last component)
+
+    .. math ::
+        \nabla \cdot
+        \begin{pmatrix}
+        \rho \vec{u} \\
+        \rho \vec{u} \otimes \vec{u} + p I \\
+        (\rho E + p) \vec{u} \\
+        \vec{u}
+        \end{pmatrix}
+    """
+
+    def __init__(self, mesh, V, bcs, gamma=1.4):
+        """
+        Parameters
+        ----------
+        mesh
+            Problem mesh (space-time mesh)
+        V
+            Problem function space in which the solution is formulated and
+            sought
+        bcs
+            List of :class:`dolfin_dg.operators.DGDC` to be weakly imposed
+            and included in the formulation
+        gamma
+            Ratio of specific heats
+        """
+
+        # not the dimension we need
+        dim = self.mesh_dimension( mesh )
+        #print("Mesh dim = ",dim)
+
+        class SpaceDim:
+            def __init__(self, _d ):
+                self.dimension = _d-1 # spatial dimension is one less (removed time)
+
+        # Create CompressibleEulerOperator with dimension-1 to obtain spatial flux
+        _eulerOp = CompressibleEulerOperator( SpaceDim(dim), V, bcs, gamma )
+        # we only need the flux implementation here
+        _F_c = _eulerOp.F_c
+
+        def F_c(U):
+            # dimX is for space-time dim-1
+            dimX = len( U ) - 2
+            assert dim-1 == dimX, "Dimensions do not match!"
+
+            # spatial Euler operator
+            Fc_spc = _F_c( U )
+
+            # space-time version = [ F_c(U), U ]
+            Fc_dt = ufl.as_tensor([ *[[Fc_spc[k,d] if d<dimX else U[k] for d in range(dim)] for k in range(len(U))] ])
+
+            return Fc_dt
+
+        def alpha2d(U, n):
+            rho, u, E = aero.flow_variables(U)
+            p = aero.pressure(U, gamma=gamma)
+            c = aero.speed_of_sound(p, rho, gamma=gamma)
+            n2d = ufl.as_vector([n[d] for d in range(len(u))])
+            lambdas = [ufl.dot(u, n2d) - c, ufl.dot(u, n2d), ufl.dot(u, n2d) + c]
+            return lambdas
+
+        def alpha(U, n):
+            return alpha2d(U, n)
+
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c,
+                                    ModifiedLocalLaxFriedrichs(alpha))
+
+
+
 class CompressibleNavierStokesOperator(EllipticOperator,
                                        CompressibleEulerOperator):
     r"""Specific implementation of
@@ -683,7 +757,7 @@ class CompressibleNavierStokesOperatorEntropyFormulation(
 
             grad_rho = grad_U[0, :]
             grad_rhou = ufl.as_tensor([grad_U[j, :] for j in range(1, dim + 1)])
-            grad_rhoE = grad_U[-1, :]
+            grad_rhoE = grad_U[dim+1, :]
 
             grad_u = (grad_rhou*rho - ufl.outer(rhou, grad_rho))/rho**2
             grad_E = (grad_rhoE*rho - rhoE*grad_rho)/rho**2

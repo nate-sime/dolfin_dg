@@ -174,6 +174,26 @@ class LocalLaxFriedrichs(ConvectiveFlux):
     exterior = interior
 
 
+class ModifiedLocalLaxFriedrichs(LocalLaxFriedrichs):
+    """Implementation of symbolic representation of the space-time local-Lax Friedrichs
+    flux function
+    """
+
+    def __init__(self, flux_jacobian_eigenvalues):
+        super(self.__class__, self).__init__(flux_jacobian_eigenvalues)
+
+    def interior(self, F_c, u_p, u_m, n):
+        a = (len(n)-1)*[self.alpha]
+        A = ufl.as_tensor([*a,1.])
+
+        alpha = abs(ufl.dot(A,n))
+
+        return 0.5*(ufl.dot(F_c(u_p), n) + ufl.dot(F_c(u_m), n)
+                    + alpha*(u_p - u_m))
+
+    exterior = interior
+
+
 class HLLE(ConvectiveFlux):
     """Implementation of the Harten-Lax-van Leer-Einfeldt flux function
     """
