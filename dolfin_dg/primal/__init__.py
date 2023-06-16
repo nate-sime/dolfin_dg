@@ -92,7 +92,7 @@ class FirstOrderSystem:
     def G(self) -> ufl.core.expr.Expr:
         return self.G_vec
 
-    def domain(self, dx: ufl.measure.Measure) -> ufl.form.Form:
+    def domain(self, dx: ufl.measure.Measure = ufl.dx) -> ufl.form.Form:
         F_vec = self.F_vec
         G_vec = self.G_vec
         L_vec = self.L_vec
