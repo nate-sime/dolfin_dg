@@ -6,6 +6,7 @@ from petsc4py import PETSc
 import dolfinx
 
 import dolfin_dg.dolfinx
+import dolfin_dg.penalty
 import dolfin_dg.primal
 import dolfin_dg.primal.simple
 
@@ -34,7 +35,6 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
         n = ufl.FacetNormal(mesh)
         x = ufl.SpatialCoordinate(mesh)
         h = ufl.CellDiameter(mesh)
-        alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
 
         if problem_id == 1:
             # -- Scalar Poisson
@@ -45,13 +45,13 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
 
             u.interpolate(lambda x: x[0] + 1)
             u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1]) + 1
-            u_soln = ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1]) + 1
 
             F = - ufl.inner(fos.F_vec[0](u_soln), v) * ufl.dx
             F += fos.domain()
-            F += fos.interior([alpha("+") * ufl.avg(fos.G[1])])
-            F += fos.exterior([alpha * ufl.replace(fos.G[1], {u: u_soln})],
-                              u_soln)
+            alpha, alpha_ext = dolfin_dg.penalty.interior_penalty(
+                fos, u, u_soln)
+            F += fos.interior([alpha])
+            F += fos.exterior([alpha_ext], u_soln)
         elif problem_id == 2:
             # -- Vector Poisson
             V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
@@ -65,9 +65,10 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
 
             F = -ufl.inner(fos.F_vec[0](u_soln), v) * ufl.dx
             F += fos.domain()
-            F += fos.interior([alpha("+") * ufl.avg(fos.G[1])])
-            F += fos.exterior([alpha * ufl.replace(fos.G[1], {u: u_soln})],
-                              u_soln)
+            alpha, alpha_ext = dolfin_dg.penalty.interior_penalty(
+                fos, u, u_soln)
+            F += fos.interior([alpha])
+            F += fos.exterior([alpha_ext], u_soln)
         elif problem_id == 3:
             # -- Maxwell
             V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
@@ -82,9 +83,10 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
 
             F = - k**2 * ufl.inner(u, v) * ufl.dx
             F += fos.domain()
-            F += fos.interior([alpha("+") * ufl.avg(fos.G[1])])
-            F += fos.exterior([alpha * ufl.replace(fos.G[1], {u: u_soln})],
-                              u_soln)
+            alpha, alpha_ext = dolfin_dg.penalty.interior_penalty(
+                fos, u, u_soln)
+            F += fos.interior([alpha])
+            F += fos.exterior([alpha_ext], u_soln)
         elif problem_id == 4:
             # -- Biharmonic
             V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
@@ -163,29 +165,22 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
             fos_diff = dolfin_dg.primal.simple.diffusion(u, v, Ax)
             f += fos_diff.F_vec[0](u_soln)
             F += fos_diff.domain()
-            alpha = dolfinx.fem.Constant(mesh, 20.0) * p ** 2 / h
-            F += fos_diff.interior([alpha("+") * ufl.avg(fos_diff.G[1])])
-            F += fos_diff.exterior(
-                [alpha * ufl.replace(fos_diff.G[1], {u: u_soln})], u_soln)
+            alpha, alpha_ext = dolfin_dg.penalty.interior_penalty(
+                fos_diff, u, u_soln)
+            F += fos_diff.interior([alpha])
+            F += fos_diff.exterior([alpha_ext], u_soln)
 
             # -- Advection
             b = dolfinx.fem.Constant(mesh, (1.0, 1.0))
             fos_adv = dolfin_dg.primal.simple.advection(u, v, b)
             f += fos_adv.F_vec[0](u_soln)
             F += fos_adv.domain()
-            eigen_vals_max_p = abs(ufl.dot(ufl.diff(fos_adv.F_vec[1](u), u), n)("+"))
-            eigen_vals_max_m = abs(ufl.dot(ufl.diff(fos_adv.F_vec[1](u), u), n)("-"))
-            alpha = dolfin_dg.math.max_value(eigen_vals_max_p,
-                                             eigen_vals_max_m) / 2.0
-            F += fos_adv.interior([-alpha])
 
-            eigen_vals_max_p = abs(ufl.dot(ufl.diff(fos_adv.F_vec[1](u), u), n))
-            u_soln_var = ufl.variable(u_soln)
-            eigen_vals_max_m = abs(
-                ufl.dot(ufl.diff(fos_adv.F_vec[1](u_soln_var), u_soln_var), n))
-            alpha = dolfin_dg.math.max_value(eigen_vals_max_p,
-                                             eigen_vals_max_m) / 2.0
-            F += fos_adv.exterior([-alpha], u_soln)
+            lambdas = ufl.dot(ufl.diff(fos_adv.F_vec[1](u), u), n)
+            alpha, alpha_ext = dolfin_dg.penalty.local_lax_friedrichs_penalty(
+                lambdas, u, u_soln)
+            F += fos_adv.interior([-alpha])
+            F += fos_adv.exterior([-alpha_ext], u_soln)
 
             # -- Reaction
             c = dolfinx.fem.Constant(mesh, 1.0)
