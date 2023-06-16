@@ -12,6 +12,8 @@ from dolfin_dg.dg_form import (
     DGFemTerm, DGFemCurlTerm, DGFemSIPG, DGFemStokesTerm
 )
 from dolfin_dg.fluxes import LocalLaxFriedrichs
+import dolfin_dg.penalty
+import dolfin_dg.primal
 
 
 class DGBC:
@@ -69,28 +71,28 @@ class DGAdiabticWallBC(DGBC):
     pass
 
 
+def mesh_dimension(mesh):
+    if hasattr(mesh, "dimension"):
+        # the DUNE way
+        return mesh.dimension
+    elif hasattr(mesh, "ufl_domain"):
+        # the dolfin/dolfinx way
+        return mesh.ufl_domain().geometric_dimension()
+    elif hasattr(mesh, "geometric_dimension"):
+        # the UFL way
+        return mesh.geometric_dimension()
+    else:
+        # the firedrake & legacy fenics/dolfin way
+        try:
+            return mesh.geometry().dim()
+        except AttributeError:
+            return mesh.geometric_dimension()
+
+
 class DGFemFormulation:
     """Abstract base class for automatic formulation of a DG FEM
     formulation
     """
-
-    @staticmethod
-    def mesh_dimension(mesh):
-        if hasattr(mesh, "dimension"):
-            # the DUNE way
-            return mesh.dimension
-        elif hasattr(mesh, "ufl_domain"):
-            # the dolfin/dolfinx way
-            return mesh.ufl_domain().geometric_dimension()
-        elif hasattr(mesh, "geometric_dimension"):
-            # the UFL way
-            return mesh.geometric_dimension()
-        else:
-            # the firedrake & legacy fenics/dolfin way
-            try:
-                return mesh.geometry().dim()
-            except AttributeError:
-                return mesh.geometric_dimension()
 
     def __init__(self, mesh, fspace, bcs):
         """
@@ -209,7 +211,6 @@ def apply_interior_penalty(fos, bcs, c_ip=20.0, h_measure=None, dS=ufl.dS):
     if not isinstance(bcs, (tuple, list)):
         bcs = [bcs]
 
-    import dolfin_dg.penalty
     u = fos.u
     alpha, _ = dolfin_dg.penalty.interior_penalty(
         fos, u, u, c_ip=c_ip, h_measure=h_measure)
@@ -225,6 +226,9 @@ def apply_interior_penalty(fos, bcs, c_ip=20.0, h_measure=None, dS=ufl.dS):
 
 
 class PoissonOperator:
+    r"""
+    .. math:: \nabla \cdot \kappa \nabla (\cdot)
+    """
 
     def __init__(self, mesh, fspace, bcs, kappa=1):
         self.kappa = kappa
@@ -240,68 +244,55 @@ class PoissonOperator:
         return F
 
 
-class MaxwellOperator(DGFemFormulation):
-    r"""Base class for the automatic generation of a DG formulation for
-    the underlying elliptic (2nd order) operator of the form
-
-    .. math:: \nabla \times \mathcal{F}^m(u, \nabla \times u)
+class MaxwellOperator:
+    r"""
+    .. math:: \nabla \times \nabla \times (\cdot)
     """
 
     def __init__(self, mesh, fspace, bcs, F_m):
-        """
-        Parameters
-        ----------
-        mesh
-            Problem mesh
-        fspace
-            Problem function space in which the solution is formulated and
-            sought
-        bcs
-            List of :class:`dolfin_dg.operators.DGBC` to be weakly imposed and
-            included in the formulation
-        F_m
-            Two argument function ``F_m(u, curl_u)`` corresponding to the
-            viscous flux term
-        """
-        DGFemFormulation.__init__(self, mesh, fspace, bcs)
+        self.bcs = bcs
         self.F_m = F_m
 
-    def generate_fem_formulation(self, u, v, dx=None, dS=None, penalty=None):
-        if dx is None:
-            dx = Measure('dx', domain=self.mesh)
-        if dS is None:
-            dS = Measure('dS', domain=self.mesh)
-
-        n = ufl.FacetNormal(self.ufl_domain())
-        curl_u = variable(curl(u))
-        G = diff(self.F_m(u, curl_u), curl_u)
-        penalty = generate_default_sipg_penalty_term(u)
-
-        ct = DGFemCurlTerm(self.F_m, u, v, penalty, G, n)
-
-        residual = inner(self.F_m(u, curl(u)), curl(v))*dx
-        residual += ct.interior_residual(dS)
-
-        for dbc in self.dirichlet_bcs:
-            residual += ct.exterior_residual(
-                dbc.get_function(), dbc.get_boundary())
-
-        for dbc in self.neumann_bcs:
-            residual += ct.neumann_residual(
-                dbc.get_function(), dbc.get_boundary())
-
-        return residual
+    def generate_fem_formulation(self, u, v, dx=ufl.dx, dS=ufl.dS, c_ip=20.0, h_measure=None):
+        import dolfin_dg.primal.simple
+        fos = dolfin_dg.primal.simple.maxwell(u, v)
+        F = fos.domain(dx)
+        F += apply_interior_penalty(
+            fos, self.bcs, c_ip=c_ip, h_measure=h_measure, dS=dS)
+        return F
 
 
-class HyperbolicOperator(DGFemFormulation):
+def apply_facet_flux(fos, bcs, lambdas):
+    u = fos.u
+
+    if not isinstance(bcs, (list, tuple)):
+        bcs = [bcs]
+
+    alpha, _ = dolfin_dg.penalty.local_lax_friedrichs_penalty(
+        lambdas, u, u)
+    F = fos.interior([-alpha])
+
+    for bc in bcs:
+        bdry, function = bc.get_boundary(), bc.get_function()
+        if isinstance(bc, DGDirichletBC):
+            _, alpha_ext = dolfin_dg.penalty.local_lax_friedrichs_penalty(
+                lambdas, u, function)
+            F += fos.exterior([-alpha_ext], function)
+        elif isinstance(bc, DGNeumannBC):
+            _, alpha_ext = dolfin_dg.penalty.local_lax_friedrichs_penalty(
+                lambdas, u, u)
+            F += fos.exterior([-alpha_ext], function)
+    return F
+
+
+class HyperbolicOperator:
     r"""Base class for the automatic generation of a DG formulation for
     the underlying hyperbolic (1st order) operator of the form
 
     .. math:: \nabla \cdot \mathcal{F}^c(u)
     """
 
-    def __init__(self, mesh, V, bcs, F_c=lambda u: u,
-                 H=LocalLaxFriedrichs(lambda u, n: inner(u, n))):
+    def __init__(self, mesh, V, bcs, F_c=lambda u: u, lambdas=None):
         """
         Parameters
         ----------
@@ -320,11 +311,11 @@ class HyperbolicOperator(DGFemFormulation):
             An instance of a :class:`dolfin_dg.fluxes.ConvectiveFlux`
             describing the convective flux scheme to employ
         """
-        DGFemFormulation.__init__(self, mesh, V, bcs)
-        self.F_c = F_c
-        self.H = H
+        self.bcs = bcs
+        self.F_c = dolfin_dg.primal.first_order_flux(lambda x: x)(F_c)
+        self.lambdas = lambdas
 
-    def generate_fem_formulation(self, u, v, dx=None, dS=None):
+    def generate_fem_formulation(self, u, v, dx=ufl.dx, dS=ufl.dS):
         """Automatically generate the DG FEM formulation
 
         Parameters
@@ -342,39 +333,27 @@ class HyperbolicOperator(DGFemFormulation):
         -------
         The UFL representation of the DG FEM formulation
         """
+        @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(self.F_c(x)))
+        def F_0(u, flux):
+            return flux
 
-        if dx is None:
-            dx = Measure('dx', domain=self.mesh)
-        if dS is None:
-            dS = Measure('dS', domain=self.mesh)
+        F_vec = [F_0, self.F_c]
+        L_vec = [ufl.div]
 
-        n = ufl.FacetNormal(self.ufl_domain())
+        fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
 
-        F_c_eval = self.F_c(u)
-        if len(F_c_eval.ufl_shape) == 0:
-            F_c_eval = as_vector((F_c_eval,))
-        residual = -inner(F_c_eval, grad(v))*dx
+        F = fos.domain(dx)
 
-        self.H.setup(self.F_c, u('+'), u('-'), n('+'))
-        residual += inner(self.H.interior(self.F_c, u('+'), u('-'), n('+')),
-                          (v('+') - v('-')))*dS
-
-        for bc in self.dirichlet_bcs:
-            gD = bc.get_function()
-            dSD = bc.get_boundary()
-
-            self.H.setup(self.F_c, u, gD, n)
-            residual += inner(self.H.exterior(self.F_c, u, gD, n), v)*dSD
-
-        for bc in self.neumann_bcs:
-            dSN = bc.get_boundary()
-
-            residual += inner(dot(self.F_c(u), n), v)*dSN
-
-        return residual
+        n = ufl.FacetNormal(u.ufl_domain())
+        if self.lambdas is None:
+            lambdas = ufl.dot(ufl.diff(fos.F_vec[1](u), u), n)
+        else:
+            lambdas = self.lambdas
+        F += apply_facet_flux(fos, self.bcs, lambdas)
+        return F
 
 
-class SpacetimeBurgersOperator(HyperbolicOperator):
+class SpacetimeBurgersOperator:
     r"""Specific implementation of
     :class:`dolfin_dg.operators.HyperbolicOperator` for the spacetime Burgers
     operator where :math:`t=y`
@@ -388,14 +367,30 @@ class SpacetimeBurgersOperator(HyperbolicOperator):
     """
 
     def __init__(self, mesh, V, bcs, flux=None):
+        self.bcs = bcs
 
-        def F_c(u):
-            return as_vector((u**2/2, u))
+    def generate_fem_formulation(self, u, v, dx=ufl.dx, dS=ufl.dS, c_ip=20.0, h_measure=None):
+        import dolfin_dg.primal
 
-        if flux is None:
-            flux = LocalLaxFriedrichs(lambda u, n: u*n[0] + n[1])
+        @dolfin_dg.primal.first_order_flux(lambda x: x)
+        def F_1(_, flux):
+            return as_vector((flux**2/2, flux))
 
-        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c, flux)
+        @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_1(x)))
+        def F_0(u, flux):
+            return flux
+
+        F_vec = [F_0, F_1]
+        L_vec = [ufl.div]
+
+        fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
+
+        F = fos.domain(dx)
+
+        n = ufl.FacetNormal(u.ufl_domain())
+        lambdas = ufl.dot(ufl.diff(fos.F_vec[1](u), u), n)
+        F += apply_facet_flux(fos, self.bcs, lambdas)
+        return F
 
 
 class CompressibleEulerOperator(HyperbolicOperator):
@@ -427,29 +422,26 @@ class CompressibleEulerOperator(HyperbolicOperator):
         gamma
             Ratio of specific heats
         """
+        self.gamma = gamma
+        self.bcs = bcs
 
-        dim = self.mesh_dimension( mesh )
 
-        def F_c(U):
-            rho, u, E = aero.flow_variables(U)
-            p = aero.pressure(U, gamma=gamma)
-            H = aero.enthalpy(U, gamma=gamma)
+    def generate_fem_formulation(self, U, v, dx=ufl.dx, dS=ufl.dS):
+        n = ufl.FacetNormal(U.ufl_domain())
+        gamma = self.gamma
 
-            inertia = rho*ufl.outer(u, u) + p*Identity(dim)
-            res = ufl.as_tensor([rho*u,
-                                 *[inertia[d, :] for d in range(dim)],
-                                 rho*H*u])
-            return res
+        rho, u, E = aero.flow_variables(U)
+        p = aero.pressure(U, gamma=gamma)
+        c = aero.speed_of_sound(p, rho, gamma=gamma)
+        lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
 
-        def alpha(U, n):
-            rho, u, E = aero.flow_variables(U)
-            p = aero.pressure(U, gamma=gamma)
-            c = aero.speed_of_sound(p, rho, gamma=gamma)
-            lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
-            return lambdas
+        import dolfin_dg.primal.aero
+        fos = dolfin_dg.primal.aero.compressible_euler(U, v, gamma=gamma)
 
-        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c,
-                                    LocalLaxFriedrichs(alpha))
+        F = fos.domain(dx)
+        F += apply_facet_flux(fos, self.bcs, lambdas)
+        return F
+
 
 
 class CompressibleNavierStokesOperator(EllipticOperator,
@@ -497,7 +489,7 @@ class CompressibleNavierStokesOperator(EllipticOperator,
         Pr
             Prandtl number
         """
-        dim = self.mesh_dimension( mesh )
+        dim = mesh_dimension(mesh)
 
         if not hasattr(bcs, '__len__'):
             bcs = [bcs]
@@ -621,9 +613,9 @@ class CompressibleEulerOperatorEntropyFormulation(HyperbolicOperator):
             Ratio of specific heats
         """
 
-        dim = self.mesh_dimension( mesh )
+        dim = mesh_dimension(mesh)
 
-        def F_c(V):
+        def F_c(_, V):
             V = variable(V)
             U = V_to_U(V, gamma)
             rho, u, E = aero.flow_variables(U)
@@ -644,8 +636,7 @@ class CompressibleEulerOperatorEntropyFormulation(HyperbolicOperator):
             lambdas = [dot(u, n) - c, dot(u, n), dot(u, n) + c]
             return lambdas
 
-        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c,
-                                    LocalLaxFriedrichs(alpha))
+        HyperbolicOperator.__init__(self, mesh, V, bcs, F_c)
 
 
 class CompressibleNavierStokesOperatorEntropyFormulation(
@@ -677,7 +668,7 @@ class CompressibleNavierStokesOperatorEntropyFormulation(
             Prandtl number
         """
 
-        dim = self.mesh_dimension( mesh )
+        dim = mesh_dimension(mesh)
 
         def F_v(V, grad_V):
             V = variable(V)
