@@ -28,15 +28,17 @@ def compressible_euler(U, v, gamma=1.4):
 
     and :math:`\gamma` is the ratio of specific heats.
     """
+    dim = U.ufl_shape[0] - 2
+
     @dolfin_dg.primal.first_order_flux(lambda x: x)
     def F_1(_, flux):
         rho, u, E = dolfin_dg.aero.flow_variables(flux)
         p = dolfin_dg.aero.pressure(flux, gamma=gamma)
         H = dolfin_dg.aero.enthalpy(flux, gamma=gamma)
 
-        inertia = rho * ufl.outer(u, u) + p * ufl.Identity(2)
+        inertia = rho * ufl.outer(u, u) + p * ufl.Identity(dim)
         res = ufl.as_tensor([rho * u,
-                             *[inertia[d, :] for d in range(2)],
+                             *[inertia[d, :] for d in range(dim)],
                              rho * H * u])
         return res
 
@@ -84,6 +86,7 @@ def compressible_navier_stokes(U, v, gamma=1.4, mu=1, Pr=0.72):
     Combine this formulation with :function:`dolfin_dg.primal.aero.compressible_euler`
     to compose an interior penalty formulation of viscous compressible flow.
     """
+    dim = U.ufl_shape[0] - 2
 
     @dolfin_dg.primal.first_order_flux(lambda x: x)
     def F_2(u, flux):
@@ -95,19 +98,19 @@ def compressible_navier_stokes(U, v, gamma=1.4, mu=1, Pr=0.72):
         u = rhou / rho
 
         grad_rho = flux[0, :]
-        grad_rhou = ufl.as_tensor([flux[j, :] for j in range(1, 3)])
-        grad_rhoE = flux[3, :]
+        grad_rhou = ufl.as_tensor([flux[j, :] for j in range(1, dim+1)])
+        grad_rhoE = flux[dim+1, :]
 
         # Quotient rule to find grad(u) and grad(E)
         grad_u = (grad_rhou * rho - ufl.outer(rhou, grad_rho)) / rho ** 2
         grad_E = (grad_rhoE * rho - rhoE * grad_rho) / rho ** 2
 
         tau = mu * (grad_u + grad_u.T - 2.0 / 3.0 * (
-            ufl.tr(grad_u)) * ufl.Identity(2))
+            ufl.tr(grad_u)) * ufl.Identity(dim))
         K_grad_T = mu * gamma / Pr * (grad_E - ufl.dot(u, grad_u))
 
         res = ufl.as_tensor([ufl.zero(2),
-                             *(tau[d, :] for d in range(2)),
+                             *(tau[d, :] for d in range(dim)),
                              tau * u + K_grad_T])
         return res
 
@@ -156,6 +159,7 @@ def compressible_navier_stokes_adiabatic_wall(U, v, gamma=1.4, mu=1, Pr=0.72):
     Combine this formulation with :function:`dolfin_dg.primal.aero.compressible_euler`
     to compose an interior penalty formulation of viscous compressible flow.
     """
+    dim = U.ufl_shape[0] - 2
 
     @dolfin_dg.primal.first_order_flux(lambda x: x)
     def F_2(u, flux):
@@ -167,18 +171,18 @@ def compressible_navier_stokes_adiabatic_wall(U, v, gamma=1.4, mu=1, Pr=0.72):
         u = rhou / rho
 
         grad_rho = flux[0, :]
-        grad_rhou = ufl.as_tensor([flux[j, :] for j in range(1, 3)])
-        grad_rhoE = flux[3, :]
+        grad_rhou = ufl.as_tensor([flux[j, :] for j in range(1, dim+1)])
+        grad_rhoE = flux[dim+1, :]
 
         # Quotient rule to find grad(u) and grad(E)
         grad_u = (grad_rhou * rho - ufl.outer(rhou, grad_rho)) / rho ** 2
         grad_E = (grad_rhoE * rho - rhoE * grad_rho) / rho ** 2
 
         tau = mu * (grad_u + grad_u.T - 2.0 / 3.0 * (
-            ufl.tr(grad_u)) * ufl.Identity(2))
+            ufl.tr(grad_u)) * ufl.Identity(dim))
 
-        res = ufl.as_tensor([ufl.zero(2),
-                             *(tau[d, :] for d in range(2)),
+        res = ufl.as_tensor([ufl.zero(dim),
+                             *(tau[d, :] for d in range(dim)),
                              tau * u])
         return res
 
