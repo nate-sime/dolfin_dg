@@ -8,6 +8,7 @@ import dolfinx
 import ufl
 
 import dolfin_dg.dolfinx
+import dolfin_dg.penalty
 import dolfin_dg.primal
 import dolfin_dg.primal.simple
 import dolfin_dg.primal.aero
@@ -15,75 +16,45 @@ import dolfin_dg.primal.aero
 import convergence
 
 
-class GenericProblem(convergence.ConvergenceTest):
-
-    def generate_fos(self, u, v) -> dolfin_dg.primal.FirstOrderSystem:
-        pass
-
-    def generate_alpha(self, V):
-        mesh = V.mesh
-        h = ufl.CellDiameter(mesh)
-        p = dolfinx.fem.Constant(mesh, float(self.element.degree()))
-        alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
-        return alpha
-
-    def generate_form(self, mesh, V, u, v):
-        u_soln = self.u_soln(V)
-        fos = self.generate_fos(u, v)
-        alpha = self.generate_alpha(V)
-
-        F = - ufl.inner(fos.F_vec[0](u_soln), v) * ufl.dx
-        F += fos.domain()
-        F += fos.interior([alpha("+") * ufl.avg(fos.G[1])])
-        F += fos.exterior([alpha * ufl.replace(fos.G[1], {u: u_soln})], u_soln)
-        return F
-
-
-class Advection(GenericProblem):
+class Advection(convergence.ConvergenceTest):
 
     def u_soln(self, V):
         mesh = V.mesh
         x = ufl.SpatialCoordinate(mesh)
         return ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
 
-    def generate_fos(self, u, v):
-        return dolfin_dg.primal.simple.advection(u, v, b=ufl.as_vector((1, 1)))
-
     def generate_form(self, mesh, V, u, v):
         u_soln = self.u_soln(V)
-        fos = self.generate_fos(u, v)
+        fos = dolfin_dg.primal.simple.advection(u, v, b=ufl.as_vector((1, 1)))
         n = ufl.FacetNormal(mesh)
 
         F = fos.domain()
-        eigen_vals_max_p = abs(
-            ufl.dot(ufl.diff(fos.F_vec[1](u), u), n)("+"))
-        eigen_vals_max_m = abs(
-            ufl.dot(ufl.diff(fos.F_vec[1](u), u), n)("-"))
-        alpha = dolfin_dg.math.max_value(eigen_vals_max_p,
-                                         eigen_vals_max_m) / 2.0
+        alpha, alpha_ext = dolfin_dg.penalty.local_lax_friedrichs_penalty(
+            ufl.dot(ufl.diff(fos.F_vec[1](u), u), n), u, u_soln)
         F += fos.interior([-alpha])
-
-        eigen_vals_max_p = abs(ufl.dot(ufl.diff(fos.F_vec[1](u), u), n))
-        u_soln_var = ufl.variable(u_soln)
-        eigen_vals_max_m = abs(
-            ufl.dot(ufl.diff(fos.F_vec[1](u_soln_var), u_soln_var), n))
-        alpha = dolfin_dg.math.max_value(eigen_vals_max_p,
-                                         eigen_vals_max_m) / 2.0
-        F += fos.exterior([-alpha], u_soln)
+        F += fos.exterior([-alpha_ext], u_soln)
 
         F -= ufl.inner(fos.F_vec[0](u_soln), v) * ufl.dx
         return F
 
 
-class Diffusion(GenericProblem):
+class Diffusion(convergence.ConvergenceTest):
 
     def u_soln(self, V):
         mesh = V.mesh
         x = ufl.SpatialCoordinate(mesh)
         return ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
 
-    def generate_fos(self, u, v):
-        return dolfin_dg.primal.simple.diffusion(u, v, A=1)
+    def generate_form(self, mesh, V, u, v):
+        u_soln = self.u_soln(V)
+        fos = dolfin_dg.primal.simple.diffusion(u, v, A=1)
+
+        F = - ufl.inner(fos.F_vec[0](u_soln), v) * ufl.dx
+        F += fos.domain()
+        alpha, alpha_ext = dolfin_dg.penalty.interior_penalty(fos, u, u_soln)
+        F += fos.interior([alpha])
+        F += fos.exterior([alpha_ext], u_soln)
+        return F
 
 
 class VectorDiffusion(Diffusion):
@@ -95,7 +66,7 @@ class VectorDiffusion(Diffusion):
             ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])] * mesh.geometry.dim)
 
 
-class Maxwell(GenericProblem):
+class Maxwell(convergence.ConvergenceTest):
 
     @property
     def k(self):
@@ -106,22 +77,19 @@ class Maxwell(GenericProblem):
         x = ufl.SpatialCoordinate(mesh)
         return ufl.as_vector([ufl.sin(self.k * x[1]), ufl.sin(self.k * x[0])])
 
-    def generate_fos(self, u, v):
-        return dolfin_dg.primal.simple.maxwell(u, v)
-
     def generate_form(self, mesh, V, u, v):
         u_soln = self.u_soln(V)
-        fos = self.generate_fos(u, v)
-        alpha = self.generate_alpha(V)
+        fos = dolfin_dg.primal.simple.maxwell(u, v)
+        alpha, alpha_ext = dolfin_dg.penalty.interior_penalty(fos, u, u_soln)
 
         F = - self.k ** 2 * ufl.inner(u, v) * ufl.dx
         F += fos.domain()
-        F += fos.interior([alpha("+") * ufl.avg(fos.G[1])])
-        F += fos.exterior([alpha * ufl.replace(fos.G[1], {u: u_soln})], u_soln)
+        F += fos.interior([alpha])
+        F += fos.exterior([alpha_ext], u_soln)
         return F
 
 
-class StreamFunction(GenericProblem):
+class StreamFunction(convergence.ConvergenceTest):
 
     @property
     def mu(self):
@@ -161,7 +129,7 @@ class Biharmonic(StreamFunction):
         return dolfin_dg.primal.simple.biharmonic(u, v)
 
 
-class Triharmonic(GenericProblem):
+class Triharmonic(convergence.ConvergenceTest):
 
     def u_soln(self, V):
         mesh = V.mesh
@@ -193,7 +161,7 @@ class Triharmonic(GenericProblem):
         return F
 
 
-class CompressibleEuler(GenericProblem):
+class CompressibleEuler(convergence.ConvergenceTest):
 
     def u_soln(self, V):
         mesh = V.mesh
@@ -211,37 +179,19 @@ class CompressibleEuler(GenericProblem):
         fos = dolfin_dg.primal.aero.compressible_euler(U, v)
 
         gamma = 1.4
-        n = ufl.FacetNormal(mesh)
 
         F = fos.domain() - ufl.inner(fos.F_vec[0](U_soln), v) * ufl.dx
 
-        def generate_lambdas(U):
-            rho, u, E = dolfin_dg.aero.flow_variables(U)
-            p = dolfin_dg.aero.pressure(U, gamma=gamma)
-            c = dolfin_dg.aero.speed_of_sound(p, rho, gamma=gamma)
-            lambdas = [ufl.dot(u, n) - c, ufl.dot(u, n), ufl.dot(u, n) + c]
-            return lambdas
+        rho, u, E = dolfin_dg.aero.flow_variables(U)
+        pressure = dolfin_dg.aero.pressure(U, gamma=gamma)
+        c = dolfin_dg.aero.speed_of_sound(pressure, rho, gamma=gamma)
+        n = ufl.FacetNormal(mesh)
+        lambdas = [ufl.dot(u, n) - c, ufl.dot(u, n), ufl.dot(u, n) + c]
 
-        lambdas = generate_lambdas(U)
-        lambdas_ext = generate_lambdas(U_soln)
-
-        # interior
-        eigen_vals_max_p = functools.reduce(
-            dolfin_dg.math.max_value, (abs(l)("+") for l in lambdas))
-        eigen_vals_max_m = functools.reduce(
-            dolfin_dg.math.max_value, (abs(l)("-") for l in lambdas))
-        alpha = dolfin_dg.math.max_value(
-            eigen_vals_max_p, eigen_vals_max_m) / 2.0
+        alpha, alpha_ext = dolfin_dg.penalty.local_lax_friedrichs_penalty(
+            lambdas, U, U_soln)
         F += fos.interior([-alpha])
-
-        # exterior
-        eigen_vals_max_p = functools.reduce(
-            dolfin_dg.math.max_value, map(abs, lambdas))
-        eigen_vals_max_m = functools.reduce(
-            dolfin_dg.math.max_value, map(abs, lambdas_ext))
-        alpha = dolfin_dg.math.max_value(
-            eigen_vals_max_p, eigen_vals_max_m) / 2.0
-        F += fos.exterior([-alpha], U_soln)
+        F += fos.exterior([-alpha_ext], U_soln)
         return F
 
 
@@ -250,16 +200,11 @@ class CompressibleNavierStokes(CompressibleEuler):
     def generate_form(self, mesh, V, U, v):
         U_soln = self.u_soln(V)
         fos = dolfin_dg.primal.aero.compressible_navier_stokes(U, v)
-        h = ufl.CellDiameter(mesh)
-        p = self.element.degree()
-
         F = fos.domain() - ufl.inner(fos.F_vec[0](U_soln), v) * ufl.dx
 
-        penalty = dolfinx.fem.Constant(mesh, 10.0 * p**2) / h
-        F += fos.interior([penalty("+") * ufl.avg(fos.G[1])])
-        F += fos.exterior([penalty * ufl.replace(fos.G[1], {U: U_soln})],
-                          U_soln)
-
+        alpha, alpha_ext = dolfin_dg.penalty.interior_penalty(fos, U, U_soln)
+        F += fos.interior([alpha])
+        F += fos.exterior([alpha_ext], U_soln)
         F += super().generate_form(mesh, V, U, v)
         return F
 
