@@ -205,32 +205,39 @@ class EllipticOperator(DGFemFormulation):
         return residual
 
 
-class PoissonOperator(EllipticOperator):
-    r"""Specific implementation of
-    :class:`dolfin_dg.operators.EllipticOperator` for the Poisson operator:
+def apply_interior_penalty(fos, bcs, c_ip=20.0, h_measure=None, dS=ufl.dS):
+    if not isinstance(bcs, (tuple, list)):
+        bcs = [bcs]
 
-    .. math :: - \nabla \cdot \kappa \nabla u
-    """
+    import dolfin_dg.penalty
+    u = fos.u
+    alpha, _ = dolfin_dg.penalty.interior_penalty(
+        fos, u, u, c_ip=c_ip, h_measure=h_measure)
+    F = fos.interior([alpha], dS=dS)
+
+    for bc in bcs:
+        bdry, function = bc.get_boundary(), bc.get_function()
+        if isinstance(bc, DGDirichletBC):
+            _, alpha_ext = dolfin_dg.penalty.interior_penalty(
+                fos, u, function, c_ip=c_ip, h_measure=h_measure)
+            F += fos.exterior([alpha_ext], function, ds=bdry)
+    return F
+
+
+class PoissonOperator:
 
     def __init__(self, mesh, fspace, bcs, kappa=1):
-        """
-        Parameters
-        ----------
-        mesh
-            Problem mesh
-        fspace
-            Problem function space in which the solution is formulated and
-            sought
-        bcs
-            List of :class:`dolfin_dg.operators.DGBC` to be weakly imposed and
-            included in the formulation
-        kappa
-            (Potentially nonlinear) diffusion coefficient
-        """
-        def F_v(u, grad_u):
-            return kappa*grad_u
+        self.kappa = kappa
+        self.bcs = bcs
 
-        EllipticOperator.__init__(self, mesh, fspace, bcs, F_v)
+    def generate_fem_formulation(self, u, v, dx=ufl.dx, dS=ufl.dS, vt=None,
+                                 c_ip=20.0, h_measure=None):
+        import dolfin_dg.primal.simple
+        fos = dolfin_dg.primal.simple.diffusion(u, v, self.kappa)
+        F = fos.domain(dx)
+        F += apply_interior_penalty(
+            fos, self.bcs, c_ip=c_ip, h_measure=h_measure, dS=dS)
+        return F
 
 
 class MaxwellOperator(DGFemFormulation):
