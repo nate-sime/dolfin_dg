@@ -56,10 +56,11 @@ def first_order_flux(flux_func):
 class FirstOrderSystem:
 
     def __init__(self,
-                 F_vec: list[typing.Callable[
+                 F_vec: typing.Sequence[typing.Callable[
                      [ufl.core.expr.Expr, ufl.core.expr.Expr],
                       ufl.core.expr.Expr]],
-                 L_vec: list[typing.Union[ufl.div, ufl.grad, ufl.curl]],
+                 L_vec: typing.Sequence[
+                     typing.Union[ufl.div, ufl.grad, ufl.curl]],
                  u: ufl.coefficient.Coefficient,
                  v: ufl.argument.Argument):
         self.u = u
@@ -91,7 +92,7 @@ class FirstOrderSystem:
     def G(self) -> ufl.core.expr.Expr:
         return self.G_vec
 
-    def domain(self) -> ufl.form.Form:
+    def domain(self, dx: ufl.measure.Measure) -> ufl.form.Form:
         F_vec = self.F_vec
         G_vec = self.G_vec
         L_vec = self.L_vec
@@ -104,11 +105,11 @@ class FirstOrderSystem:
                 sign *= -1
 
         mid_idx = self.ibp_2ce_point
-        F = sign * ufl.inner(F_vec[mid_idx](u), v_vec[mid_idx]) * ufl.dx
+        F = sign * ufl.inner(F_vec[mid_idx](u), v_vec[mid_idx]) * dx
         return F
 
-    def interior(self, alpha: list[ufl.core.expr.Expr],
-                 flux_type: types.ModuleType | None = None,
+    def interior(self, alpha: typing.Sequence[ufl.core.expr.Expr],
+                 flux_type: typing.Optional[types.ModuleType] = None,
                  dS: ufl.measure.Measure = ufl.dS) -> ufl.form.Form:
         if flux_type is None:
             import dolfin_dg.primal.facet_sipg
@@ -116,16 +117,16 @@ class FirstOrderSystem:
         u_soln = None
         return self._formulate(alpha, flux_type, u_soln, interior=True, dI=dS)
 
-    def exterior(self, alpha: list[ufl.core.expr.Expr],
+    def exterior(self, alpha: typing.Sequence[ufl.core.expr.Expr],
                  u_soln: ufl.core.expr.Expr,
-                 flux_type: types.ModuleType | None = None,
+                 flux_type: typing.Optional[types.ModuleType] = None,
                  ds: ufl.measure.Measure = ufl.ds) -> ufl.form.Form:
         if flux_type is None:
             import dolfin_dg.primal.facet_sipg
             flux_type = dolfin_dg.primal.facet_sipg
         return self._formulate(alpha, flux_type, u_soln, interior=False, dI=ds)
 
-    def _formulate(self, alpha: list[ufl.core.expr.Expr],
+    def _formulate(self, alpha: typing.Sequence[ufl.core.expr.Expr],
                    flux_type: types.ModuleType,
                    u_soln: ufl.core.expr.Expr,
                    interior: bool,

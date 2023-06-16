@@ -1,4 +1,5 @@
 import functools
+import typing
 import ufl
 import ufl.algorithms.apply_derivatives
 
@@ -7,7 +8,8 @@ import dolfin_dg.primal
 
 
 def local_lax_friedrichs_penalty(
-        lambdas: ufl.core.expr.Expr | list[ufl.core.expr.Expr],
+        lambdas: typing.Union[
+            ufl.core.expr.Expr, typing.Sequence[ufl.core.expr.Expr]],
         u: ufl.core.expr.Expr,
         u_ext: ufl.core.expr.Expr):
     """
@@ -58,8 +60,8 @@ def local_lax_friedrichs_penalty(
 def interior_penalty(fos: dolfin_dg.primal.FirstOrderSystem,
                      u: ufl.coefficient.Coefficient,
                      u_ext: ufl.core.expr.Expr,
-                     c_ip: ufl.core.expr.Expr | float = 20.0,
-                     h_measure: ufl.core.expr.Expr | None = None):
+                     c_ip: typing.Union[ufl.core.expr.Expr, float] = 20.0,
+                     h_measure: typing.Optional[ufl.core.expr.Expr] = None):
     """
     Generate the interior penalty parameter as proposed in Hartmann & Houston
     2008:
