@@ -58,7 +58,7 @@ class FirstOrderSystem:
     def __init__(self,
                  F_vec: list[typing.Callable[
                      [ufl.core.expr.Expr, ufl.core.expr.Expr],
-                     ufl.core.expr.Expr]],
+                      ufl.core.expr.Expr]],
                  L_vec: list[typing.Union[ufl.div, ufl.grad, ufl.curl]],
                  u: ufl.coefficient.Coefficient,
                  v: ufl.argument.Argument):
