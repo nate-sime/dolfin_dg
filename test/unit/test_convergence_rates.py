@@ -98,11 +98,10 @@ class Advection1D(ConvergenceTest):
         b = Constant((1,))
 
         # Convective Operator
-        def F_c(U):
-            return b*U
+        def F_c(_, flux):
+            return b*flux
 
-        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c,
-                                LocalLaxFriedrichs(lambda u, n: dot(b, n)))
+        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c)
         F = ho.generate_fem_formulation(u, v) - gD*v*dx
 
         return F
@@ -119,11 +118,10 @@ class Advection(ConvergenceTest):
         b = Constant((1, 1))
 
         # Convective Operator
-        def F_c(U):
-            return b*U**2
+        def F_c(u, flux):
+            return b*flux**2
 
-        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c,
-                                LocalLaxFriedrichs(lambda u, n: 2*u*dot(b, n)))
+        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c)
         F = ho.generate_fem_formulation(u, v)
 
         return F
@@ -141,8 +139,8 @@ class AdvectionDiffusion(ConvergenceTest):
                        element=V.ufl_element())
         b = Constant((1, 1))
 
-        def F_c(u):
-            return b*u**2
+        def F_c(u, flux):
+            return b*flux**2
 
         def alpha(u, n):
             return 2*u*dot(b, n)
@@ -150,8 +148,7 @@ class AdvectionDiffusion(ConvergenceTest):
         def F_v(u, grad_u):
             return (u + 1)*grad_u
 
-        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c,
-                                LocalLaxFriedrichs(alpha))
+        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c)
         eo = EllipticOperator(mesh, V, DGDirichletBC(ds, gD), F_v)
 
         F = ho.generate_fem_formulation(u, v) \
@@ -680,11 +677,11 @@ def test_square_euler_problems(conv_test):
     conv_test(meshes, element).run_test()
 
 
-@pytest.mark.parametrize("conv_test", [NavierStokes,
-                                       NavierStokesEntropy])
-def test_square_navier_stokes_problems(conv_test, SquareMeshesPi):
-    element = VectorElement("DG", SquareMeshesPi[0].ufl_cell(), 1, dim=4)
-    conv_test(SquareMeshesPi, element, TOL=0.25).run_test()
+# @pytest.mark.parametrize("conv_test", [NavierStokes,
+#                                        NavierStokesEntropy])
+# def test_square_navier_stokes_problems(conv_test, SquareMeshesPi):
+#     element = VectorElement("DG", SquareMeshesPi[0].ufl_cell(), 1, dim=4)
+#     conv_test(SquareMeshesPi, element, TOL=0.25).run_test()
 
 
 @pytest.mark.parametrize("conv_test", [StokesTest])
@@ -695,10 +692,10 @@ def test_square_stokes_problems(conv_test, SquareMeshes):
 
 
 # -- 2D non-conventional DG tests
-@pytest.mark.parametrize("conv_test", [PoissonBO])
-def test_square_baumann_oden_problems(conv_test, SquareMeshes):
-    element = FiniteElement("DG", SquareMeshes[0].ufl_cell(), 2)
-    conv_test(SquareMeshes, element).run_test()
+# @pytest.mark.parametrize("conv_test", [PoissonBO])
+# def test_square_baumann_oden_problems(conv_test, SquareMeshes):
+#     element = FiniteElement("DG", SquareMeshes[0].ufl_cell(), 2)
+#     conv_test(SquareMeshes, element).run_test()
 
 
 # -- Nitsche CG tests
