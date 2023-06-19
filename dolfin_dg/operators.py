@@ -262,7 +262,7 @@ class MaxwellOperator:
         return F
 
 
-def apply_facet_flux(fos, bcs, lambdas):
+def apply_facet_flux(fos, bcs, lambdas, dS=ufl.dS):
     u = fos.u
 
     if not isinstance(bcs, (list, tuple)):
@@ -270,18 +270,18 @@ def apply_facet_flux(fos, bcs, lambdas):
 
     alpha, _ = dolfin_dg.penalty.local_lax_friedrichs_penalty(
         lambdas, u, u)
-    F = fos.interior([-alpha])
+    F = fos.interior([-alpha], dS=dS)
 
     for bc in bcs:
         bdry, function = bc.get_boundary(), bc.get_function()
-        if isinstance(bc, DGDirichletBC):
+        if isinstance(bc, (DGDirichletBC, DGAdiabticWallBC)):
             _, alpha_ext = dolfin_dg.penalty.local_lax_friedrichs_penalty(
                 lambdas, u, function)
-            F += fos.exterior([-alpha_ext], function)
+            F += fos.exterior([-alpha_ext], function, ds=bdry)
         elif isinstance(bc, DGNeumannBC):
             _, alpha_ext = dolfin_dg.penalty.local_lax_friedrichs_penalty(
                 lambdas, u, u)
-            F += fos.exterior([-alpha_ext], function)
+            F += fos.exterior([-alpha_ext], function, ds=bdry)
     return F
 
 
@@ -425,7 +425,6 @@ class CompressibleEulerOperator(HyperbolicOperator):
         self.gamma = gamma
         self.bcs = bcs
 
-
     def generate_fem_formulation(self, U, v, dx=ufl.dx, dS=ufl.dS):
         n = ufl.FacetNormal(U.ufl_domain())
         gamma = self.gamma
@@ -444,8 +443,7 @@ class CompressibleEulerOperator(HyperbolicOperator):
 
 
 
-class CompressibleNavierStokesOperator(EllipticOperator,
-                                       CompressibleEulerOperator):
+class CompressibleNavierStokesOperator:
     r"""Specific implementation of
     :class:`dolfin_dg.operators.EllipticOperator` and
     :class:`dolfin_dg.operators.CompressibleEulerOperator` for the compressible
@@ -489,84 +487,36 @@ class CompressibleNavierStokesOperator(EllipticOperator,
         Pr
             Prandtl number
         """
-        dim = mesh_dimension(mesh)
+        # dim = mesh_dimension(mesh)
+        self.bcs = bcs
+        self.gamma = gamma
+        self.mu = mu
+        self.Pr = Pr
 
-        if not hasattr(bcs, '__len__'):
-            bcs = [bcs]
-        self.adiabatic_wall_bcs = [bc for bc in bcs
-                                   if isinstance(bc, DGAdiabticWallBC)]
+    def generate_fem_formulation(self, U, v, dx=ufl.dx, dS=ufl.dS, vt=None,
+                                 c_ip=20.0, h_measure=None):
+        # -- Euler component
+        ce = CompressibleEulerOperator(None, None, self.bcs, gamma=self.gamma)
+        F = ce.generate_fem_formulation(U, v, dx=dx, dS=dS)
 
-        def F_v(U, grad_U):
-            rho, rhou, rhoE = aero.conserved_variables(U)
-            u = rhou/rho
+        import dolfin_dg.primal.aero
+        fos = dolfin_dg.primal.aero.compressible_navier_stokes(
+            U, v, gamma=self.gamma, mu=self.mu, Pr=self.Pr)
+        F += fos.domain(dx)
+        F += apply_interior_penalty(
+            fos, self.bcs, c_ip=c_ip, h_measure=h_measure, dS=dS)
 
-            grad_rho = grad_U[0, :]
-            grad_rhou = ufl.as_tensor([grad_U[j, :] for j in range(1, dim + 1)])
-            grad_rhoE = grad_U[dim+1, :]
+        fos_adiabatic = \
+            dolfin_dg.primal.aero.compressible_navier_stokes_adiabatic_wall(
+                U, v, gamma=self.gamma, mu=self.mu, Pr=self.Pr)
+        for bc in self.bcs:
+            bdry, function = bc.get_boundary(), bc.get_function()
+            if isinstance(bc, DGAdiabticWallBC):
+                _, alpha_ext = dolfin_dg.penalty.interior_penalty(
+                    fos_adiabatic, U, function, c_ip=c_ip, h_measure=h_measure)
+                F += fos_adiabatic.exterior([alpha_ext], function, ds=bdry)
 
-            # Quotient rule to find grad(u) and grad(E)
-            grad_u = (grad_rhou*rho - ufl.outer(rhou, grad_rho))/rho**2
-            grad_E = (grad_rhoE*rho - rhoE*grad_rho)/rho**2
-
-            tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(dim))
-            K_grad_T = mu*gamma/Pr*(grad_E - dot(u, grad_u))
-
-            res = ufl.as_tensor([ufl.zero(dim),
-                                 *(tau[d, :] for d in range(dim)),
-                                 tau * u + K_grad_T])
-            return res
-
-        # Specialised adiabatic wall BC
-        def F_v_adiabatic(U, grad_U):
-            rho, rhou, rhoE = aero.conserved_variables(U)
-            u = rhou/rho
-
-            grad_rho = grad_U[0, :]
-            grad_rhou = ufl.as_tensor([grad_U[j, :] for j in range(1, dim + 1)])
-            grad_u = (grad_rhou * rho - ufl.outer(rhou, grad_rho)) / rho ** 2
-
-            tau = mu*(grad_u + grad_u.T - 2.0/3.0*(tr(grad_u))*Identity(dim))
-
-            res = ufl.as_tensor([ufl.zero(dim),
-                                 *(tau[d, :] for d in range(dim)),
-                                 tau * u])
-            return res
-
-        self.F_v_adiabatic = F_v_adiabatic
-
-        CompressibleEulerOperator.__init__(self, mesh, V, bcs, gamma)
-        EllipticOperator.__init__(self, mesh, V, bcs, F_v)
-
-    def generate_fem_formulation(self, u, v, dx=None, dS=None, penalty=None):
-        if dx is None:
-            dx = Measure('dx', domain=self.mesh)
-        if dS is None:
-            dS = Measure('dS', domain=self.mesh)
-
-        residual = EllipticOperator.generate_fem_formulation(
-            self, u, v, dx=dx, dS=dS, penalty=penalty)
-        residual += CompressibleEulerOperator.generate_fem_formulation(
-            self, u, v, dx=dx, dS=dS)
-
-        # Specialised adiabatic wall boundary condition
-        for bc in self.adiabatic_wall_bcs:
-            n = FacetNormal(self.mesh)
-
-            u_gamma = bc.get_function()
-            dSD = bc.get_boundary()
-
-            self.H.setup(self.F_c, u, u_gamma, n)
-            residual += inner(self.H.exterior(self.F_c, u, u_gamma, n), v)*dSD
-
-            if penalty is None:
-                penalty = generate_default_sipg_penalty_term(u)
-            G_adiabitic = homogeneity_tensor(self.F_v_adiabatic, u)
-            vt_adiabatic = DGFemSIPG(
-                self.F_v_adiabatic, u, v, penalty, G_adiabitic, n)
-
-            residual += vt_adiabatic.exterior_residual(u_gamma, dSD)
-
-        return residual
+        return F
 
 
 def V_to_U(V, gamma):
