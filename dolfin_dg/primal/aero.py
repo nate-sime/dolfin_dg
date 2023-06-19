@@ -89,11 +89,11 @@ def compressible_navier_stokes(U, v, gamma=1.4, mu=1, Pr=0.72):
     dim = U.ufl_shape[0] - 2
 
     @dolfin_dg.primal.first_order_flux(lambda x: x)
-    def F_2(u, flux):
+    def F_2(_, flux):
         return flux
 
     @dolfin_dg.primal.first_order_flux(lambda x: ufl.grad(F_2(x)))
-    def F_1(u, flux):
+    def F_1(U, flux):
         rho, rhou, rhoE = dolfin_dg.aero.conserved_variables(U)
         u = rhou / rho
 
@@ -115,7 +115,7 @@ def compressible_navier_stokes(U, v, gamma=1.4, mu=1, Pr=0.72):
         return res
 
     @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_1(x)))
-    def F_0(u, flux):
+    def F_0(_, flux):
         return -flux
 
     F_vec = [F_0, F_1, F_2]
@@ -162,21 +162,17 @@ def compressible_navier_stokes_adiabatic_wall(U, v, gamma=1.4, mu=1, Pr=0.72):
     dim = U.ufl_shape[0] - 2
 
     @dolfin_dg.primal.first_order_flux(lambda x: x)
-    def F_2(u, flux):
+    def F_2(_, flux):
         return flux
 
     @dolfin_dg.primal.first_order_flux(lambda x: ufl.grad(F_2(x)))
-    def F_1(u, flux):
+    def F_1(U, flux):
         rho, rhou, rhoE = dolfin_dg.aero.conserved_variables(U)
         u = rhou / rho
 
         grad_rho = flux[0, :]
         grad_rhou = ufl.as_tensor([flux[j, :] for j in range(1, dim+1)])
-        grad_rhoE = flux[dim+1, :]
-
-        # Quotient rule to find grad(u) and grad(E)
         grad_u = (grad_rhou * rho - ufl.outer(rhou, grad_rho)) / rho ** 2
-        grad_E = (grad_rhoE * rho - rhoE * grad_rho) / rho ** 2
 
         tau = mu * (grad_u + grad_u.T - 2.0 / 3.0 * (
             ufl.tr(grad_u)) * ufl.Identity(dim))
@@ -187,7 +183,7 @@ def compressible_navier_stokes_adiabatic_wall(U, v, gamma=1.4, mu=1, Pr=0.72):
         return res
 
     @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(F_1(x)))
-    def F_0(u, flux):
+    def F_0(_, flux):
         return -flux
 
     F_vec = [F_0, F_1, F_2]
