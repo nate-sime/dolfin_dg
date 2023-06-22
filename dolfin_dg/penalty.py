@@ -89,7 +89,7 @@ def interior_penalty(fos: dolfin_dg.primal.FirstOrderSystem,
     :math:`\delta` as evaluated on the interior and exterior
     """
     if h_measure is None:
-        h_measure = ufl.CellDiameter(u.ufl_domain())
+        h_measure = dolfin_dg.primal.default_h_measure(u.ufl_domain())
     p = dolfin_dg.dg_form._get_ufl_element_degree(u)
 
     # TODO: This needs to account for the bounds on the C_{inv,p,q} constant

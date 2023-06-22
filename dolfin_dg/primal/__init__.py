@@ -9,6 +9,14 @@ import dolfin_dg
 from dolfin_dg.math import hyper_tensor_T_product as G_T_mult
 
 
+def default_h_measure(ufl_domain):
+    """
+    Construct the default cell size measure used in interior penalty
+    formulations based on coercivity arguments: :math:`|\\kappa| / |F|`.
+    """
+    return ufl.CellVolume(ufl_domain) / ufl.FacetArea(ufl_domain)
+
+
 def green_transpose(
         ufl_op: typing.Union[ufl.div, ufl.grad, ufl.curl, ufl.Identity]):
     if ufl_op is ufl.div:
