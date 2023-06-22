@@ -7,11 +7,13 @@ from mpi4py import MPI
 import dolfinx
 import ufl
 
+import dolfin_dg
 import dolfin_dg.dolfinx
 import dolfin_dg.penalty
 import dolfin_dg.primal
 import dolfin_dg.primal.simple
 import dolfin_dg.primal.aero
+import dolfin_dg.primal.flux_sipg_ext_avg
 
 import convergence
 
@@ -161,6 +163,28 @@ class Triharmonic(convergence.ConvergenceTest):
         return F
 
 
+@pytest.mark.parametrize("problem,element,p,cell_type", [
+    (Advection, ufl.FiniteElement, 1, dolfinx.mesh.CellType.triangle),
+    (Diffusion, ufl.FiniteElement, 1, dolfinx.mesh.CellType.triangle),
+    (VectorDiffusion, ufl.VectorElement, 1, dolfinx.mesh.CellType.triangle),
+    (Maxwell, ufl.VectorElement, 1, dolfinx.mesh.CellType.triangle),
+    (StreamFunction, ufl.FiniteElement, 3, dolfinx.mesh.CellType.triangle),
+    (Biharmonic, ufl.FiniteElement, 3, dolfinx.mesh.CellType.quadrilateral),
+    # TODO: Mark triharmonic as slow
+    # (Triharmonic, ufl.FiniteElement, 4, dolfinx.mesh.CellType.quadrilateral),
+])
+def test_first_order_simple(cell_type, p, problem, element):
+    meshes = [
+        dolfinx.mesh.create_unit_square(
+            MPI.COMM_WORLD, 8, 8, cell_type=cell_type),
+        dolfinx.mesh.create_unit_square(
+            MPI.COMM_WORLD, 14, 14, cell_type=cell_type),
+        dolfinx.mesh.create_unit_square(
+            MPI.COMM_WORLD, 20, 20, cell_type=cell_type)
+    ]
+    problem(meshes, element("DG", meshes[0].ufl_cell(), p)).run_test()
+
+
 class CompressibleEuler(convergence.ConvergenceTest):
 
     def u_soln(self, V):
@@ -209,28 +233,75 @@ class CompressibleNavierStokes(CompressibleEuler):
         return F
 
 
-@pytest.mark.parametrize("problem,element,p,cell_type", [
-    (Advection, ufl.FiniteElement, 1, dolfinx.mesh.CellType.triangle),
-    (Diffusion, ufl.FiniteElement, 1, dolfinx.mesh.CellType.triangle),
-    (VectorDiffusion, ufl.VectorElement, 1, dolfinx.mesh.CellType.triangle),
-    (Maxwell, ufl.VectorElement, 1, dolfinx.mesh.CellType.triangle),
-    (StreamFunction, ufl.FiniteElement, 3, dolfinx.mesh.CellType.triangle),
-    (Biharmonic, ufl.FiniteElement, 3, dolfinx.mesh.CellType.quadrilateral),
-    # TODO: Mark triharmonic as slow
-    # (Triharmonic, ufl.FiniteElement, 4, dolfinx.mesh.CellType.quadrilateral),
-])
-def test_first_order_simple(cell_type, p, problem, element):
-    meshes = [
-        dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, 8, 8, cell_type=cell_type),
-        dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, 14, 14, cell_type=cell_type),
-        dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, 20, 20, cell_type=cell_type)
-    ]
-    problem(meshes, element("DG", meshes[0].ufl_cell(), p)).run_test()
+class CompressibleEulerEntropy(convergence.ConvergenceTest):
+    gamma = 1.4
+
+    def u_soln(self, V):
+        mesh = V.mesh
+        x = ufl.SpatialCoordinate(mesh)
+        U_soln = ufl.as_vector((ufl.sin(2 * (x[0] + x[1])) + 4,
+                                0.2 * ufl.sin(2 * (x[0] + x[1])) + 4,
+                                0.2 * ufl.sin(2 * (x[0] + x[1])) + 4,
+                                (ufl.sin(2 * (x[0] + x[1])) + 4) ** 2))
+        U_soln = dolfin_dg.primal.aero.U_to_V(U_soln, self.gamma)
+        return U_soln
+
+    def generate_form(self, mesh, fspace, soln_vec, v):
+        metadata = {"quadrature_degree": 2 * fspace.ufl_element().degree() + 1}
+        dx = ufl.Measure("dx", metadata=metadata)
+        ds = ufl.Measure("ds", metadata=metadata)
+        dS = ufl.Measure("dS", metadata=metadata)
+        gD = self.u_soln(fspace)
+
+        soln_vec.interpolate(
+            dolfinx.fem.Expression(gD, fspace.element.interpolation_points()))
+        fos = dolfin_dg.primal.aero.compressible_euler_entropy(soln_vec, v)
+
+        F = fos.domain(dx=dx) - ufl.inner(fos.F_vec[0](gD), v) * dx
+
+        U = dolfin_dg.primal.aero.V_to_U(soln_vec, self.gamma)
+        rho, u, E = dolfin_dg.aero.flow_variables(U)
+        pressure = dolfin_dg.aero.pressure(U, gamma=self.gamma)
+        c = dolfin_dg.aero.speed_of_sound(pressure, rho, gamma=self.gamma)
+        n = ufl.FacetNormal(mesh)
+        lambdas = [ufl.dot(u, n) - c, ufl.dot(u, n), ufl.dot(u, n) + c]
+
+        alpha, alpha_ext = dolfin_dg.penalty.local_lax_friedrichs_penalty(
+            lambdas, soln_vec, gD)
+        F += fos.interior([-alpha],
+                          flux_type=dolfin_dg.primal.flux_sipg_ext_avg, dS=dS)
+        F += fos.exterior([-alpha_ext], gD,
+                          flux_type=dolfin_dg.primal.flux_sipg_ext_avg, ds=ds)
+        return F
+
+
+class CompressibleNavierStokesEntropy(CompressibleEulerEntropy):
+
+    def generate_form(self, mesh, fspace, soln_vec, v):
+        metadata = {"quadrature_degree": 2 * fspace.ufl_element().degree() + 1}
+        dx = ufl.Measure("dx", metadata=metadata)
+        ds = ufl.Measure("ds", metadata=metadata)
+        dS = ufl.Measure("dS", metadata=metadata)
+
+        U_soln = self.u_soln(fspace)
+        fos = dolfin_dg.primal.aero.compressible_navier_stokes_entropy(
+            soln_vec, v)
+        F = fos.domain() - ufl.inner(fos.F_vec[0](U_soln), v) * dx
+
+        alpha, alpha_ext = dolfin_dg.penalty.interior_penalty(
+            fos, soln_vec, U_soln)
+        F += fos.interior([alpha], dS=dS)
+        F += fos.exterior([alpha_ext], U_soln, ds=ds)
+        F += super().generate_form(mesh, fspace, soln_vec, v)
+        return F
 
 
 @pytest.mark.parametrize("problem,p,cell_type", [
     (CompressibleEuler, 1, dolfinx.mesh.CellType.triangle),
-    (CompressibleNavierStokes, 1, dolfinx.mesh.CellType.triangle)
+    (CompressibleNavierStokes, 1, dolfinx.mesh.CellType.triangle),
+    (CompressibleEulerEntropy, 1, dolfinx.mesh.CellType.triangle),
+    # TODO: Mark CompressibleNavierStokesEntropy as slow
+    # (CompressibleNavierStokesEntropy, 1, dolfinx.mesh.CellType.triangle)
 ])
 def test_first_order_aero(cell_type, p, problem):
     def generate_mesh(N, l):
@@ -239,5 +310,6 @@ def test_first_order_aero(cell_type, p, problem):
             cell_type=cell_type, ghost_mode=dolfinx.mesh.GhostMode.shared_facet,
             diagonal=dolfinx.mesh.DiagonalType.left)
 
-    meshes = [generate_mesh(N, 0.5 * np.pi) for N in [8, 14, 20]]
-    problem(meshes, ufl.VectorElement("DG", meshes[0].ufl_cell(), p, dim=4)).run_test()
+    meshes = [generate_mesh(N, 0.5 * np.pi) for N in [12, 16, 20]]
+    problem(meshes, ufl.VectorElement(
+        "DG", meshes[0].ufl_cell(), p, dim=4)).run_test()
