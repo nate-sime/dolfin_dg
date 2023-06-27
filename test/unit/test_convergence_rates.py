@@ -17,7 +17,6 @@ from dolfin_dg.nitsche import NitscheBoundary, StokesNitscheBoundary
 from dolfin_dg.operators import (
     PoissonOperator, EllipticOperator, MaxwellOperator,
     CompressibleEulerOperator, CompressibleNavierStokesOperator,
-    CompressibleNavierStokesOperatorEntropyFormulation,
     HyperbolicOperator, LocalLaxFriedrichs, SpacetimeBurgersOperator,
     DGFemSIPG, StokesOperator)
 
@@ -270,83 +269,6 @@ class NavierStokes(ConvergenceTest):
         bo = CompressibleNavierStokesOperator(mesh, V, DGDirichletBC(ds, gD))
         F = bo.generate_fem_formulation(u, v) - inner(f, v)*dx
         return F
-
-
-class NavierStokesEntropy(ConvergenceTest):
-    def gD(self, V):
-        gD0 = '''((-std::log((0.4*sin(2*x[0] + 2*x[1]) + 1.6)*pow(sin(2*x[0] +
-              2*x[1]) + 4, -1.4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4,
-              2)/pow(sin(2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) +
-              4)) + 2.4)*(sin(2*x[0] + 2*x[1]) + 4)*(-pow((1.0L/5.0L)*sin(
-              2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[1]) + 4,
-              2) + sin(2*x[0] + 2*x[1]) + 4) - pow(sin(2*x[0] + 2*x[1]) + 4,
-              2))/((sin(2*x[0] + 2*x[1]) + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] +
-              2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0]
-              + 2*x[1]) + 4))'''
-        gD1 = '''((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4)/((sin(2*x[0] + 2*x[1])
-            + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0]
-            + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))'''
-        gD2 = '''((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4)/((sin(2*x[0] + 2*x[1])
-              + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(
-              2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))'''
-        gD3 = '''(-sin(2*x[0] + 2*x[1]) - 4)/((sin(2*x[0] + 2*x[1]) + 4)*(-pow(
-              (1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[
-              1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))'''
-        return Expression((gD0, gD1, gD2, gD3), element=V.ufl_element())
-
-    def generate_form(self, mesh, V, u, v):
-        gD = self.gD(V)
-        u.interpolate(gD)
-        f0 = '0.8*cos(2.0*x[0] + 2.0*x[1])'
-        f1 = '''(1.6*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1])
-            + 25.728*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1])
-            + 155.136*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1])
-            - 34.1333333333333*pow(sin(2.0*x[0] + 2.0*x[1]), 2)
-            - 136.533333333333*sin(2.0*x[0] + 2.0*x[1]) + 191.488*sin(4.0*x[0]
-            + 4.0*x[1]) - 68.2666666666667*pow(cos(2.0*x[0] + 2.0*x[1]), 2)
-            + 286.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1])
-            + 4.0, 3)'''
-        f2 = '''(1.6*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1])
-            + 25.728*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1])
-            + 155.136*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1])
-            - 34.1333333333333*pow(sin(2.0*x[0] + 2.0*x[1]), 2)
-            - 136.533333333333*sin(2.0*x[0] + 2.0*x[1]) + 191.488*sin(4.0*x[0]
-            + 4.0*x[1]) - 68.2666666666667*pow(cos(2.0*x[0] + 2.0*x[1]), 2)
-            + 286.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1])
-            + 4.0, 3)'''
-        f3 = '''(2.24*pow(sin(2.0*x[0] + 2.0*x[1]), 5)*cos(2.0*x[0] + 2.0*x[1])
-            + 15.5555555555556*pow(sin(2.0*x[0] + 2.0*x[1]), 5)
-            + 62.7072*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1])
-            + 248.888888888889*pow(sin(2.0*x[0] + 2.0*x[1]), 4)
-            + 644.9152*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1])
-            + 1499.59111111111*pow(sin(2.0*x[0] + 2.0*x[1]), 3)
-            + 3162.5216*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0]
-            + 2.0*x[1]) + 4132.40888888889*pow(sin(2.0*x[0] + 2.0*x[1]), 2)
-            + 12.5155555555556*sin(2.0*x[0] + 2.0*x[1])*pow(cos(2.0*x[0]
-            + 2.0*x[1]), 2) + 4482.84444444444*sin(2.0*x[0] + 2.0*x[1])
-            + 3817.472*sin(4.0*x[0] + 4.0*x[1])
-            + 350.435555555555*pow(cos(2.0*x[0] + 2.0*x[1]), 2)
-            + 7454.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0]
-            + 2.0*x[1]) + 4.0, 4)'''
-        f = Expression((f0, f1, f2, f3), element=V.ufl_element())
-
-        bo = CompressibleNavierStokesOperatorEntropyFormulation(
-            mesh, V, DGDirichletBC(ds, gD))
-
-        h = CellVolume(u.ufl_domain())/FacetArea(u.ufl_domain())
-        ufl_degree = u.ufl_element().degree()
-        C_IP = 20.0
-        penalty = Constant(C_IP * max(ufl_degree ** 2, 1)) / h
-        F = bo.generate_fem_formulation(u, v, penalty=penalty) - inner(f, v)*dx
-        return F
-
-    def check_norm0_rates(self, rate0):
-        expected_rate = float(self.element.degree() + 1)
-        assert rate0[0] > expected_rate - self.TOL
-
-    def check_norm1_rates(self, rate1):
-        expected_rate = float(self.element.degree())
-        assert rate1[0] > expected_rate - self.TOL
 
 
 class Poisson(ConvergenceTest):
