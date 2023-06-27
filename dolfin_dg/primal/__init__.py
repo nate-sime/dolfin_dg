@@ -2,6 +2,7 @@ import typing
 import math
 import types
 
+import numpy
 import numpy as np
 import ufl
 
@@ -69,8 +70,10 @@ class FirstOrderSystem:
                       ufl.core.expr.Expr]],
                  L_vec: typing.Sequence[
                      typing.Union[ufl.div, ufl.grad, ufl.curl]],
-                 u: ufl.coefficient.Coefficient,
-                 v: ufl.argument.Argument):
+                 u: typing.Union[
+                     ufl.coefficient.Coefficient, ufl.core.expr.Expr],
+                 v: typing.Union[ufl.argument.Argument, ufl.core.expr.Expr],
+                 n_ibps: typing.Optional[typing.Sequence[int]] = None):
         self.u = u
         self.v = v
         self.L_vec = L_vec
@@ -92,9 +95,23 @@ class FirstOrderSystem:
         self.L_ops = [*(L_vec[j] for j in range(len(F_vec)-1)), lambda x: x]
 
         self.sign_tracker = np.ones(len(F_vec)-1, dtype=np.int8)
-        self.n_ibps = np.ones(len(F_vec) - 1, dtype=np.int8)
-        self.ibp_2ce_point = math.ceil(self.n_ibps.shape[0]/2.0)
-        self.n_ibps[self.ibp_2ce_point:] = 2
+
+        if not n_ibps:
+            # Create implicitly
+            self.n_ibps = np.ones(len(F_vec) - 1, dtype=np.int8)
+            self.ibp_2ce_point = math.ceil(self.n_ibps.shape[0]/2.0)
+            self.n_ibps[self.ibp_2ce_point:] = 2
+        else:
+            if not isinstance(n_ibps, np.ndarray):
+                n_ibps = np.array(n_ibps, dtype=np.int8)
+            assert np.all(n_ibps[1:] > n_ibps[:-1])
+            assert np.all(np.isin(n_ibps, (1, 2)))
+            assert len(n_ibps.shape) == 1
+            assert n_ibps.shape[0] == len(F_vec) - 1
+            self.n_ibps = n_ibps
+            idx2 = np.where(n_ibps == 2)[0]
+            self.ibp_2ce_point = len(self.F_vec) - 1 if idx2.shape[0] == 0 \
+                else idx2[0]
 
     @property
     def G(self) -> ufl.core.expr.Expr:
