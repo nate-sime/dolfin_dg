@@ -17,7 +17,7 @@ from dolfin_dg.nitsche import NitscheBoundary, StokesNitscheBoundary
 from dolfin_dg.operators import (
     PoissonOperator, EllipticOperator, MaxwellOperator,
     CompressibleEulerOperator, CompressibleNavierStokesOperator,
-    HyperbolicOperator, LocalLaxFriedrichs, SpacetimeBurgersOperator,
+    HyperbolicOperator, SpacetimeBurgersOperator,
     DGFemSIPG, StokesOperator)
 
 parameters['form_compiler']["cpp_optimize"] = True
@@ -141,14 +141,11 @@ class AdvectionDiffusion(ConvergenceTest):
         def F_c(u, flux):
             return b*flux**2
 
-        def alpha(u, n):
-            return 2*u*dot(b, n)
-
         def F_v(u, grad_u):
             return (u + 1)*grad_u
 
-        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c)
-        eo = EllipticOperator(mesh, V, DGDirichletBC(ds, gD), F_v)
+        ho = HyperbolicOperator(mesh, V, [DGDirichletBC(ds, gD)], F_c)
+        eo = EllipticOperator(mesh, V, [DGDirichletBC(ds, gD)], F_v)
 
         F = ho.generate_fem_formulation(u, v) \
             + eo.generate_fem_formulation(u, v) \

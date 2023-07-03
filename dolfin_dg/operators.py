@@ -9,9 +9,8 @@ from ufl import (
 from dolfin_dg import aero, generate_default_sipg_penalty_term, \
     homogeneity_tensor
 from dolfin_dg.dg_form import (
-    DGFemTerm, DGFemCurlTerm, DGFemSIPG, DGFemStokesTerm
+    DGFemTerm, DGFemSIPG
 )
-from dolfin_dg.fluxes import LocalLaxFriedrichs
 import dolfin_dg.penalty
 import dolfin_dg.primal
 
@@ -89,64 +88,7 @@ def mesh_dimension(mesh):
             return mesh.geometric_dimension()
 
 
-class DGFemFormulation:
-    """Abstract base class for automatic formulation of a DG FEM
-    formulation
-    """
-
-    def __init__(self, mesh, fspace, bcs):
-        """
-        Parameters
-        ----------
-        mesh
-            Problem mesh
-        fspace
-            Problem function space in which the solution is formulated and
-            sought
-        bcs
-            List of :class:`dolfin_dg.operators.DGBC` to be weakly imposed and
-            included in the formulation
-        """
-        if not hasattr(bcs, '__len__'):
-            bcs = [bcs]
-        self.mesh = mesh
-        self.fspace = fspace
-        self.dirichlet_bcs = [bc for bc in bcs if isinstance(bc, DGDirichletBC)]
-        self.neumann_bcs = [bc for bc in bcs if isinstance(bc, DGNeumannBC)]
-
-    def ufl_domain(self):
-        try:
-            # the Fenics/Dolfin way
-            return self.mesh.ufl_domain()
-        except AttributeError:
-            # the DUNE way (the FE space is also ufl domain)
-            return self.fspace
-
-    def generate_fem_formulation(self, u, v, dx=None, dS=None, vt=None):
-        """Automatically generate the DG FEM formulation
-
-        Parameters
-        ----------
-        u
-            Solution variable
-        v
-            Test function
-        dx
-            Volume integration measure
-        dS
-            Interior facet integration measure
-        vt
-            A specific implementation of
-            :class:`dolfin_dg.dg_form.DGClassicalSecondOrderDiscretisation`
-
-        Returns
-        -------
-        The UFL representation of the DG FEM formulation
-        """
-        raise NotImplementedError('Function not yet implemented')
-
-
-class EllipticOperator(DGFemFormulation):
+class EllipticOperator:
     r"""Base class for the automatic generation of a DG formulation for
     the underlying elliptic (2nd order) operator of the form
 
@@ -169,42 +111,31 @@ class EllipticOperator(DGFemFormulation):
             Two argument function ``F_v(u, grad_u)`` corresponding to the
             viscous flux term
         """
-        DGFemFormulation.__init__(self, mesh, fspace, bcs)
+        self.bcs = bcs
         self.F_v = F_v
 
-    def generate_fem_formulation(self, u, v, dx=None, dS=None, vt=None,
-                                 penalty=None):
-        if dx is None:
-            dx = Measure('dx', domain=self.mesh)
-        if dS is None:
-            dS = Measure('dS', domain=self.mesh)
+    def generate_fem_formulation(
+            self, u, v, dx=ufl.dx, dS=ufl.dS, vt=None, c_ip=20.0,
+            h_measure=None):
+        @dolfin_dg.primal.first_order_flux(lambda x: x)
+        def F_2(_, flux):
+            return flux
 
-        n = ufl.FacetNormal(self.ufl_domain())
-        G = homogeneity_tensor(self.F_v, u)
+        @dolfin_dg.primal.first_order_flux(lambda x: ufl.div(self.F_v(x)))
+        def F_0(_, flux):
+            return -flux
 
-        if penalty is None:
-            penalty = generate_default_sipg_penalty_term(u)
+        wrapped_F_v = dolfin_dg.primal.first_order_flux(
+            lambda x: ufl.grad(F_2(x)))(self.F_v)
+        F_vec = [F_0, wrapped_F_v, F_2]
+        L_vec = [ufl.div, ufl.grad]
 
-        if vt is None:
-            vt = DGFemSIPG(self.F_v, u, v, penalty, G, n)
+        fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
 
-        if inspect.isclass(vt):
-            vt = vt(self.F_v, u, v, penalty, G, n)
-
-        assert(isinstance(vt, DGFemTerm))
-
-        residual = inner(self.F_v(u, grad(u)), grad(v))*dx
-        residual += vt.interior_residual(dS)
-
-        for dbc in self.dirichlet_bcs:
-            residual += vt.exterior_residual(
-                dbc.get_function(), dbc.get_boundary())
-
-        for dbc in self.neumann_bcs:
-            residual += vt.neumann_residual(
-                dbc.get_function(), dbc.get_boundary())
-
-        return residual
+        F = fos.domain(dx)
+        F += apply_interior_penalty(
+            fos, self.bcs, c_ip=c_ip, h_measure=h_measure, dS=dS)
+        return F
 
 
 def apply_interior_penalty(fos, bcs, c_ip=20.0, h_measure=None, dS=ufl.dS):
@@ -253,7 +184,8 @@ class MaxwellOperator:
         self.bcs = bcs
         self.F_m = F_m
 
-    def generate_fem_formulation(self, u, v, dx=ufl.dx, dS=ufl.dS, c_ip=20.0, h_measure=None):
+    def generate_fem_formulation(
+            self, u, v, dx=ufl.dx, dS=ufl.dS, c_ip=20.0, h_measure=None):
         import dolfin_dg.primal.simple
         fos = dolfin_dg.primal.simple.maxwell(u, v)
         F = fos.domain(dx)
@@ -369,7 +301,8 @@ class SpacetimeBurgersOperator:
     def __init__(self, mesh, V, bcs, flux=None):
         self.bcs = bcs
 
-    def generate_fem_formulation(self, u, v, dx=ufl.dx, dS=ufl.dS, c_ip=20.0, h_measure=None):
+    def generate_fem_formulation(
+            self, u, v, dx=ufl.dx, dS=ufl.dS):
         import dolfin_dg.primal
 
         @dolfin_dg.primal.first_order_flux(lambda x: x)
@@ -389,7 +322,7 @@ class SpacetimeBurgersOperator:
 
         n = ufl.FacetNormal(u.ufl_domain())
         lambdas = ufl.dot(ufl.diff(fos.F_vec[1](u), u), n)
-        F += apply_facet_flux(fos, self.bcs, lambdas)
+        F += apply_facet_flux(fos, self.bcs, lambdas, dS=dS)
         return F
 
 
@@ -519,30 +452,7 @@ class CompressibleNavierStokesOperator:
         return F
 
 
-def V_to_U(V, gamma):
-    """Map the entropy variable formulation to the mass, momentum, energy
-    variables.
-
-    Parameters
-    ----------
-    V
-        Entropy variables
-    gamma
-        Ratio of specific heats
-
-    Returns
-    -------
-    mass, momentum and energy variables
-    """
-    V1, V2, V3, V4 = V
-    U = as_vector([-V4, V2, V3, 1 - 0.5*(V2**2 + V3**2)/V4])
-    s = gamma - V1 + (V2**2 + V3**2)/(2*V4)
-    rhoi = ((gamma - 1)/((-V4)**gamma))**(1.0/(gamma-1))*exp(-s/(gamma-1))
-    U = U*rhoi
-    return U
-
-
-class StokesOperator(DGFemFormulation):
+class StokesOperator:
     r"""Base class for the Stokes operator
 
     .. math::
