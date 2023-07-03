@@ -3,7 +3,7 @@ from dolfin import (
     parameters, UnitSquareMesh, VectorElement, FiniteElement, MixedElement,
     FunctionSpace, info, Function, split, TrialFunction, TestFunction,
     SpatialCoordinate, Expression, MeshFunction, CompiledSubDomain, Measure,
-    FacetNormal, grad, Identity, derivative, solve, assemble, dx)
+    FacetNormal, grad, Identity, derivative, solve, assemble, dx, sym)
 
 from dolfin_dg import (DGDirichletBC, DGNeumannBC, StokesOperator)
 
@@ -46,14 +46,11 @@ for n in range(2, 6):
     dsD, dsN = ds(1), ds(2)
 
     facet_n = FacetNormal(mesh)
-    gN = (grad(u_soln) - p_soln*Identity(2))*facet_n
+    gN = (2 * sym(grad(u_soln)) - p_soln*Identity(2))*facet_n
     bcs = [DGDirichletBC(dsD, u_soln), DGNeumannBC(dsN, gN)]
 
-    def F_v(u, grad_u):
-        return grad_u - p*Identity(2)
-
-    stokes = StokesOperator(mesh, W, bcs, F_v)
-    F = stokes.generate_fem_formulation(u, v, p, q)
+    stokes = StokesOperator(None, None, bcs, None)
+    F = stokes.generate_fem_formulation(u, v, p, q, lambda _: 1)
     J = derivative(F, U, dU)
 
     # Define boundary condition
