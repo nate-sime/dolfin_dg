@@ -103,18 +103,24 @@ for run_no, n_ele in enumerate([8, 16, 32]):
 
     f = -ufl.div(stress(u_soln, p_soln))
     F = - ufl.inner(f, v) * ufl.dx
-    F += fos_mom.domain()
-    F += - ufl.inner(gN, v) * dsN
+    # F += fos_mom.domain()
+    # F += - ufl.inner(gN, v) * dsN
+    #
+    # alpha = dolfin_dg.generate_default_sipg_penalty_term(u)
+    # F += fos_mom.interior([alpha("+")])
+    # F += fos_mom.exterior([alpha], u_soln, ds=dsD)
+    #
+    # # Mass equation (integrate by parts twice: no penalty parameter)
+    # fos_mass = dolfin_dg.primal.stokes.stokes_continuity(u, q)
+    # F += fos_mass.domain()
+    # F += fos_mass.interior([])
+    # F += fos_mass.exterior([], u_soln, ds=dsD)
 
-    alpha = dolfin_dg.generate_default_sipg_penalty_term(u)
-    F += fos_mom.interior([alpha("+")])
-    F += fos_mom.exterior([alpha], u_soln, ds=dsD)
-
-    # Mass equation (integrate by parts twice: no penalty parameter)
-    fos_mass = dolfin_dg.primal.stokes.stokes_continuity(u, q)
-    F += fos_mass.domain()
-    F += fos_mass.interior([])
-    F += fos_mass.exterior([], u_soln, ds=dsD)
+    bcs = [dolfin_dg.DGDirichletBC(dsD, u_soln),
+           dolfin_dg.DGNeumannBC(dsN, gN)]
+    stokes_op = dolfin_dg.operators.StokesOperator2(None, None, bcs, None)
+    F += stokes_op.generate_fem_formulation(u, v, p, q, eta)
+    # quit()
 
     J = ufl.derivative(F, U)
 
