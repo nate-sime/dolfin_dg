@@ -118,7 +118,7 @@ for run_no, n_ele in enumerate([8, 16, 32]):
 
     bcs = [dolfin_dg.DGDirichletBC(dsD, u_soln),
            dolfin_dg.DGNeumannBC(dsN, gN)]
-    stokes_op = dolfin_dg.operators.StokesOperator2(None, None, bcs, None)
+    stokes_op = dolfin_dg.operators.StokesOperator(None, None, bcs, None)
     F += stokes_op.generate_fem_formulation(u, v, p, q, eta)
     # quit()
 
