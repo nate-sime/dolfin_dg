@@ -111,18 +111,14 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
         gN = F_v(u_soln, ufl.grad(u_soln), p_soln)*facet_n
         bcs = [dolfin_dg.DGDirichletBC(dsD, u_soln),
                dolfin_dg.DGNeumannBC(dsN, gN)]
-
-        stokes = dolfin_dg.StokesOperator(mesh, None, bcs, F_v)
+        f = -ufl.div(F_v(u_soln, ufl.grad(u_soln), p_soln))
 
         # Residual, Jacobian and preconditioner FE formulations
-        F = stokes.generate_fem_formulation(
-            u, v, p, q, block_form=matrixtype.is_block_type())
-
-        f = -ufl.div(F_v(u_soln, ufl.grad(u_soln), p_soln))
-        if not matrixtype.is_block_type():
-            F -= ufl.inner(f, v) * ufl.dx
-        else:
-            F[0] -= ufl.inner(f, v) * ufl.dx
+        stokes = dolfin_dg.operators.StokesOperator(None, None, bcs, None)
+        F = stokes.generate_fem_formulation(u, v, p, q, eta)
+        F -= ufl.inner(f, v) * ufl.dx
+        if matrixtype.is_block_type():
+            F = dolfin_dg.block.extract_rows(F, [v, q])
 
         J = dolfin_dg.derivative_block(F, U)
 
@@ -228,5 +224,7 @@ for matrixtype in list(dolfin_dg.dolfinx.MatrixType):
     hrates = np.log(hs[:-1] / hs[1:])
     rates_u = np.log(l2errors_u[:-1] / l2errors_u[1:]) / hrates
     rates_p = np.log(l2errors_p[:-1] / l2errors_p[1:]) / hrates
+    info(f"{matrixtype} u error l2: {l2errors_u}")
     info(f"{matrixtype} rates u: {rates_u}")
+    info(f"{matrixtype} p error l2: {l2errors_p}")
     info(f"{matrixtype} rates p: {rates_p}")

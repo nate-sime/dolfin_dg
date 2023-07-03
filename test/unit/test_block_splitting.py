@@ -89,11 +89,12 @@ def test_block_split_dg():
             p_local = p
         return 2 * sym(grad_u) - p_local * Identity(mesh.geometry().dim())
 
-    stokes = dolfin_dg.StokesOperator(mesh, None, [], F_v)
+    stokes = dolfin_dg.StokesOperator(None, None, [], None)
 
     # Residual, Jacobian and preconditioner FE formulations
-    F0, F1 = stokes.generate_fem_formulation(
-        u, v, p, q, block_form=True)
+    F = stokes.generate_fem_formulation(
+        u, v, p, q, eta=lambda x: 1)
+    F0, F1 = dolfin_dg.block.extract_rows(F, [v, q])
 
     F0 += inner(F_v(u, grad(u), p), grad(v)) * dx
     F1 += inner(q, div(u)) * dx

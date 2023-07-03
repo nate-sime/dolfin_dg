@@ -569,10 +569,9 @@ class StokesOperator(DGFemFormulation):
     """
 
     def __init__(self, mesh, fspace, bcs, F_v):
-        DGFemFormulation.__init__(self, mesh, fspace, bcs)
-        self.F_v = F_v
+        self.bcs = bcs
 
-    def generate_fem_formulation(self, u, v, p, q, dx=None, dS=None,
+    def generate_fem_formulation(self, u, v, p, q, eta, dx=ufl.dx, dS=ufl.dS,
                                  penalty=None, block_form=False):
         """Automatically generate the DG FEM formulation
 
@@ -600,47 +599,27 @@ class StokesOperator(DGFemFormulation):
         -------
         The UFL representation of the DG FEM formulation
         """
+        import dolfin_dg.primal.stokes
 
-        if dx is None:
-            dx = Measure('dx', domain=self.mesh)
-        if dS is None:
-            dS = Measure('dS', domain=self.mesh)
-
-        n = ufl.FacetNormal(self.ufl_domain())
-        G = homogeneity_tensor(self.F_v, u)
-        delta = -1
+        fos_mom = dolfin_dg.primal.stokes.stokes_stress(u, v, p, eta(u))
+        fos_mass = dolfin_dg.primal.stokes.stokes_continuity(u, q)
 
         if penalty is None:
             penalty = generate_default_sipg_penalty_term(u)
 
-        vt = DGFemStokesTerm(self.F_v, u, p, v, q, penalty, G, n, delta,
-                             block_form=block_form)
+        F = fos_mom.domain(dx=dx)
+        F += fos_mom.interior([penalty("+")], dS=dS)
 
-        residual = [ufl.inner(self.F_v(u, grad(u)), grad(v))*dx,
-                    q*ufl.div(u)*dx]
-        if not block_form:
-            residual = sum(residual)
+        F += fos_mass.domain()
+        F += fos_mass.interior([])
 
-        def _add_to_residual(residual, r):
-            if block_form:
-                for j in range(len(r)):
-                    residual[j] += r[j]
-            else:
-                residual += r
-            return residual
+        for bc in self.bcs:
+            if isinstance(bc, dolfin_dg.DGDirichletBC):
+                F += fos_mom.exterior(
+                    [penalty], bc.get_function(), ds=bc.get_boundary())
+                F += fos_mass.exterior(
+                    [], bc.get_function(), ds=bc.get_boundary())
+            elif isinstance(bc, dolfin_dg.DGNeumannBC):
+                F += - ufl.inner(bc.get_function(), v) * bc.get_boundary()
 
-        residual = _add_to_residual(residual, vt.interior_residual(dS))
-
-        for dbc in self.dirichlet_bcs:
-            residual = _add_to_residual(
-                residual, vt.exterior_residual(dbc.get_function(),
-                                               dbc.get_boundary()))
-
-        for dbc in self.neumann_bcs:
-            elliptic_neumann_term = vt.neumann_residual(
-                dbc.get_function(), dbc.get_boundary())
-            if block_form:
-                elliptic_neumann_term = [elliptic_neumann_term, 0]
-            residual = _add_to_residual(residual, elliptic_neumann_term)
-
-        return residual
+        return F

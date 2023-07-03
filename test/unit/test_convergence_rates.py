@@ -7,7 +7,7 @@ from dolfin import (
 from ufl import (
     FiniteElement, VectorElement, MixedElement, dot, triangle, as_vector, inner,
     CellVolume, FacetArea, Coefficient, grad, div, split, Measure, Identity,
-    FacetNormal)
+    FacetNormal, sym)
 
 import dolfin_dg
 import dolfin_dg.math
@@ -368,8 +368,8 @@ class StokesTest(ConvergenceTest):
         v = as_vector((V[0], V[1]))
         q = V[2]
 
-        def F_v(u, grad_u):
-            return grad_u - p * Identity(2)
+        def stress(u, p):
+            return 2 * sym(grad(u)) - p * Identity(2)
 
         u_soln, p_soln = self.gD(W)
 
@@ -382,16 +382,17 @@ class StokesTest(ConvergenceTest):
         dsD, dsN = ds(1), ds(2)
 
         facet_n = FacetNormal(mesh)
-        gN = (grad(u_soln) - p_soln * Identity(2)) * facet_n
+        gN = stress(u_soln, p_soln) * facet_n
         bcs = [DGDirichletBC(dsD, u_soln), DGNeumannBC(dsN, gN)]
 
-        pe = StokesOperator(mesh, W, bcs, F_v)
+        pe = StokesOperator(None, None, bcs, None)
 
         h = CellVolume(u.ufl_domain())/FacetArea(u.ufl_domain())
         ufl_degree = W.ufl_element().degree()
         C_IP = 20.0
         penalty = Constant(C_IP * max(ufl_degree ** 2, 1)) / h
-        F = pe.generate_fem_formulation(u, v, p, q, penalty=penalty)
+        F = pe.generate_fem_formulation(
+            u, v, p, q, lambda x: 1, penalty=penalty)
 
         return F
 
