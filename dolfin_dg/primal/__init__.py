@@ -1,11 +1,21 @@
 import typing
 import math
+import types
 
+import numpy
 import numpy as np
 import ufl
 
 import dolfin_dg
 from dolfin_dg.math import hyper_tensor_T_product as G_T_mult
+
+
+def default_h_measure(ufl_domain):
+    """
+    Construct the default cell size measure used in interior penalty
+    formulations based on coercivity arguments: :math:`|\\kappa| / |F|`.
+    """
+    return ufl.CellVolume(ufl_domain) / ufl.FacetArea(ufl_domain)
 
 
 def green_transpose(
@@ -24,11 +34,14 @@ class IBP:
         self.u = u
         self.v = v
         self.G = G
-        # print(f"Initialising {self}")
-        # print(f"Shape F(u) = {F(u).ufl_shape}")
-        # print(f"Shape G = {G.ufl_shape}")
-        # print(f"Shape u = {u.ufl_shape}")
-        # print(f"Shape v = {v.ufl_shape}")
+
+    def __repr__(self):
+        msg = f"IBP: {self.__class__}, " \
+              f"Shape F(u) = {self.F(self.u).ufl_shape}, " \
+              f"Shape G = {self.G.ufl_shape}, " \
+              f"Shape u = {self.u.ufl_shape}, " \
+              f"Shape v = {self.v.ufl_shape}, "
+        return msg
 
 
 def first_order_flux2(F, flux):
@@ -51,7 +64,16 @@ def first_order_flux(flux_func):
 
 class FirstOrderSystem:
 
-    def __init__(self, F_vec, L_vec, u, v):
+    def __init__(self,
+                 F_vec: typing.Sequence[typing.Callable[
+                     [ufl.core.expr.Expr, ufl.core.expr.Expr],
+                      ufl.core.expr.Expr]],
+                 L_vec: typing.Sequence[
+                     typing.Union[ufl.div, ufl.grad, ufl.curl]],
+                 u: typing.Union[
+                     ufl.coefficient.Coefficient, ufl.core.expr.Expr],
+                 v: typing.Union[ufl.argument.Argument, ufl.core.expr.Expr],
+                 n_ibps: typing.Optional[typing.Sequence[int]] = None):
         self.u = u
         self.v = v
         self.L_vec = L_vec
@@ -73,15 +95,29 @@ class FirstOrderSystem:
         self.L_ops = [*(L_vec[j] for j in range(len(F_vec)-1)), lambda x: x]
 
         self.sign_tracker = np.ones(len(F_vec)-1, dtype=np.int8)
-        self.n_ibps = np.ones(len(F_vec) - 1, dtype=np.int8)
-        self.ibp_2ce_point = math.ceil(self.n_ibps.shape[0]/2.0)
-        self.n_ibps[self.ibp_2ce_point:] = 2
+
+        if not n_ibps:
+            # Create implicitly
+            self.n_ibps = np.ones(len(F_vec) - 1, dtype=np.int8)
+            self.ibp_2ce_point = math.ceil(self.n_ibps.shape[0]/2.0)
+            self.n_ibps[self.ibp_2ce_point:] = 2
+        else:
+            if not isinstance(n_ibps, np.ndarray):
+                n_ibps = np.array(n_ibps, dtype=np.int8)
+            assert np.all(n_ibps[1:] > n_ibps[:-1])
+            assert np.all(np.isin(n_ibps, (1, 2)))
+            assert len(n_ibps.shape) == 1
+            assert n_ibps.shape[0] == len(F_vec) - 1
+            self.n_ibps = n_ibps
+            idx2 = np.where(n_ibps == 2)[0]
+            self.ibp_2ce_point = len(self.F_vec) - 1 if idx2.shape[0] == 0 \
+                else idx2[0]
 
     @property
-    def G(self):
+    def G(self) -> ufl.core.expr.Expr:
         return self.G_vec
 
-    def domain(self):
+    def domain(self, dx: ufl.measure.Measure = ufl.dx) -> ufl.form.Form:
         F_vec = self.F_vec
         G_vec = self.G_vec
         L_vec = self.L_vec
@@ -94,23 +130,32 @@ class FirstOrderSystem:
                 sign *= -1
 
         mid_idx = self.ibp_2ce_point
-        F = sign * ufl.inner(F_vec[mid_idx](u), v_vec[mid_idx]) * ufl.dx
+        F = sign * ufl.inner(F_vec[mid_idx](u), v_vec[mid_idx]) * dx
         return F
 
-    def interior(self, alpha, flux_type=None, dS=ufl.dS):
+    def interior(self, alpha: typing.Sequence[ufl.core.expr.Expr],
+                 flux_type: typing.Optional[types.ModuleType] = None,
+                 dS: ufl.measure.Measure = ufl.dS) -> ufl.form.Form:
         if flux_type is None:
             import dolfin_dg.primal.facet_sipg
             flux_type = dolfin_dg.primal.facet_sipg
         u_soln = None
         return self._formulate(alpha, flux_type, u_soln, interior=True, dI=dS)
 
-    def exterior(self, alpha, u_soln, flux_type=None, ds=ufl.ds):
+    def exterior(self, alpha: typing.Sequence[ufl.core.expr.Expr],
+                 u_soln: ufl.core.expr.Expr,
+                 flux_type: typing.Optional[types.ModuleType] = None,
+                 ds: ufl.measure.Measure = ufl.ds) -> ufl.form.Form:
         if flux_type is None:
             import dolfin_dg.primal.facet_sipg
             flux_type = dolfin_dg.primal.facet_sipg
         return self._formulate(alpha, flux_type, u_soln, interior=False, dI=ds)
 
-    def _formulate(self, alpha, flux_type, u_soln, interior, dI):
+    def _formulate(self, alpha: typing.Sequence[ufl.core.expr.Expr],
+                   flux_type: types.ModuleType,
+                   u_soln: ufl.core.expr.Expr,
+                   interior: bool,
+                   dI: ufl.measure.Measure):
         F_vec = self.F_vec
         G_vec = self.G_vec
         L_vec = self.L_vec

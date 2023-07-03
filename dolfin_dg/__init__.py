@@ -19,7 +19,6 @@ from .math import normal_proj, tangential_proj, hyper_tensor_product, \
 from .dg_form import (
     DGFemTerm, DGFemSIPG, DGFemNIPG, DGFemBO,
     DGFemCurlTerm, DGFemStokesTerm,
-    tensor_jump, tangent_jump,
     DGClassicalSecondOrderDiscretisation,
     DGClassicalFourthOrderDiscretisation,
     generate_default_sipg_penalty_term
@@ -34,9 +33,8 @@ from .operators import (
     EllipticOperator,
     HyperbolicOperator,
     PoissonOperator,
-    CompressibleEulerOperator, CompressibleEulerOperatorEntropyFormulation,
+    CompressibleEulerOperator,
     CompressibleNavierStokesOperator,
-    CompressibleNavierStokesOperatorEntropyFormulation,
     MaxwellOperator,
     SpacetimeBurgersOperator,
     StokesOperator,

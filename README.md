@@ -12,8 +12,8 @@ solely depend on UFL.
 
 `dolfin_dg` has been successfully employed with:
 
+* [DOLFINx](https://github.com/FEniCS/dolfinx)
 * [DOLFIN](https://bitbucket.org/fenics-project/dolfin)
-* [DOLFINX](https://github.com/FEniCS/dolfinx)
 * [Firedrake](https://www.firedrakeproject.org/)
 * [dune-fem](https://www.dune-project.org/modules/dune-fem/)
 
@@ -62,54 +62,34 @@ nonlinear problems in geodynamics*
 
 ##### Optional dependencies
 
-* For `dolfin` support and the example demos: the core components of the [FEniCS
-  project](https://fenicsproject.org/).
-* For the hybrid discontinuous Galerkin (HDG) solvers employing static
- condensation with `dolfin`,
- this [LEoPart fork](https://bitbucket.org/nate-sime/leopart/) is required.
+* For `dolfin_dg.dolfinx` and the `dolfinx` demos: the core components of the 
+  [FEniCSx project](https://fenicsproject.org/).
+* For `dolfin_dg.dolfin` and the `dolfin` demos: the core components of the 
+  [*legacy* FEniCS project](https://fenicsproject.org/download/archive/).
+  * For the hybrid discontinuous Galerkin (HDG) solvers employing static
+   condensation with `dolfin`,
+   this [LEoPart fork](https://bitbucket.org/nate-sime/leopart/) is required.
 * For `firedrake` support the core components of the [Firedrake
   project](https://www.firedrakeproject.org/)
 
 
 ## Installation
 
-#### Docker image
+Navigate to the `dolfin_dg` directory and install with
+
+```bash
+pip install .
+```
+
+## Legacy `dolfin` docker image with LEoPart fork
 
 ![](https://quay.io/repository/natesime/dolfin_dg/status)
 
-Follow the instructions for installing https://fenicsproject.org/download/. A
-docker image facilitating compilation and execution of `dolfin_dg` examples
-with the development version of `dolfin` and `leopart` is available:
+A  docker image facilitating compilation and execution of `dolfin_dg` examples
+with the legacy version of `dolfin` and `leopart` is available:
 
 ```bash
 docker run -it quay.io/natesime/dolfin_dg:master
-```
-
-#### Custom installation
-
-Install in the usual way with your preferred prefix:
-
-```bash
-python3 setup.py install --prefix=$HOME/local
-```
-
-
-#### Installation inside existing docker container
-
-Follow the instructions to install FEniCS with docker https://fenicsproject.org/download/.
-
-Run docker and clone `dolfin_dg`
-
-```bash
-docker run -it quay.io/fenicsproject/dev
-git clone https://bitbucket.org/nate-sime/dolfin_dg.git
-```
-
-Install `dolfin_dg`
-
-```bash
-cd dolfin_dg
-sudo python3 setup.py install
 ```
 
 

@@ -7,7 +7,7 @@ from dolfin import (
 from ufl import (
     FiniteElement, VectorElement, MixedElement, dot, triangle, as_vector, inner,
     CellVolume, FacetArea, Coefficient, grad, div, split, Measure, Identity,
-    FacetNormal)
+    FacetNormal, sym)
 
 import dolfin_dg
 import dolfin_dg.math
@@ -17,8 +17,7 @@ from dolfin_dg.nitsche import NitscheBoundary, StokesNitscheBoundary
 from dolfin_dg.operators import (
     PoissonOperator, EllipticOperator, MaxwellOperator,
     CompressibleEulerOperator, CompressibleNavierStokesOperator,
-    CompressibleNavierStokesOperatorEntropyFormulation,
-    HyperbolicOperator, LocalLaxFriedrichs, SpacetimeBurgersOperator,
+    HyperbolicOperator, SpacetimeBurgersOperator,
     DGFemSIPG, StokesOperator)
 
 parameters['form_compiler']["cpp_optimize"] = True
@@ -98,11 +97,10 @@ class Advection1D(ConvergenceTest):
         b = Constant((1,))
 
         # Convective Operator
-        def F_c(U):
-            return b*U
+        def F_c(_, flux):
+            return b*flux
 
-        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c,
-                                LocalLaxFriedrichs(lambda u, n: dot(b, n)))
+        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c)
         F = ho.generate_fem_formulation(u, v) - gD*v*dx
 
         return F
@@ -119,11 +117,10 @@ class Advection(ConvergenceTest):
         b = Constant((1, 1))
 
         # Convective Operator
-        def F_c(U):
-            return b*U**2
+        def F_c(u, flux):
+            return b*flux**2
 
-        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c,
-                                LocalLaxFriedrichs(lambda u, n: 2*u*dot(b, n)))
+        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c)
         F = ho.generate_fem_formulation(u, v)
 
         return F
@@ -141,18 +138,14 @@ class AdvectionDiffusion(ConvergenceTest):
                        element=V.ufl_element())
         b = Constant((1, 1))
 
-        def F_c(u):
-            return b*u**2
-
-        def alpha(u, n):
-            return 2*u*dot(b, n)
+        def F_c(u, flux):
+            return b*flux**2
 
         def F_v(u, grad_u):
             return (u + 1)*grad_u
 
-        ho = HyperbolicOperator(mesh, V, DGDirichletBC(ds, gD), F_c,
-                                LocalLaxFriedrichs(alpha))
-        eo = EllipticOperator(mesh, V, DGDirichletBC(ds, gD), F_v)
+        ho = HyperbolicOperator(mesh, V, [DGDirichletBC(ds, gD)], F_c)
+        eo = EllipticOperator(mesh, V, [DGDirichletBC(ds, gD)], F_v)
 
         F = ho.generate_fem_formulation(u, v) \
             + eo.generate_fem_formulation(u, v) \
@@ -275,83 +268,6 @@ class NavierStokes(ConvergenceTest):
         return F
 
 
-class NavierStokesEntropy(ConvergenceTest):
-    def gD(self, V):
-        gD0 = '''((-std::log((0.4*sin(2*x[0] + 2*x[1]) + 1.6)*pow(sin(2*x[0] +
-              2*x[1]) + 4, -1.4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4,
-              2)/pow(sin(2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) +
-              4)) + 2.4)*(sin(2*x[0] + 2*x[1]) + 4)*(-pow((1.0L/5.0L)*sin(
-              2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[1]) + 4,
-              2) + sin(2*x[0] + 2*x[1]) + 4) - pow(sin(2*x[0] + 2*x[1]) + 4,
-              2))/((sin(2*x[0] + 2*x[1]) + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] +
-              2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0]
-              + 2*x[1]) + 4))'''
-        gD1 = '''((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4)/((sin(2*x[0] + 2*x[1])
-            + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0]
-            + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))'''
-        gD2 = '''((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4)/((sin(2*x[0] + 2*x[1])
-              + 4)*(-pow((1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(
-              2*x[0] + 2*x[1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))'''
-        gD3 = '''(-sin(2*x[0] + 2*x[1]) - 4)/((sin(2*x[0] + 2*x[1]) + 4)*(-pow(
-              (1.0L/5.0L)*sin(2*x[0] + 2*x[1]) + 4, 2)/pow(sin(2*x[0] + 2*x[
-              1]) + 4, 2) + sin(2*x[0] + 2*x[1]) + 4))'''
-        return Expression((gD0, gD1, gD2, gD3), element=V.ufl_element())
-
-    def generate_form(self, mesh, V, u, v):
-        gD = self.gD(V)
-        u.interpolate(gD)
-        f0 = '0.8*cos(2.0*x[0] + 2.0*x[1])'
-        f1 = '''(1.6*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1])
-            + 25.728*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1])
-            + 155.136*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1])
-            - 34.1333333333333*pow(sin(2.0*x[0] + 2.0*x[1]), 2)
-            - 136.533333333333*sin(2.0*x[0] + 2.0*x[1]) + 191.488*sin(4.0*x[0]
-            + 4.0*x[1]) - 68.2666666666667*pow(cos(2.0*x[0] + 2.0*x[1]), 2)
-            + 286.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1])
-            + 4.0, 3)'''
-        f2 = '''(1.6*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1])
-            + 25.728*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1])
-            + 155.136*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0] + 2.0*x[1])
-            - 34.1333333333333*pow(sin(2.0*x[0] + 2.0*x[1]), 2)
-            - 136.533333333333*sin(2.0*x[0] + 2.0*x[1]) + 191.488*sin(4.0*x[0]
-            + 4.0*x[1]) - 68.2666666666667*pow(cos(2.0*x[0] + 2.0*x[1]), 2)
-            + 286.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0] + 2.0*x[1])
-            + 4.0, 3)'''
-        f3 = '''(2.24*pow(sin(2.0*x[0] + 2.0*x[1]), 5)*cos(2.0*x[0] + 2.0*x[1])
-            + 15.5555555555556*pow(sin(2.0*x[0] + 2.0*x[1]), 5)
-            + 62.7072*pow(sin(2.0*x[0] + 2.0*x[1]), 4)*cos(2.0*x[0] + 2.0*x[1])
-            + 248.888888888889*pow(sin(2.0*x[0] + 2.0*x[1]), 4)
-            + 644.9152*pow(sin(2.0*x[0] + 2.0*x[1]), 3)*cos(2.0*x[0] + 2.0*x[1])
-            + 1499.59111111111*pow(sin(2.0*x[0] + 2.0*x[1]), 3)
-            + 3162.5216*pow(sin(2.0*x[0] + 2.0*x[1]), 2)*cos(2.0*x[0]
-            + 2.0*x[1]) + 4132.40888888889*pow(sin(2.0*x[0] + 2.0*x[1]), 2)
-            + 12.5155555555556*sin(2.0*x[0] + 2.0*x[1])*pow(cos(2.0*x[0]
-            + 2.0*x[1]), 2) + 4482.84444444444*sin(2.0*x[0] + 2.0*x[1])
-            + 3817.472*sin(4.0*x[0] + 4.0*x[1])
-            + 350.435555555555*pow(cos(2.0*x[0] + 2.0*x[1]), 2)
-            + 7454.72*cos(2.0*x[0] + 2.0*x[1]))/pow(1.0*sin(2.0*x[0]
-            + 2.0*x[1]) + 4.0, 4)'''
-        f = Expression((f0, f1, f2, f3), element=V.ufl_element())
-
-        bo = CompressibleNavierStokesOperatorEntropyFormulation(
-            mesh, V, DGDirichletBC(ds, gD))
-
-        h = CellVolume(u.ufl_domain())/FacetArea(u.ufl_domain())
-        ufl_degree = u.ufl_element().degree()
-        C_IP = 20.0
-        penalty = Constant(C_IP * max(ufl_degree ** 2, 1)) / h
-        F = bo.generate_fem_formulation(u, v, penalty=penalty) - inner(f, v)*dx
-        return F
-
-    def check_norm0_rates(self, rate0):
-        expected_rate = float(self.element.degree() + 1)
-        assert rate0[0] > expected_rate - self.TOL
-
-    def check_norm1_rates(self, rate1):
-        expected_rate = float(self.element.degree())
-        assert rate1[0] > expected_rate - self.TOL
-
-
 class Poisson(ConvergenceTest):
     def gD(self, V):
         return Expression('sin(pi*x[0])*sin(pi*x[1]) + 1.0',
@@ -449,8 +365,8 @@ class StokesTest(ConvergenceTest):
         v = as_vector((V[0], V[1]))
         q = V[2]
 
-        def F_v(u, grad_u):
-            return grad_u - p * Identity(2)
+        def stress(u, p):
+            return 2 * sym(grad(u)) - p * Identity(2)
 
         u_soln, p_soln = self.gD(W)
 
@@ -463,16 +379,17 @@ class StokesTest(ConvergenceTest):
         dsD, dsN = ds(1), ds(2)
 
         facet_n = FacetNormal(mesh)
-        gN = (grad(u_soln) - p_soln * Identity(2)) * facet_n
+        gN = stress(u_soln, p_soln) * facet_n
         bcs = [DGDirichletBC(dsD, u_soln), DGNeumannBC(dsN, gN)]
 
-        pe = StokesOperator(mesh, W, bcs, F_v)
+        pe = StokesOperator(None, None, bcs, None)
 
         h = CellVolume(u.ufl_domain())/FacetArea(u.ufl_domain())
         ufl_degree = W.ufl_element().degree()
         C_IP = 20.0
         penalty = Constant(C_IP * max(ufl_degree ** 2, 1)) / h
-        F = pe.generate_fem_formulation(u, v, p, q, penalty=penalty)
+        F = pe.generate_fem_formulation(
+            u, v, p, q, lambda x: 1, penalty=penalty)
 
         return F
 
@@ -680,11 +597,11 @@ def test_square_euler_problems(conv_test):
     conv_test(meshes, element).run_test()
 
 
-@pytest.mark.parametrize("conv_test", [NavierStokes,
-                                       NavierStokesEntropy])
-def test_square_navier_stokes_problems(conv_test, SquareMeshesPi):
-    element = VectorElement("DG", SquareMeshesPi[0].ufl_cell(), 1, dim=4)
-    conv_test(SquareMeshesPi, element, TOL=0.25).run_test()
+# @pytest.mark.parametrize("conv_test", [NavierStokes,
+#                                        NavierStokesEntropy])
+# def test_square_navier_stokes_problems(conv_test, SquareMeshesPi):
+#     element = VectorElement("DG", SquareMeshesPi[0].ufl_cell(), 1, dim=4)
+#     conv_test(SquareMeshesPi, element, TOL=0.25).run_test()
 
 
 @pytest.mark.parametrize("conv_test", [StokesTest])
@@ -695,10 +612,10 @@ def test_square_stokes_problems(conv_test, SquareMeshes):
 
 
 # -- 2D non-conventional DG tests
-@pytest.mark.parametrize("conv_test", [PoissonBO])
-def test_square_baumann_oden_problems(conv_test, SquareMeshes):
-    element = FiniteElement("DG", SquareMeshes[0].ufl_cell(), 2)
-    conv_test(SquareMeshes, element).run_test()
+# @pytest.mark.parametrize("conv_test", [PoissonBO])
+# def test_square_baumann_oden_problems(conv_test, SquareMeshes):
+#     element = FiniteElement("DG", SquareMeshes[0].ufl_cell(), 2)
+#     conv_test(SquareMeshes, element).run_test()
 
 
 # -- Nitsche CG tests

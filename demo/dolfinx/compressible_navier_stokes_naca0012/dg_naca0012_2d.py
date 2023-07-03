@@ -113,15 +113,11 @@ for ref_level in range(n_ref_max):
            dolfin_dg.DGAdiabticWallBC(ds(WALL), no_slip_bc),
            dolfin_dg.DGDirichletBC(ds(OUTLET), outflow)]
 
-    # Construct penalisation term and facet measure
-    C_IP = 20.0
-    h = ufl.CellVolume(mesh)/ufl.FacetArea(mesh)
-    penalty = dolfinx.fem.Constant(mesh, C_IP * max(poly_o ** 2, 1)) / h
-
     # Construct the compressible Navier Stokes DG formulation, and compute
     # the symbolic Jacobian
+    h = ufl.CellVolume(mesh)/ufl.FacetArea(mesh)
     ce = dolfin_dg.CompressibleNavierStokesOperator(mesh, V, bcs, mu=1.0/Re)
-    F = ce.generate_fem_formulation(u_vec, v_vec, penalty=penalty)
+    F = ce.generate_fem_formulation(u_vec, v_vec, h_measure=h, c_ip=20.0)
     J = ufl.derivative(F, u_vec)
 
     # Set up the problem and solve
@@ -156,9 +152,11 @@ for ref_level in range(n_ref_max):
 
     # Assemble the homogeneity tensor with dot(grad(T), n) = 0 for use in the
     # adjoint consistent lift and drag formulation
-    h = ufl.CellVolume(mesh)/ufl.FacetArea(mesh)
     sigma = dolfinx.fem.Constant(mesh, 20.0)*dolfinx.fem.Constant(mesh, float(max(poly_o**2, 1)))/h
-    G_adiabitic = dolfin_dg.math.homogeneity_tensor(ce.F_v_adiabatic, u_vec)
+    import dolfin_dg.primal.aero
+    F_v_adiabatic = dolfin_dg.primal.aero.compressible_navier_stokes_adiabatic_wall(
+        u_vec, v_vec, gamma=gamma, mu=1/Re).F_vec[1]
+    G_adiabitic = dolfin_dg.math.homogeneity_tensor(F_v_adiabatic, u_vec)
     G_adiabitic = ufl.replace(G_adiabitic, {u_vec: no_slip_bc})
 
     # The drag coefficient
