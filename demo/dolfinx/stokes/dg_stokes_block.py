@@ -1,5 +1,6 @@
 import dolfinx.mesh
 import dolfinx.fem
+import dolfinx.fem.petsc
 import numpy as np
 import ufl
 from mpi4py import MPI

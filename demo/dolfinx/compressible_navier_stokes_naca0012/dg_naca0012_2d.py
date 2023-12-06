@@ -3,6 +3,8 @@ from mpi4py import MPI
 from petsc4py import PETSc
 import ufl
 import dolfinx
+import dolfinx.fem.petsc
+import dolfinx.nls.petsc
 import dolfin_dg
 import dolfin_dg.dolfinx.dwr
 import dolfin_dg.dolfinx.mark
@@ -98,7 +100,7 @@ for ref_level in range(n_ref_max):
         interp_data = dolfinx.fem.create_nonmatching_meshes_interpolation_data(
             u_vec.function_space.mesh._cpp_object,
             u_vec.function_space.element,
-            u_vec_old.function_space.mesh._cpp_object)
+            u_vec_old.function_space.mesh._cpp_object, padding=1e-4)
         u_vec.interpolate(u_vec_old, nmm_interpolation_data=interp_data)
     u_vec.x.scatter_forward()
     v_vec = ufl.TestFunction(V)
@@ -182,10 +184,10 @@ for ref_level in range(n_ref_max):
     info(f"DoFs: {n_dofs}, Drag: {drag_val:.5e}, Lift: {lift_val:.5e}")
     results += [(n_dofs, drag_val, lift_val)]
 
-    with dolfinx.io.XDMFFile(
-            mesh.comm, f"adapted_naca0012_meshes_{ref_level}.xdmf", "w") as fi:
-        fi.write_mesh(mesh)
-        fi.write_function(u_vec.sub(0))
+    with dolfinx.io.VTXWriter(
+            mesh.comm, f"adapted_naca0012_meshes_{ref_level}.bp",
+            [u_vec.sub(0).collapse()], "bp4") as f:
+        f.write(0.0)
 
     # If we're not on the last refinement level, apply goal oriented
     # dual-weighted-residual error estimation refinement.

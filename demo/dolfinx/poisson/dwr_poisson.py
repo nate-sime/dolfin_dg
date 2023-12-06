@@ -4,6 +4,7 @@ import numpy as np
 
 import ufl
 import dolfinx
+import dolfinx.fem.petsc
 import dolfin_dg.dolfinx.dwr
 import dolfin_dg.dolfinx.mark
 

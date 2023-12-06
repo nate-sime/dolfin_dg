@@ -1,6 +1,6 @@
 import dolfinx.io
 import dolfinx.mesh
-import dolfinx.fem
+import dolfinx.fem.petsc
 import numpy as np
 import ufl
 from mpi4py import MPI
@@ -58,6 +58,5 @@ snes.solve(None, u.vector)
 print(f"SNES converged: {snes.getConvergedReason()}")
 print(f"KSP converged: {snes.getKSP().getConvergedReason()}")
 
-with dolfinx.io.XDMFFile(MPI.COMM_WORLD, "poisson.xdmf", "w") as file:
-    file.write_mesh(mesh)
-    file.write_function(u)
+with dolfinx.io.VTXWriter(mesh.comm, f"poisson.bp", [u], "bp4") as f:
+    f.write(0.0)

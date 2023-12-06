@@ -4,6 +4,7 @@ from mpi4py import MPI
 from petsc4py import PETSc
 
 import dolfinx
+import dolfinx.fem.petsc
 
 import dolfin_dg.dolfinx
 from dolfin_dg.math import hyper_tensor_T_product as G_T_mult
