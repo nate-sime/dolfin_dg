@@ -200,7 +200,7 @@ class CompressibleEuler(convergence.ConvergenceTest):
     def generate_form(self, mesh, V, U, v):
         U_soln = self.u_soln(V)
         U.interpolate(
-            dolfinx.fem.Expression(U_soln, V.element.interpolation_points()))
+            dolfinx.fem.Expression(U_soln, V.element.interpolation_points))
         fos = dolfin_dg.primal.aero.compressible_euler(U, v)
 
         gamma = 1.4
@@ -248,14 +248,14 @@ class CompressibleEulerEntropy(convergence.ConvergenceTest):
         return U_soln
 
     def generate_form(self, mesh, fspace, soln_vec, v):
-        metadata = {"quadrature_degree": 2 * fspace.ufl_element().degree() + 1}
+        metadata = {"quadrature_degree": 2 * fspace.ufl_element().degree + 1}
         dx = ufl.Measure("dx", metadata=metadata)
         ds = ufl.Measure("ds", metadata=metadata)
         dS = ufl.Measure("dS", metadata=metadata)
         gD = self.u_soln(fspace)
 
         soln_vec.interpolate(
-            dolfinx.fem.Expression(gD, fspace.element.interpolation_points()))
+            dolfinx.fem.Expression(gD, fspace.element.interpolation_points))
         fos = dolfin_dg.primal.aero.compressible_euler_entropy(soln_vec, v)
 
         F = fos.domain(dx=dx) - ufl.inner(fos.F_vec[0](gD), v) * dx
@@ -312,5 +312,4 @@ def test_first_order_aero(cell_type, p, problem):
             diagonal=dolfinx.mesh.DiagonalType.left)
 
     meshes = [generate_mesh(N, 0.5 * np.pi) for N in [12, 16, 20]]
-    problem(meshes, ufl.VectorElement(
-        "DG", meshes[0].ufl_cell(), p, dim=4)).run_test()
+    problem(meshes, ("DG", p, (4,))).run_test()
