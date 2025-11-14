@@ -261,11 +261,11 @@ def generate_naca_4digit(comm: MPI.Intracomm, m: float, p: float, t: float,
                 gmsh.option.setNumber(k, v)
         gmsh.model.mesh.generate(2)
 
-    mesh, cell_tags, facet_tags = dolfinx.io.gmshio.model_to_mesh(
+    mesh_data = dolfinx.io.gmshio.model_to_mesh(
         gmsh.model, MPI.COMM_WORLD, model_rank, gdim=2,
         partitioner=dolfinx.cpp.mesh.create_cell_partitioner(
             dolfinx.mesh.GhostMode.shared_facet))
 
     gmsh.finalize()
 
-    return mesh
+    return mesh_data.mesh
