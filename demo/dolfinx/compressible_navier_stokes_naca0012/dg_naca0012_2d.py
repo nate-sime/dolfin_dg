@@ -5,6 +5,7 @@ import ufl
 import dolfinx
 import dolfinx.fem.petsc
 import dolfinx.nls.petsc
+import dolfinx.mesh
 import dolfin_dg
 import dolfin_dg.dolfinx.dwr
 import dolfin_dg.dolfinx.mark
@@ -85,7 +86,7 @@ for ref_level in range(n_ref_max):
     ds = ufl.Measure('ds', domain=mesh, subdomain_data=fts)
 
     # Problem function space, (rho, rho*u1, rho*u2, rho*E)
-    V = dolfinx.fem.VectorFunctionSpace(mesh, ("DG", poly_o), dim=4)
+    V = dolfinx.fem.functionspace(mesh, ("DG", poly_o, (4,)))
     n_dofs = mesh.comm.allreduce(
         V.dofmap.index_map.size_local * V.dofmap.index_map_bs, MPI.SUM)
     info(f"Problem size: {n_dofs} degrees of freedom")
@@ -94,14 +95,16 @@ for ref_level in range(n_ref_max):
     if ref_level == 0:
         # Use the initial guess.
         u_vec.interpolate(
-            dolfinx.fem.Expression(gD_guess, V.element.interpolation_points()))
+            dolfinx.fem.Expression(gD_guess, V.element.interpolation_points))
     else:
         # Initial guess by interpolating from old mesh to new mesh
-        interp_data = dolfinx.fem.create_nonmatching_meshes_interpolation_data(
-            u_vec.function_space.mesh._cpp_object,
-            u_vec.function_space.element,
-            u_vec_old.function_space.mesh._cpp_object, padding=1e-4)
-        u_vec.interpolate(u_vec_old, nmm_interpolation_data=interp_data)
+        im = u_vec.function_space.mesh.topology.index_map(
+            u_vec.function_space.mesh.topology.dim)
+        cells = np.arange(im.size_local + im.num_ghosts, dtype=np.int32)
+        interp_data = dolfinx.fem.create_interpolation_data(
+            u_vec.function_space,
+            u_vec_old.function_space, cells, padding=1e-4)
+        u_vec.interpolate_nonmatching(u_vec_old, cells, interpolation_data=interp_data)
     u_vec.x.scatter_forward()
     v_vec = ufl.TestFunction(V)
 
@@ -123,7 +126,7 @@ for ref_level in range(n_ref_max):
     J = ufl.derivative(F, u_vec)
 
     # Set up the problem and solve
-    problem = dolfinx.fem.petsc.NonlinearProblem(F, u_vec, J=J)
+    problem = dolfinx.fem.petsc.NewtonSolverNonlinearProblem(F, u_vec, J=J)
     solver = dolfinx.nls.petsc.NewtonSolver(mesh.comm, problem)
 
     def updater(solver, dx, x):
@@ -184,15 +187,24 @@ for ref_level in range(n_ref_max):
     info(f"DoFs: {n_dofs}, Drag: {drag_val:.5e}, Lift: {lift_val:.5e}")
     results += [(n_dofs, drag_val, lift_val)]
 
-    with dolfinx.io.VTXWriter(
-            mesh.comm, f"adapted_naca0012_meshes_{ref_level}.bp",
-            [u_vec.sub(0).collapse()], "bp4") as f:
-        f.write(0.0)
+    if dolfinx.common.has_adios2:
+        with dolfinx.io.VTXWriter(
+                mesh.comm, f"adapted_naca0012_meshes_{ref_level}.bp",
+                [u_vec.sub(0).collapse()], "bp4") as f:
+            f.write(0.0)
+    else:
+        with dolfinx.io.XDMFFile(mesh.comm, f"adapted_naca0012_meshes_{ref_level}.xdmf", "w") as f:
+            f.write_mesh(mesh)
+
+            interp_space = dolfinx.fem.functionspace(mesh, ("CG", 1))
+            u_interp = dolfinx.fem.Function(interp_space)
+            u_interp.interpolate(u_vec.sub(0))
+            f.write_function(u_interp)
 
     # If we're not on the last refinement level, apply goal oriented
     # dual-weighted-residual error estimation refinement.
     if ref_level < n_ref_max - 1:
-        V_star = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', poly_o+1), dim=4)
+        V_star = dolfinx.fem.functionspace(mesh, ('DG', poly_o+1, (4,)))
 
         n_dofs = mesh.comm.allreduce(
             V_star.dofmap.index_map.size_local * V_star.dofmap.index_map_bs, MPI.SUM)
@@ -211,11 +223,8 @@ for ref_level in range(n_ref_max):
         info("Refining mesh")
         edges_to_ref = dolfinx.mesh.compute_incident_entities(
             mesh.topology, cell_markers, mesh.topology.dim, 1)
-        new_mesh, _, _ = dolfinx.cpp.refinement.refine_plaza(
-            mesh._cpp_object, edges_to_ref, True,
-            dolfinx.mesh.RefinementOption.none)
-        new_mesh = dolfinx.mesh.Mesh(
-            new_mesh, ufl.Mesh(mesh._ufl_domain.ufl_coordinate_element()))
+        new_mesh, _, _ = dolfinx.mesh.refine(
+            mesh, edges_to_ref)
 
         mesh = new_mesh
         u_vec_old = u_vec

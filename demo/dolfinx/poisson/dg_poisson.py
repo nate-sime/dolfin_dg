@@ -16,7 +16,7 @@ mesh = dolfinx.mesh.create_unit_square(
     MPI.COMM_WORLD, 32, 32,
     ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
 
-V = dolfinx.fem.FunctionSpace(mesh, ('DG', 1))
+V = dolfinx.fem.functionspace(mesh, ('DG', 1))
 u, v = dolfinx.fem.Function(V), ufl.TestFunction(V)
 
 x = ufl.SpatialCoordinate(mesh)
@@ -54,9 +54,10 @@ snes.setFunction(problem.F_mono, dolfinx.fem.petsc.create_vector(F))
 snes.setJacobian(problem.J_mono, J=dolfinx.fem.petsc.create_matrix(J))
 
 # Solve and plot
-snes.solve(None, u.vector)
+snes.solve(None, u.x.petsc_vec)
 print(f"SNES converged: {snes.getConvergedReason()}")
 print(f"KSP converged: {snes.getKSP().getConvergedReason()}")
 
-with dolfinx.io.VTXWriter(mesh.comm, f"poisson.bp", [u], "bp4") as f:
-    f.write(0.0)
+if dolfinx.common.has_adios2:
+    with dolfinx.io.VTXWriter(mesh.comm, f"poisson.bp", [u], "bp4") as f:
+        f.write(0.0)

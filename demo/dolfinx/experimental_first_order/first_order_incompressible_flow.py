@@ -1,3 +1,4 @@
+import basix.ufl
 import dolfinx.mesh
 import dolfinx.fem
 import dolfinx.fem.petsc
@@ -50,8 +51,8 @@ for run_no, n_ele in enumerate([8, 16, 32]):
     hmin = comm.allreduce(h_measure.min(), op=MPI.MIN)
 
     # Higher order FE spaces for interpolation of the true solution
-    V_high = dolfinx.fem.VectorFunctionSpace(mesh, ("DG", p_order + 2))
-    Q_high = dolfinx.fem.FunctionSpace(mesh, ("DG", p_order + 1))
+    V_high = dolfinx.fem.functionspace(mesh, ("DG", p_order + 2, (2,)))
+    Q_high = dolfinx.fem.functionspace(mesh, ("DG", p_order + 1))
 
     u_soln = dolfinx.fem.Function(V_high)
     u_soln.interpolate(u_analytical)
@@ -60,10 +61,10 @@ for run_no, n_ele in enumerate([8, 16, 32]):
     p_soln.interpolate(p_analytical)
 
     # Problem FE spaces and FE functions
-    Ve = ufl.VectorElement("DG", mesh.ufl_cell(), p_order)
-    Qe = ufl.FiniteElement("DG", mesh.ufl_cell(), p_order-1)
+    Ve = basix.ufl.element("DG", mesh.basix_cell(), p_order, shape=(2,))
+    Qe = basix.ufl.element("DG", mesh.basix_cell(), p_order-1)
 
-    W = dolfinx.fem.FunctionSpace(mesh, ufl.MixedElement([Ve, Qe]))
+    W = dolfinx.fem.functionspace(mesh, basix.ufl.mixed_element([Ve, Qe]))
     U = dolfinx.fem.Function(W, name="U")
     u, p = ufl.split(U)
     dU = ufl.TrialFunction(W)
@@ -141,7 +142,7 @@ for run_no, n_ele in enumerate([8, 16, 32]):
         problem.F_mono, dolfinx.fem.petsc.create_vector(F))
     snes.setJacobian(
         problem.J_mono, J=dolfinx.fem.petsc.create_matrix(J), P=None)
-    soln_vector = U.vector
+    soln_vector = U.x.petsc_vec
 
     # Set solver options
     snes.getKSP().getPC().setType("lu")

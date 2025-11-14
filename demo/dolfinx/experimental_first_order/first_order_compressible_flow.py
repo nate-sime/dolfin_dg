@@ -60,7 +60,7 @@ for model in Compressible:
             diagonal=dolfinx.mesh.DiagonalType.right)
 
         # -- Compressible Euler
-        V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p), dim=4)
+        V = dolfinx.fem.functionspace(mesh, ('DG', p, (4,)))
         v = ufl.TestFunction(V)
 
         soln_vec = dolfinx.fem.Function(V, name="u")
@@ -81,7 +81,7 @@ for model in Compressible:
             fos = dolfin_dg.primal.aero.compressible_euler(soln_vec, v, gamma=gamma)
 
         soln_vec.interpolate(
-            dolfinx.fem.Expression(gD, V.element.interpolation_points()))
+            dolfinx.fem.Expression(gD, V.element.interpolation_points))
 
         f = fos.F_vec[0](gD)
         F = fos.domain(dx=dx)
@@ -142,7 +142,7 @@ for model in Compressible:
         snes.setJacobian(problem.J_mono, J=dolfinx.fem.petsc.create_matrix(J))
         snes.setTolerances(rtol=1e-14, atol=1e-14)
 
-        snes.solve(None, soln_vec.vector)
+        snes.solve(None, soln_vec.x.petsc_vec)
         if mesh.comm.rank == 0:
             snes_conv = snes.getConvergedReason()
             ksp_conv = snes.getKSP().getConvergedReason()

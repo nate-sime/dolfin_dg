@@ -19,6 +19,9 @@ class Poisson(convergence.ConvergenceTest):
         return ufl.sin(ufl.pi*x[0]) * ufl.sin(ufl.pi*x[1])
 
     def generate_form(self, mesh, V, u, v):
+        e_meta = dolfinx.fem.ElementMetaData(*self.element)
+        assert V.ufl_element().degree == e_meta.degree
+
         @dolfin_dg.primal.first_order_flux(lambda x: x)
         def F_2(u, flux):
             return flux
@@ -33,7 +36,7 @@ class Poisson(convergence.ConvergenceTest):
 
         u_soln = self.u_soln(V)
         h = ufl.CellDiameter(mesh)
-        p = dolfinx.fem.Constant(mesh, float(self.element.degree()))
+        p = dolfinx.fem.Constant(mesh, float(e_meta.degree))
         alpha = dolfinx.fem.Constant(mesh, 20.0) * p**2 / h
         f = F_0(u_soln)
 
@@ -54,7 +57,7 @@ def test_first_order_poisson():
         dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, 16, 16),
         dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, 32, 32)
     ]
-    element = ufl.FiniteElement("DG", ufl.triangle, 1)
+    element = ("DG", 1)
     Poisson(meshes, element).run_test()
 
 
@@ -96,7 +99,7 @@ class AdvectionDiffusion(convergence.ConvergenceTest):
         L_vec = [ufl.div, ufl.grad]
 
         h = ufl.CellDiameter(mesh)
-        p = dolfinx.fem.Constant(mesh, float(self.element.degree()))
+        p = dolfinx.fem.Constant(mesh, float(V.ufl_element().degree))
         alpha = dolfinx.fem.Constant(mesh, 20.0) * p ** 2 / h
 
         fos = dolfin_dg.primal.FirstOrderSystem(F_vec, L_vec, u, v)
@@ -224,5 +227,5 @@ def test_first_order_advection_diffusion(cell_type, p, A0, A1, b):
         )
         for n in ns
     ]
-    element = ufl.FiniteElement("DG", meshes[0].ufl_cell(), p)
+    element = ("DG", p)
     AdvectionDiffusion(meshes, element, A0, A1, b, TOL=0.1).run_test()
