@@ -22,7 +22,7 @@ for run_no, n_ele in enumerate(n_eles):
     mesh = dolfinx.mesh.create_unit_square(
         comm, n_ele, n_ele, cell_type=dolfinx.mesh.CellType.triangle,
         ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
-    V = dolfinx.fem.FunctionSpace(mesh, ("DG", poly_o))
+    V = dolfinx.fem.functionspace(mesh, ("DG", poly_o))
 
     u = dolfinx.fem.Function(V)
     v = ufl.TestFunction(V)

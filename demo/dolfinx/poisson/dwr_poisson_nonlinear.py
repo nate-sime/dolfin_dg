@@ -43,7 +43,7 @@ for it in range(10):
     x = ufl.SpatialCoordinate(mesh)
     f = source(x)
 
-    V = dolfinx.fem.FunctionSpace(mesh, ('CG', poly_o))
+    V = dolfinx.fem.functionspace(mesh, ('CG', poly_o))
     u, v = dolfinx.fem.Function(V), ufl.TestFunction(V)
     a = ufl.inner(ufl.grad(u), ufl.grad(v))*ufl.dx
     L = ufl.inner(f, v)*ufl.dx
@@ -66,7 +66,7 @@ for it in range(10):
         problem.J_mono, J=dolfinx.fem.petsc.create_matrix(problem.a),
         P=None)
 
-    snes.solve(None, u.vector)
+    snes.solve(None, u.x.petsc_vec)
     snes_converged = snes.getConvergedReason()
     ksp_converged = snes.getKSP().getConvergedReason()
     if snes_converged < 1 or ksp_converged < 1:
@@ -80,7 +80,7 @@ for it in range(10):
     dwr_dofs.append(
         mesh.comm.allreduce(V.dofmap.index_map.size_local, op=MPI.SUM))
 
-    V_star = dolfinx.fem.FunctionSpace(mesh, ('CG', poly_o+1))
+    V_star = dolfinx.fem.functionspace(mesh, ('CG', poly_o+1))
     bc_star = create_bc(V_star)
     lape = dolfin_dg.dolfinx.dwr.NonlinearAPosterioriEstimator(
         J, F, jh(u), u, V_star, bc_star)
@@ -91,7 +91,7 @@ for it in range(10):
     edges_to_ref = dolfinx.mesh.compute_incident_entities(
             mesh.topology, cell_markers, mesh.topology.dim, 1)
 
-    mesh = dolfinx.mesh.refine(mesh, edges_to_ref, redistribute=True)
+    mesh, _, _ = dolfinx.mesh.refine(mesh, edges_to_ref)
 
 # Second perform h-refinement and record error vs DoF count
 href_errors = []
@@ -102,7 +102,7 @@ for it in range(1, 6):
     x = ufl.SpatialCoordinate(mesh)
     f = source(x)
 
-    V = dolfinx.fem.FunctionSpace(mesh, ('CG', poly_o))
+    V = dolfinx.fem.functionspace(mesh, ('CG', poly_o))
     u, v = ufl.TrialFunction(V), ufl.TestFunction(V)
     a = ufl.inner(ufl.grad(u), ufl.grad(v))*ufl.dx
     L = ufl.inner(f, v) * ufl.dx
@@ -110,7 +110,9 @@ for it in range(1, 6):
     bc = create_bc(V)
 
     problem = dolfinx.fem.petsc.LinearProblem(
-        a, L, bcs=[bc], petsc_options={"ksp_type": "preonly",
+        a, L, bcs=[bc],
+        petsc_options_prefix=f"dwr_poisson_nonlinear_{it}",
+        petsc_options={"ksp_type": "preonly",
                                        "pc_type": "lu"})
     uh = problem.solve()
 

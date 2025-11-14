@@ -55,7 +55,9 @@ class NonlinearAPosterioriEstimator:
             petsc_options = {"ksp_type": "preonly",
                              "pc_type": "lu"}
         problem = dolfinx.fem.petsc.LinearProblem(
-            dual_M, dual_j, bcs=self.bcs_star, petsc_options=petsc_options)
+            dual_M, dual_j, bcs=self.bcs_star,
+            petsc_options_prefix=f"nonlinear_a_posteriori_estimator_{id(self)}",
+            petsc_options=petsc_options)
         z_s = problem.solve()
 
         return z_s
@@ -64,7 +66,7 @@ class NonlinearAPosterioriEstimator:
         # Evaluate the residual in the enriched space
         v = self.F.arguments()[0]
 
-        DG0 = dolfinx.fem.FunctionSpace(self.V_star.mesh, ("DG", 0))
+        DG0 = dolfinx.fem.functionspace(self.V_star.mesh, ("DG", 0))
         dg_0 = ufl.TestFunction(DG0)
 
         dwr = ufl.replace(self.F, {v: z*dg_0})

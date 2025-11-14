@@ -29,7 +29,7 @@ class ConvergenceTest:
 
         run_count = 0
         for mesh in self.meshes:
-            V = dolfinx.fem.FunctionSpace(mesh, self.element)
+            V = dolfinx.fem.functionspace(mesh, self.element)
             u, v = dolfinx.fem.Function(V), ufl.TestFunction(V)
             gD = self.u_soln(V)
             F = self.generate_form(mesh, V, u, v)
@@ -49,7 +49,7 @@ class ConvergenceTest:
                              J=dolfinx.fem.petsc.create_matrix(J))
             snes.setTolerances(rtol=1e-14, atol=1e-14)
 
-            snes.solve(None, u.vector)
+            snes.solve(None, u.x.petsc_vec)
 
             error0[run_count] = self.compute_error_norm0(gD, u)
 
@@ -74,5 +74,6 @@ class ConvergenceTest:
         return l2error_u
 
     def check_norm0_rates(self, rate0):
-        expected_rate = float(self.element.degree() + 1)
+        e_meta = dolfinx.fem.ElementMetaData(*self.element)
+        expected_rate = float(e_meta.degree + 1)
         assert rate0[0] > expected_rate - self.TOL

@@ -106,11 +106,12 @@ class StreamFunction(convergence.ConvergenceTest):
         return dolfin_dg.primal.simple.streamfunction(u, v, self.mu)
 
     def generate_form(self, mesh, V, u, v):
+        e_meta = dolfinx.fem.ElementMetaData(*self.element)
         u_soln = self.u_soln(V)
         fos = self.generate_fos(u, v)
 
         h = ufl.CellDiameter(mesh)
-        p = self.element.degree()
+        p = e_meta.degree
         alpha = dolfinx.fem.Constant(
             mesh, 10.0 * p ** (4 if p <= 2 else 6)) / h ** 3
         beta = dolfinx.fem.Constant(mesh, 10.0 * p ** 2) / h
@@ -163,17 +164,17 @@ class Triharmonic(convergence.ConvergenceTest):
         return F
 
 
-@pytest.mark.parametrize("problem,element,p,cell_type", [
-    (Advection, ufl.FiniteElement, 1, dolfinx.mesh.CellType.triangle),
-    (Diffusion, ufl.FiniteElement, 1, dolfinx.mesh.CellType.triangle),
-    (VectorDiffusion, ufl.VectorElement, 1, dolfinx.mesh.CellType.triangle),
-    (Maxwell, ufl.VectorElement, 1, dolfinx.mesh.CellType.triangle),
-    (StreamFunction, ufl.FiniteElement, 3, dolfinx.mesh.CellType.triangle),
-    (Biharmonic, ufl.FiniteElement, 3, dolfinx.mesh.CellType.quadrilateral),
+@pytest.mark.parametrize("problem,dim,p,cell_type", [
+    (Advection, (), 1, dolfinx.mesh.CellType.triangle),
+    (Diffusion, (), 1, dolfinx.mesh.CellType.triangle),
+    (VectorDiffusion, (2,), 1, dolfinx.mesh.CellType.triangle),
+    (Maxwell, (2,), 1, dolfinx.mesh.CellType.triangle),
+    (StreamFunction, (), 3, dolfinx.mesh.CellType.triangle),
+    (Biharmonic, (), 3, dolfinx.mesh.CellType.quadrilateral),
     # TODO: Mark triharmonic as slow
     # (Triharmonic, ufl.FiniteElement, 4, dolfinx.mesh.CellType.quadrilateral),
 ])
-def test_first_order_simple(cell_type, p, problem, element):
+def test_first_order_simple(cell_type, p, problem, dim):
     meshes = [
         dolfinx.mesh.create_unit_square(
             MPI.COMM_WORLD, 8, 8, cell_type=cell_type),
@@ -182,7 +183,7 @@ def test_first_order_simple(cell_type, p, problem, element):
         dolfinx.mesh.create_unit_square(
             MPI.COMM_WORLD, 20, 20, cell_type=cell_type)
     ]
-    problem(meshes, element("DG", meshes[0].ufl_cell(), p)).run_test()
+    problem(meshes, ("DG", p, dim)).run_test()
 
 
 class CompressibleEuler(convergence.ConvergenceTest):

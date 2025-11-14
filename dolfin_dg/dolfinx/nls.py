@@ -28,19 +28,19 @@ class NonlinearPDE_SNESProblem():
         with F.localForm() as f_local:
             f_local.set(0.0)
         dolfinx.fem.petsc.assemble_vector(F, self.L)
-        dolfinx.fem.apply_lifting(
-            F, [self.a], bcs=[self.bcs], x0=[x], scale=-1.0)
+        dolfinx.fem.petsc.apply_lifting(
+            F, [self.a], bcs=[self.bcs], x0=[x], alpha=-1.0)
+        dolfinx.fem.petsc.set_bc(F, self.bcs, x, 1.0)
         F.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-        dolfinx.fem.set_bc(F, self.bcs, x, -1.0)
 
     def J_mono(self, snes, x, J, P):
         J.zeroEntries()
-        dolfinx.fem.petsc.assemble_matrix(J, self.a, bcs=self.bcs, diagonal=1.0)
+        dolfinx.fem.petsc.assemble_matrix(J, self.a, bcs=self.bcs)
         J.assemble()
         if self.a_precon is not None:
             P.zeroEntries()
             dolfinx.fem.petsc.assemble_matrix(
-                P, self.a_precon, bcs=self.bcs, diagonal=1.0)
+                P, self.a_precon, bcs=self.bcs)
             P.assemble()
 
     def F_block(self, snes, x, F):
