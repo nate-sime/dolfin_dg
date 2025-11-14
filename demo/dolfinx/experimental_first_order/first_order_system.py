@@ -38,7 +38,7 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
 
         if problem_id == 1:
             # -- Scalar Poisson
-            V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+            V = dolfinx.fem.functionspace(mesh, ('DG', p))
             v = ufl.TestFunction(V)
 
             u = dolfinx.fem.Function(V, name="u")
@@ -71,7 +71,7 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
                               u_soln)
         elif problem_id == 2:
             # -- Vector Poisson
-            V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
+            V = dolfinx.fem.functionspace(mesh, ('DG', p, (mesh.geometry.dim,)))
             v = ufl.TestFunction(V)
 
             u = dolfinx.fem.Function(V, name="u")
@@ -105,7 +105,7 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
                               u_soln)
         elif problem_id == 3:
             # -- Maxwell
-            V = dolfinx.fem.VectorFunctionSpace(mesh, ('DG', p))
+            V = dolfinx.fem.functionspace(mesh, ('DG', p, (mesh.geometry.dim,)))
             v = ufl.TestFunction(V)
 
             u = dolfinx.fem.Function(V, name="u")
@@ -140,7 +140,7 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
                               u_soln)
         elif problem_id == 4:
             # -- Biharmonic
-            V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+            V = dolfinx.fem.functionspace(mesh, ('DG', p))
             v = ufl.TestFunction(V)
 
             u = dolfinx.fem.Function(V, name="u")
@@ -187,7 +187,7 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
                               u_soln)
         elif problem_id == 5:
             # -- Biharmonic
-            V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+            V = dolfinx.fem.functionspace(mesh, ('DG', p))
             v = ufl.TestFunction(V)
 
             u = dolfinx.fem.Function(V, name="u")
@@ -235,7 +235,7 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
                               u_soln)
         elif problem_id == 6:
             # -- Triharmonic
-            V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+            V = dolfinx.fem.functionspace(mesh, ('DG', p))
             v = ufl.TestFunction(V)
 
             u = dolfinx.fem.Function(V, name="u")
@@ -294,7 +294,7 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
                               u_soln)
         elif problem_id == 7:
             # -- Advection diffusion
-            V = dolfinx.fem.FunctionSpace(mesh, ('DG', p))
+            V = dolfinx.fem.functionspace(mesh, ('DG', p))
             v = ufl.TestFunction(V)
 
             u = dolfinx.fem.Function(V, name="u")
@@ -390,7 +390,7 @@ for problem_id in [1, 2, 3, 4, 5, 6, 7]:
         snes.setJacobian(problem.J_mono, J=dolfinx.fem.petsc.create_matrix(J))
         snes.setTolerances(rtol=1e-14, atol=1e-14)
 
-        snes.solve(None, u.vector)
+        snes.solve(None, u.x.petsc_vec)
         if mesh.comm.rank == 0:
             pprint(f"SNES converged: {snes.getConvergedReason()}")
             pprint(f"KSP converged: {snes.getKSP().getConvergedReason()}")
